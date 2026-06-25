@@ -9,7 +9,8 @@ const envSchema = z.object({
   // this secret. shares.ts also signs/verifies its own share-link tokens with it.
   JWT_SECRET: z.string().min(32, 'JWT_SECRET must be at least 32 chars'),
   // Shared secret the Telegram bot presents (x-api-key) to call /bot/* routes.
-  BOT_SERVICE_KEY: z.string().min(32, 'BOT_SERVICE_KEY must be at least 32 chars'),
+  // Optional — bot runs in a separate repo (TodoAPP_BOT).
+  BOT_SERVICE_KEY: z.string().min(32, 'BOT_SERVICE_KEY must be at least 32 chars').optional(),
   CORS_ORIGIN: z.string().default('*').transform((val) => {
     if (val === '*') return val;
     return val.split(',').map(s => s.trim());
