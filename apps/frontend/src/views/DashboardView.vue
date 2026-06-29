@@ -152,7 +152,12 @@
               @blur="updateTask(task)"
               @keydown.enter="($event.target as HTMLElement).blur()"
             />
-            <span v-if="task.scheduledAt" class="text-[12px] text-[#8e8e93] mt-1">{{ new Date(task.scheduledAt).toLocaleDateString() }}</span>
+            <div class="flex items-center gap-2 mt-1" v-if="task.scheduledAt || tasksStore.searchQuery.trim()">
+              <span v-if="task.scheduledAt" class="text-[12px] text-[#8e8e93]">{{ new Date(task.scheduledAt).toLocaleDateString() }}</span>
+              <span v-if="tasksStore.searchQuery.trim()" class="text-[10px] bg-[#2c2c2e] text-[#8e8e93] px-1.5 py-0.5 rounded font-medium">
+                {{ getTaskGroupName(task.groupId) }}
+              </span>
+            </div>
           </div>
 
           <div class="flex items-center gap-3 opacity-0 group-hover:opacity-100 transition-opacity">
@@ -258,6 +263,12 @@ const groupColors = [
 ];
 function getGroupColor(idx: number) {
   return groupColors[idx % groupColors.length];
+}
+
+function getTaskGroupName(groupId?: string) {
+  if (!groupId) return 'No List';
+  const g = groups.value.find((g: any) => g.id === groupId);
+  return g ? g.name : 'No List';
 }
 
 const headerTitle = computed(() => {
