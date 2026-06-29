@@ -2,6 +2,14 @@ import { createApp } from './app';
 import { env } from '@todoapp/services';
 
 async function main() {
+  // Last-resort safety net: a stray promise rejection outside the request
+  // lifecycle should be logged, not allowed to kill the process. Express
+  // route errors are already handled by the error middleware in app.ts.
+  process.on('unhandledRejection', (reason) => {
+    // eslint-disable-next-line no-console
+    console.error('Unhandled promise rejection:', reason);
+  });
+
   const app = createApp();
   const server = app.listen(env.PORT, '0.0.0.0', () => {
     // eslint-disable-next-line no-console

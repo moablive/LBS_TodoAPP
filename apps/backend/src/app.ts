@@ -1,3 +1,8 @@
+// Must be imported before any router is defined: it patches Express 4 so that
+// rejections thrown inside `async` route handlers are forwarded to the error
+// middleware below instead of becoming an unhandledRejection that crashes the
+// whole process (which previously turned a single bad query into a 502 outage).
+import 'express-async-errors';
 import cors from 'cors';
 import express from 'express';
 import helmet from 'helmet';
