@@ -107,11 +107,6 @@
     <main class="flex-1 flex flex-col bg-[#1c1c1e] p-6 sm:p-10 relative">
       <!-- Search fake bar -->
       <div class="absolute top-4 right-4 flex items-center gap-4">
-        <div class="flex items-center gap-3 text-white/70 hover:text-white transition-colors cursor-pointer">
-          <ArrowUpOnSquareIcon class="w-5 h-5" />
-          <ListBulletIcon class="w-5 h-5" />
-          <PlusIcon class="w-5 h-5" />
-        </div>
         <div class="bg-white/10 rounded-md px-3 py-1 flex items-center gap-2 border border-white/5 w-64">
           <MagnifyingGlassIcon class="w-4 h-4 text-[#8e8e93]" />
           <input type="text" placeholder="Search" class="bg-transparent border-none outline-none text-[13px] text-white placeholder-[#8e8e93] w-full" />
@@ -228,8 +223,6 @@ import {
   ClockIcon, 
   ListBulletIcon,
   PlusCircleIcon,
-  PlusIcon,
-  ArrowUpOnSquareIcon,
   MagnifyingGlassIcon,
   ArrowRightOnRectangleIcon
 } from '@heroicons/vue/24/outline';
