@@ -65,7 +65,7 @@ Organize suas tarefas em grupos personalizados (ex: Trabalho, Pessoal, Estudos).
 Agende tarefas para datas específicas. O filtro **Hoje** mostra apenas o que precisa ser feito no dia atual.
 
 ### 🔐 Autenticação
-Autenticação centralizada via **LoginHUB** (IDP). JWT Bearer token com auth guard em todas as rotas protegidas.
+Autenticação centralizada via **LoginHUB** (IDP). JWT Bearer token com auth guard em todas as rotas protegidas. Inclui fluxo inteligente para troca obrigatória de senha no primeiro acesso (`requirePasswordChange`).
 
 </td>
 </tr>
@@ -79,7 +79,8 @@ Autenticação centralizada via **LoginHUB** (IDP). JWT Bearer token com auth gu
 ⚡ **Filtros Inteligentes** &nbsp;·&nbsp;
 📱 **PWA Instalável** &nbsp;·&nbsp;
 🎯 **Empty States com CTAs** &nbsp;·&nbsp;
-✨ **Micro-animações**
+✨ **Micro-animações** &nbsp;·&nbsp;
+🪟 **Modais Customizados em Vue**
 
 </p>
 
