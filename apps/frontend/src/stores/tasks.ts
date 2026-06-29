@@ -39,6 +39,16 @@ export const useTasksStore = defineStore('tasks', {
     },
     setSearchQuery(query: string) {
       this.searchQuery = query;
+    },
+    async reorderGroups(newGroups: TaskGroupDto[]) {
+      const originalGroups = [...this.groups];
+      this.groups = newGroups; // optimistic update
+      try {
+        await api.post('/groups/reorder', { groupIds: newGroups.map(g => g.id) });
+      } catch (err) {
+        this.groups = originalGroups; // rollback
+        console.error(err);
+      }
     }
   },
   getters: {

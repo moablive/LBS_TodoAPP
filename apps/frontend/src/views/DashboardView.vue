@@ -77,9 +77,17 @@
               v-for="(group, idx) in groups" 
               :key="group.id" 
               @click="setFilter(group.id)"
+              draggable="true"
+              @dragstart="onDragStart(idx, $event)"
+              @dragover.prevent="onDragOver(idx, $event)"
+              @dragleave="onDragLeave(idx, $event)"
+              @drop="onDrop(idx, $event)"
+              @dragend="onDragEnd"
               :class="[
                 'flex items-center justify-between py-2 px-3 rounded-lg cursor-pointer transition-colors',
-                filter === group.id ? 'bg-[#0a7aff] text-white' : 'hover:bg-white/10 text-white'
+                filter === group.id ? 'bg-[#0a7aff] text-white' : 'hover:bg-white/10 text-white',
+                draggedOverIndex === idx ? 'ring-2 ring-[#0a7aff] bg-white/5' : '',
+                draggedIndex === idx ? 'opacity-50' : ''
               ]"
             >
               <div class="flex items-center gap-3">
@@ -243,6 +251,44 @@ const newTaskDescription = ref('');
 
 const isAddGroupModalOpen = ref(false);
 const newGroupName = ref('');
+
+const draggedIndex = ref<number | null>(null);
+const draggedOverIndex = ref<number | null>(null);
+
+function onDragStart(idx: number, event: DragEvent) {
+  draggedIndex.value = idx;
+  if (event.dataTransfer) {
+    event.dataTransfer.effectAllowed = 'move';
+  }
+}
+
+function onDragOver(idx: number, event: DragEvent) {
+  draggedOverIndex.value = idx;
+}
+
+function onDragLeave(idx: number, event: DragEvent) {
+  if (draggedOverIndex.value === idx) {
+    draggedOverIndex.value = null;
+  }
+}
+
+async function onDrop(idx: number, event: DragEvent) {
+  const fromIdx = draggedIndex.value;
+  draggedOverIndex.value = null;
+  draggedIndex.value = null;
+
+  if (fromIdx !== null && fromIdx !== idx) {
+    const newGroups = [...groups.value];
+    const [moved] = newGroups.splice(fromIdx, 1);
+    newGroups.splice(idx, 0, moved);
+    await tasksStore.reorderGroups(newGroups);
+  }
+}
+
+function onDragEnd() {
+  draggedIndex.value = null;
+  draggedOverIndex.value = null;
+}
 
 onMounted(() => {
   tasksStore.fetchAll();
