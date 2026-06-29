@@ -8,6 +8,7 @@ export const useTasksStore = defineStore('tasks', {
     groups: [] as TaskGroupDto[],
     isLoading: false,
     selectedFilter: 'today', // today, scheduled, all, flagged, completed, urgent, or group_id
+    searchQuery: '',
   }),
   actions: {
     async fetchAll() {
@@ -35,10 +36,18 @@ export const useTasksStore = defineStore('tasks', {
     },
     setFilter(filterId: string) {
       this.selectedFilter = filterId;
+    },
+    setSearchQuery(query: string) {
+      this.searchQuery = query;
     }
   },
   getters: {
     filteredTasks(state) {
+      if (state.searchQuery.trim()) {
+        const query = state.searchQuery.toLowerCase();
+        return state.tasks.filter(t => t.description.toLowerCase().includes(query));
+      }
+
       return state.tasks.filter(t => {
         if (state.selectedFilter === 'all') return !t.completedAt;
         if (state.selectedFilter === 'completed') return !!t.completedAt;

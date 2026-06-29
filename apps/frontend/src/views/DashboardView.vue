@@ -109,7 +109,12 @@
       <div class="absolute top-4 right-4 flex items-center gap-4">
         <div class="bg-white/10 rounded-md px-3 py-1 flex items-center gap-2 border border-white/5 w-64">
           <MagnifyingGlassIcon class="w-4 h-4 text-[#8e8e93]" />
-          <input type="text" placeholder="Search" class="bg-transparent border-none outline-none text-[13px] text-white placeholder-[#8e8e93] w-full" />
+          <input 
+            v-model="tasksStore.searchQuery"
+            type="text" 
+            placeholder="Search" 
+            class="bg-transparent border-none outline-none text-[13px] text-white placeholder-[#8e8e93] w-full" 
+          />
         </div>
       </div>
 
@@ -256,6 +261,8 @@ function getGroupColor(idx: number) {
 }
 
 const headerTitle = computed(() => {
+  if (tasksStore.searchQuery.trim()) return 'Search Results';
+  
   switch (filter.value) {
     case 'today': return 'Today';
     case 'scheduled': return 'Scheduled';
@@ -268,6 +275,8 @@ const headerTitle = computed(() => {
 });
 
 const headerColor = computed(() => {
+  if (tasksStore.searchQuery.trim()) return 'text-white';
+  
   switch (filter.value) {
     case 'today': return 'text-[#0a7aff]';
     case 'scheduled': return 'text-[#ff3b30]';
