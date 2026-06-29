@@ -9,9 +9,30 @@ import { eq } from 'drizzle-orm';
 
 export const apiRouter = Router();
 
-apiRouter.use('/auth', async (req, res) => {
-  // dummy login for loginhub just to ensure user exists
-  res.json({ ok: true });
+apiRouter.post('/auth/login', async (req, res) => {
+  const { email, password } = req.body;
+  if (!email || !password) {
+    return res.status(400).json({ error: 'Email e senha são obrigatórios' });
+  }
+  
+  try {
+    const loginhubUrl = process.env.VITE_LOGINHUB_API_URL || process.env.LOGINHUB_API_URL || 'https://api-auth.astralwavelabel.com/api';
+    const response = await fetch(`${loginhubUrl}/auth/login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, password, app_id: Number(process.env.LOGINHUB_APP_ID) || 4 })
+    });
+    
+    const data = await response.json();
+    if (!response.ok) {
+       return res.status(response.status).json(data);
+    }
+    
+    return res.json(data);
+  } catch (error) {
+    console.error('Erro no proxy de auth:', error);
+    return res.status(500).json({ error: 'Erro ao conectar ao LoginHUB' });
+  }
 });
 
 apiRouter.use(requireAuth);
@@ -19,10 +40,10 @@ apiRouter.use(async (req, res, next) => {
   // auto-create user_settings if not exists
   if (req.user) {
     const existing = await db.query.userSettings.findFirst({
-      where: eq(schema.userSettings.loginhubId, req.user.id),
+      where: eq(schema.userSettings.loginhubId, req.user.loginhubId),
     });
     if (!existing) {
-      await db.insert(schema.userSettings).values({ loginhubId: req.user.id }).onConflictDoNothing();
+      await db.insert(schema.userSettings).values({ loginhubId: req.user.loginhubId }).onConflictDoNothing();
     }
   }
   next();
