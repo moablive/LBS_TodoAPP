@@ -140,9 +140,19 @@
 
       <div class="flex-1 overflow-y-auto custom-scrollbar pr-2 -mx-2 px-2">
         <div 
-          v-for="task in filteredTasks" 
+          v-for="(task, idx) in filteredTasks" 
           :key="task.id"
-          class="group flex items-start gap-3 py-3 border-b border-[#2c2c2e] last:border-0 relative"
+          draggable="true"
+          @dragstart="onTaskDragStart(idx, $event)"
+          @dragover.prevent="onTaskDragOver(idx, $event)"
+          @dragleave="onTaskDragLeave(idx, $event)"
+          @drop="onTaskDrop(idx, $event)"
+          @dragend="onTaskDragEnd"
+          class="group flex items-start gap-3 py-3 border-b border-[#2c2c2e] last:border-0 relative transition-all"
+          :class="[
+            draggedOverTaskIndex === idx ? 'bg-white/5 ring-1 ring-[#0a7aff] rounded-lg' : '',
+            draggedTaskIndex === idx ? 'opacity-50' : ''
+          ]"
         >
           <button 
             @click="tasksStore.toggleComplete(task)"
@@ -263,6 +273,9 @@ const newGroupName = ref('');
 const draggedIndex = ref<number | null>(null);
 const draggedOverIndex = ref<number | null>(null);
 
+const draggedTaskIndex = ref<number | null>(null);
+const draggedOverTaskIndex = ref<number | null>(null);
+
 function onDragStart(idx: number, event: DragEvent) {
   draggedIndex.value = idx;
   if (event.dataTransfer) {
@@ -296,6 +309,38 @@ async function onDrop(idx: number, event: DragEvent) {
 function onDragEnd() {
   draggedIndex.value = null;
   draggedOverIndex.value = null;
+}
+
+function onTaskDragStart(idx: number, event: DragEvent) {
+  draggedTaskIndex.value = idx;
+  if (event.dataTransfer) {
+    event.dataTransfer.effectAllowed = 'move';
+  }
+}
+
+function onTaskDragOver(idx: number, event: DragEvent) {
+  draggedOverTaskIndex.value = idx;
+}
+
+function onTaskDragLeave(idx: number, event: DragEvent) {
+  if (draggedOverTaskIndex.value === idx) {
+    draggedOverTaskIndex.value = null;
+  }
+}
+
+async function onTaskDrop(idx: number, event: DragEvent) {
+  const fromIdx = draggedTaskIndex.value;
+  draggedOverTaskIndex.value = null;
+  draggedTaskIndex.value = null;
+
+  if (fromIdx !== null && fromIdx !== idx) {
+    await tasksStore.reorderTasks(fromIdx, idx, filteredTasks.value);
+  }
+}
+
+function onTaskDragEnd() {
+  draggedTaskIndex.value = null;
+  draggedOverTaskIndex.value = null;
 }
 
 onMounted(() => {

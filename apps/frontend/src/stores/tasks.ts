@@ -64,6 +64,7 @@ export const useTasksStore = defineStore('tasks', {
 
       const swapIdx = direction === 'up' ? idx - 1 : idx + 1;
       
+      if (!currentList[idx] || !currentList[swapIdx]) return;
       // Swap order values
       const temp = currentList[idx].order;
       currentList[idx].order = currentList[swapIdx].order;
@@ -86,6 +87,39 @@ export const useTasksStore = defineStore('tasks', {
       } catch (err) {
         console.error(err);
         await this.fetchAll(); // rollback
+      }
+    },
+    async reorderTasks(fromIdx: number, toIdx: number, currentList: TaskDto[]) {
+      if (fromIdx === toIdx) return;
+      
+      const newTasksList = [...currentList];
+      const [moved] = newTasksList.splice(fromIdx, 1);
+      if (!moved) return;
+      newTasksList.splice(toIdx, 0, moved);
+      
+      // Update the order sequentially based on the new visual list
+      newTasksList.forEach((t, i) => {
+        t.order = i;
+      });
+      
+      const movedTaskIds = newTasksList.map(t => t.id);
+
+      // We need to update the main tasks state so it's reflected immediately
+      const taskMap = new Map(newTasksList.map(t => [t.id, t.order]));
+      
+      this.tasks = this.tasks.map(t => {
+        if (taskMap.has(t.id)) {
+          return { ...t, order: taskMap.get(t.id)! };
+        }
+        return t;
+      });
+
+      // Now send API request
+      try {
+        await api.post('/tasks/reorder', { taskIds: movedTaskIds });
+      } catch (err) {
+        console.error(err);
+        await this.fetchAll();
       }
     }
   },

@@ -53,7 +53,7 @@
 <td width="50%">
 
 ### 📋 Tarefas
-CRUD completo de tarefas com descrição, agendamento (`scheduledAt`), marcação como **concluída**, **flagged** (destaque) e **urgente**. Filtros inteligentes por: Hoje, Agendadas, Todas, Flagged, Urgentes e Concluídas.
+CRUD completo de tarefas com descrição, agendamento (`scheduledAt`), marcação como **concluída**, **flagged** (destaque) e **urgente**. Filtros inteligentes por: Hoje, Agendadas, Todas, Flagged, Urgentes e Concluídas. Reordenação livre de tarefas via **Drag-and-Drop**.
 
 ### 📂 Grupos
 Organize suas tarefas em grupos personalizados (ex: Trabalho, Pessoal, Estudos). Cada grupo exibe a contagem de tarefas pendentes na sidebar.

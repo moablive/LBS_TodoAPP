@@ -8,7 +8,7 @@ import crypto from 'crypto';
 export const tasksRouter = Router();
 
 // Middleware to ensure user has telegramId linked and pass it as req.telegramId
-tasksRouter.use(async (req, res, next) => {
+tasksRouter.use(async (req, _res, next) => {
   const user = await db.query.userSettings.findFirst({
     where: eq(schema.userSettings.loginhubId, req.user!.loginhubId),
   });
