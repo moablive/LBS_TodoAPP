@@ -2,7 +2,7 @@ import { Router } from 'express';
 import { db } from '@todoapp/db';
 import { schema } from '@todoapp/db';
 import { eq, and } from 'drizzle-orm';
-import { createTaskSchema, updateTaskSchema } from '@todoapp/models';
+import { createTaskSchema, updateTaskSchema, reorderTasksSchema } from '@todoapp/models';
 import crypto from 'crypto';
 
 export const tasksRouter = Router();
@@ -25,7 +25,7 @@ tasksRouter.get('/', async (req, res) => {
   const telegramId = (req as any).telegramId;
   const tasks = await db.query.tasks.findMany({
     where: eq(schema.tasks.userId, telegramId),
-    orderBy: (tasks, { desc }) => [desc(tasks.createdAt)],
+    orderBy: (tasks, { asc, desc }) => [asc(tasks.order), desc(tasks.createdAt)],
   });
   res.json(tasks);
 });
@@ -43,6 +43,7 @@ tasksRouter.post('/', async (req, res) => {
     groupId: parsed.groupId || null,
     isFlagged: parsed.isFlagged || false,
     isUrgent: parsed.isUrgent || false,
+    order: parsed.order || 0,
   }).returning();
   
   res.status(201).json(inserted[0]);
@@ -59,6 +60,7 @@ tasksRouter.patch('/:id', async (req, res) => {
   if (parsed.completedAt !== undefined) updates.completedAt = parsed.completedAt ? new Date(parsed.completedAt) : null;
   if (parsed.isFlagged !== undefined) updates.isFlagged = parsed.isFlagged;
   if (parsed.isUrgent !== undefined) updates.isUrgent = parsed.isUrgent;
+  if (parsed.order !== undefined) updates.order = parsed.order;
 
   const updated = await db.update(schema.tasks)
     .set(updates)
@@ -73,5 +75,25 @@ tasksRouter.delete('/:id', async (req, res) => {
   const telegramId = (req as any).telegramId;
   await db.delete(schema.tasks)
     .where(and(eq(schema.tasks.id, req.params.id), eq(schema.tasks.userId, telegramId)));
+  res.status(204).send();
+});
+
+tasksRouter.post('/reorder', async (req, res) => {
+  const telegramId = (req as any).telegramId;
+  const parsed = reorderTasksSchema.parse(req.body);
+  
+  await db.transaction(async (tx) => {
+    let order = 0;
+    for (const taskId of parsed.taskIds) {
+      await tx.update(schema.tasks)
+        .set({ order })
+        .where(and(
+          eq(schema.tasks.id, taskId),
+          eq(schema.tasks.userId, telegramId)
+        ));
+      order++;
+    }
+  });
+
   res.status(204).send();
 });

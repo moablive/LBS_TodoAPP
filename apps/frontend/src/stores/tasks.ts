@@ -49,6 +49,44 @@ export const useTasksStore = defineStore('tasks', {
         this.groups = originalGroups; // rollback
         console.error(err);
       }
+    },
+    async moveTask(task: TaskDto, direction: 'up' | 'down') {
+      const currentList = this.filteredTasks;
+      const idx = currentList.findIndex(t => t.id === task.id);
+      if (idx === -1) return;
+      if (direction === 'up' && idx === 0) return;
+      if (direction === 'down' && idx === currentList.length - 1) return;
+
+      // Assign sequential orders to the current list if they are all 0 or mixed
+      currentList.forEach((t, i) => {
+        t.order = i;
+      });
+
+      const swapIdx = direction === 'up' ? idx - 1 : idx + 1;
+      
+      // Swap order values
+      const temp = currentList[idx].order;
+      currentList[idx].order = currentList[swapIdx].order;
+      currentList[swapIdx].order = temp;
+
+      // Trigger reactivity and sort
+      this.tasks = [...this.tasks].sort((a, b) => {
+        if (a.order !== b.order) return a.order - b.order;
+        return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+      });
+
+      // Get the new sorted IDs for the current view
+      const newTaskIds = currentList
+        .slice()
+        .sort((a, b) => a.order - b.order)
+        .map(t => t.id);
+
+      try {
+        await api.post('/tasks/reorder', { taskIds: newTaskIds });
+      } catch (err) {
+        console.error(err);
+        await this.fetchAll(); // rollback
+      }
     }
   },
   getters: {
@@ -76,6 +114,9 @@ export const useTasksStore = defineStore('tasks', {
 
         // Selected a group
         return t.groupId === state.selectedFilter;
+      }).sort((a, b) => {
+        if (a.order !== b.order) return a.order - b.order;
+        return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
       });
     },
     counts(state) {

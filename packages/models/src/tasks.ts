@@ -9,6 +9,7 @@ export const taskSchema = z.object({
   completedAt: z.string().nullable(),
   isFlagged: z.boolean(),
   isUrgent: z.boolean(),
+  order: z.number().int().default(0),
 });
 export type TaskDto = z.infer<typeof taskSchema>;
 
@@ -18,6 +19,7 @@ export const createTaskSchema = z.object({
   groupId: z.string().nullable().optional(),
   isFlagged: z.boolean().optional(),
   isUrgent: z.boolean().optional(),
+  order: z.number().int().optional(),
 });
 export type CreateTaskDto = z.infer<typeof createTaskSchema>;
 
@@ -28,6 +30,7 @@ export const updateTaskSchema = z.object({
   completedAt: z.string().nullable().optional(),
   isFlagged: z.boolean().optional(),
   isUrgent: z.boolean().optional(),
+  order: z.number().int().optional(),
 });
 export type UpdateTaskDto = z.infer<typeof updateTaskSchema>;
 
@@ -54,3 +57,8 @@ export const reorderGroupsSchema = z.object({
   groupIds: z.array(z.string()),
 });
 export type ReorderGroupsDto = z.infer<typeof reorderGroupsSchema>;
+
+export const reorderTasksSchema = z.object({
+  taskIds: z.array(z.string()),
+});
+export type ReorderTasksDto = z.infer<typeof reorderTasksSchema>;

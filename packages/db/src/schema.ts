@@ -44,6 +44,7 @@ export const tasks = pgTable(
     completedAt: timestamp("completed_at", { withTimezone: true }),
     isFlagged: boolean("is_flagged").default(false).notNull(),
     isUrgent: boolean("is_urgent").default(false).notNull(),
+    order: integer("order").default(0).notNull(),
   },
   (t) => ({
     userIdx: index("tasks_user_idx").on(t.userId),

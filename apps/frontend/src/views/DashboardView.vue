@@ -169,6 +169,12 @@
           </div>
 
           <div class="flex items-center gap-3 opacity-0 group-hover:opacity-100 transition-opacity">
+            <button @click="tasksStore.moveTask(task, 'up')" class="text-[#555] hover:text-white transition-colors" title="Move Up">
+              <ChevronUpIcon class="w-4 h-4" />
+            </button>
+            <button @click="tasksStore.moveTask(task, 'down')" class="text-[#555] hover:text-white transition-colors" title="Move Down">
+              <ChevronDownIcon class="w-4 h-4" />
+            </button>
             <button @click="task.isFlagged = !task.isFlagged; updateTask(task)" :class="task.isFlagged ? 'text-[#ff9500]' : 'text-[#555] hover:text-[#ff9500]'">
               <FlagIcon class="w-4 h-4" :class="{'fill-current': task.isFlagged}" />
             </button>
@@ -242,7 +248,9 @@ import {
   ListBulletIcon,
   PlusCircleIcon,
   MagnifyingGlassIcon,
-  ArrowRightOnRectangleIcon
+  ArrowRightOnRectangleIcon,
+  ChevronUpIcon,
+  ChevronDownIcon
 } from '@heroicons/vue/24/outline';
 
 const tasksStore = useTasksStore();
