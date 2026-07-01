@@ -37,6 +37,8 @@ export type UpdateTaskDto = z.infer<typeof updateTaskSchema>;
 export const taskGroupSchema = z.object({
   id: z.string(),
   name: z.string(),
+  color: z.string().nullable().optional(),
+  icon: z.string().nullable().optional(),
   order: z.number().int().default(0),
   createdAt: z.string(),
 });
@@ -44,11 +46,15 @@ export type TaskGroupDto = z.infer<typeof taskGroupSchema>;
 
 export const createTaskGroupSchema = z.object({
   name: z.string().min(1),
+  color: z.string().optional(),
+  icon: z.string().optional(),
 });
 export type CreateTaskGroupDto = z.infer<typeof createTaskGroupSchema>;
 
 export const updateTaskGroupSchema = z.object({
   name: z.string().min(1).optional(),
+  color: z.string().optional(),
+  icon: z.string().optional(),
   order: z.number().int().optional(),
 });
 export type UpdateTaskGroupDto = z.infer<typeof updateTaskGroupSchema>;

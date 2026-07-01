@@ -5,69 +5,7 @@
       <div class="p-4 flex-1 overflow-y-auto custom-scrollbar">
 
         
-        <!-- Quick Filters Grid -->
-        <div class="grid grid-cols-2 gap-3 mb-8">
-          <!-- Today -->
-          <div @click="setFilter('today')" :class="['p-3 rounded-xl cursor-pointer transition-all', filter === 'today' ? 'bg-[#0a7aff] ring-2 ring-white/10' : 'bg-[#1c1c1e] hover:bg-[#2c2c2e]']">
-            <div class="flex justify-between items-start">
-              <div class="w-8 h-8 rounded-full flex items-center justify-center text-white" :class="filter === 'today' ? 'bg-white text-[#0a7aff]' : 'bg-[#0a7aff]'">
-                <CalendarIcon class="w-5 h-5" />
-              </div>
-              <span class="text-2xl font-bold text-white">{{ counts.today }}</span>
-            </div>
-            <div class="mt-2 text-[15px] font-semibold text-white/90">Today</div>
-          </div>
-          <!-- Scheduled -->
-          <div @click="setFilter('scheduled')" :class="['p-3 rounded-xl cursor-pointer transition-all', filter === 'scheduled' ? 'bg-[#ff3b30] ring-2 ring-white/10' : 'bg-[#1c1c1e] hover:bg-[#2c2c2e]']">
-            <div class="flex justify-between items-start">
-              <div class="w-8 h-8 rounded-full flex items-center justify-center text-white" :class="filter === 'scheduled' ? 'bg-white text-[#ff3b30]' : 'bg-[#ff3b30]'">
-                <CalendarDaysIcon class="w-5 h-5" />
-              </div>
-              <span class="text-2xl font-bold text-white">{{ counts.scheduled }}</span>
-            </div>
-            <div class="mt-2 text-[15px] font-semibold text-white/90">Scheduled</div>
-          </div>
-          <!-- All -->
-          <div @click="setFilter('all')" :class="['p-3 rounded-xl cursor-pointer transition-all', filter === 'all' ? 'bg-[#3a3a3c] ring-2 ring-white/10' : 'bg-[#1c1c1e] hover:bg-[#2c2c2e]']">
-            <div class="flex justify-between items-start">
-              <div class="w-8 h-8 rounded-full flex items-center justify-center text-white" :class="filter === 'all' ? 'bg-white text-[#3a3a3c]' : 'bg-[#3a3a3c]'">
-                <InboxIcon class="w-5 h-5" />
-              </div>
-              <span class="text-2xl font-bold text-white">{{ counts.all }}</span>
-            </div>
-            <div class="mt-2 text-[15px] font-semibold text-white/90">All</div>
-          </div>
-          <!-- Flagged -->
-          <div @click="setFilter('flagged')" :class="['p-3 rounded-xl cursor-pointer transition-all', filter === 'flagged' ? 'bg-[#ff9500] ring-2 ring-white/10' : 'bg-[#1c1c1e] hover:bg-[#2c2c2e]']">
-            <div class="flex justify-between items-start">
-              <div class="w-8 h-8 rounded-full flex items-center justify-center text-white" :class="filter === 'flagged' ? 'bg-white text-[#ff9500]' : 'bg-[#ff9500]'">
-                <FlagIcon class="w-5 h-5" />
-              </div>
-              <span class="text-2xl font-bold text-white">{{ counts.flagged }}</span>
-            </div>
-            <div class="mt-2 text-[15px] font-semibold text-white/90">Flagged</div>
-          </div>
-          <!-- Completed -->
-          <div @click="setFilter('completed')" :class="['p-3 rounded-xl cursor-pointer transition-all', filter === 'completed' ? 'bg-[#636366] ring-2 ring-white/10' : 'bg-[#1c1c1e] hover:bg-[#2c2c2e]']">
-            <div class="flex justify-between items-start">
-              <div class="w-8 h-8 rounded-full flex items-center justify-center text-white" :class="filter === 'completed' ? 'bg-white text-[#636366]' : 'bg-[#636366]'">
-                <CheckIcon class="w-5 h-5" />
-              </div>
-              <span class="text-2xl font-bold text-white">{{ counts.completed }}</span>
-            </div>
-            <div class="mt-2 text-[15px] font-semibold text-white/90">Completed</div>
-          </div>
-          <!-- Urgent -->
-          <div @click="setFilter('urgent')" :class="['p-3 rounded-xl cursor-pointer transition-all', filter === 'urgent' ? 'bg-[#ff2d55] ring-2 ring-white/10' : 'bg-[#1c1c1e] hover:bg-[#2c2c2e]']">
-            <div class="flex justify-between items-start">
-              <div class="w-8 h-8 rounded-full flex items-center justify-center text-white" :class="filter === 'urgent' ? 'bg-white text-[#ff2d55]' : 'bg-[#ff2d55]'">
-                <ClockIcon class="w-5 h-5" />
-              </div>
-              <span class="text-2xl font-bold text-white">{{ counts.urgent }}</span>
-            </div>
-            <div class="mt-2 text-[15px] font-semibold text-white/90">Urgent</div>
-          </div>
-        </div>
+
 
         <!-- My Lists -->
         <div>
@@ -84,19 +22,24 @@
               @drop="onDrop(idx, $event)"
               @dragend="onDragEnd"
               :class="[
-                'flex items-center justify-between py-2 px-3 rounded-lg cursor-pointer transition-colors',
+                'group flex items-center justify-between py-2 px-3 rounded-lg cursor-pointer transition-colors',
                 filter === group.id ? 'bg-[#0a7aff] text-white' : 'hover:bg-white/10 text-white',
                 draggedOverIndex === idx ? 'ring-2 ring-[#0a7aff] bg-white/5' : '',
                 draggedIndex === idx ? 'opacity-50' : ''
               ]"
             >
               <div class="flex items-center gap-3">
-                <div class="w-[28px] h-[28px] rounded-full flex items-center justify-center text-white shadow-sm" :class="getGroupColor(idx)">
-                  <ListBulletIcon class="w-4 h-4" />
+                <div class="w-[28px] h-[28px] rounded-full flex items-center justify-center text-white shadow-sm" :class="group.color || getGroupColor(idx)">
+                  <component :is="iconMap[group.icon || 'ListBulletIcon']" class="w-4 h-4" />
                 </div>
                 <span class="text-[13px] font-medium">{{ group.name }}</span>
               </div>
-              <span class="text-[13px] font-medium" :class="filter === group.id ? 'text-white' : 'text-[#8e8e93]'">{{ counts.byGroup[group.id] || 0 }}</span>
+              <div class="flex items-center gap-2">
+                <button @click.stop="openEditGroupModal(group)" class="opacity-0 group-hover:opacity-100 text-[#555] hover:text-white transition-opacity">
+                  <span class="text-[10px] uppercase font-bold">Edit</span>
+                </button>
+                <span class="text-[13px] font-medium" :class="filter === group.id ? 'text-white' : 'text-[#8e8e93]'">{{ counts.byGroup[group.id] || 0 }}</span>
+              </div>
             </div>
           </div>
         </div>
@@ -179,17 +122,8 @@
           </div>
 
           <div class="flex items-center gap-3 opacity-0 group-hover:opacity-100 transition-opacity">
-            <button @click="tasksStore.moveTask(task, 'up')" class="text-[#555] hover:text-white transition-colors" title="Move Up">
-              <ChevronUpIcon class="w-4 h-4" />
-            </button>
-            <button @click="tasksStore.moveTask(task, 'down')" class="text-[#555] hover:text-white transition-colors" title="Move Down">
-              <ChevronDownIcon class="w-4 h-4" />
-            </button>
-            <button @click="task.isFlagged = !task.isFlagged; updateTask(task)" :class="task.isFlagged ? 'text-[#ff9500]' : 'text-[#555] hover:text-[#ff9500]'">
-              <FlagIcon class="w-4 h-4" :class="{'fill-current': task.isFlagged}" />
-            </button>
-            <button @click="task.isUrgent = !task.isUrgent; updateTask(task)" :class="task.isUrgent ? 'text-[#ff2d55]' : 'text-[#555] hover:text-[#ff2d55]'">
-              <ClockIcon class="w-4 h-4" :class="{'fill-current': task.isUrgent}" />
+            <button @click="openDatePickerModal(task)" class="text-[#555] hover:text-[#0a7aff] transition-colors flex items-center justify-center p-1" title="Set Reminder">
+              <ClockIcon class="w-5 h-5" :class="{'text-[#0a7aff]': task.scheduledAt}" />
             </button>
           </div>
         </div>
@@ -212,15 +146,31 @@
   <div v-if="isAddGroupModalOpen" class="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
     <div class="bg-[#2c2c2e] rounded-2xl shadow-2xl w-full max-w-sm overflow-hidden border border-white/10 transform transition-all">
       <div class="p-6">
-        <h2 class="text-xl font-semibold text-white mb-4">New List</h2>
+        <h2 class="text-xl font-semibold text-white mb-4">{{ editingGroupId ? 'Edit List' : 'New List' }}</h2>
         <input 
-          v-model="newGroupName"
+          v-model="newGroupData.name"
           type="text" 
           placeholder="List Name" 
-          class="w-full bg-[#1c1c1e] border border-[#3a3a3c] rounded-xl px-4 py-3 text-white placeholder-[#8e8e93] focus:outline-none focus:border-[#0a7aff] focus:ring-1 focus:ring-[#0a7aff] transition-all"
+          class="w-full bg-[#1c1c1e] border border-[#3a3a3c] rounded-xl px-4 py-3 text-white placeholder-[#8e8e93] focus:outline-none focus:border-[#0a7aff] focus:ring-1 focus:ring-[#0a7aff] transition-all mb-4"
           @keydown.enter="confirmAddGroup"
           autofocus
         />
+        
+        <div class="mb-4">
+          <label class="block text-xs font-semibold text-[#8e8e93] uppercase tracking-wider mb-2">Color</label>
+          <div class="flex gap-2">
+            <button v-for="c in groupColors" :key="c" @click="newGroupData.color = c" :class="[c, 'w-8 h-8 rounded-full border-2 transition-all', newGroupData.color === c ? 'border-white' : 'border-transparent hover:border-white/50']"></button>
+          </div>
+        </div>
+
+        <div>
+          <label class="block text-xs font-semibold text-[#8e8e93] uppercase tracking-wider mb-2">Icon</label>
+          <div class="flex gap-2">
+            <button v-for="(iconComp, iconName) in iconMap" :key="iconName" @click="newGroupData.icon = iconName" :class="['w-8 h-8 rounded-full flex items-center justify-center transition-all border border-transparent', newGroupData.icon === iconName ? 'bg-white/20 border-white/50 text-white' : 'text-[#8e8e93] hover:bg-white/10 hover:text-white']">
+              <component :is="iconComp" class="w-5 h-5" />
+            </button>
+          </div>
+        </div>
       </div>
       <div class="flex border-t border-[#3a3a3c]">
         <button 
@@ -233,8 +183,41 @@
         <button 
           @click="confirmAddGroup"
           class="flex-1 py-3.5 text-[#0a7aff] font-semibold hover:bg-white/5 transition-colors"
-          :disabled="!newGroupName.trim()"
-          :class="{ 'opacity-50 cursor-not-allowed text-[#0a7aff]/50': !newGroupName.trim() }"
+          :disabled="!newGroupData.name.trim()"
+          :class="{ 'opacity-50 cursor-not-allowed text-[#0a7aff]/50': !newGroupData.name.trim() }"
+        >
+          Save
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Date Picker Modal -->
+  <div v-if="isDatePickerModalOpen" class="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+    <div class="bg-[#2c2c2e] rounded-2xl shadow-2xl w-full max-w-sm overflow-hidden border border-white/10 transform transition-all">
+      <div class="p-6">
+        <h2 class="text-xl font-semibold text-white mb-4">Set Reminder</h2>
+        <VueDatePicker 
+          v-if="editingTaskForDate"
+          v-model="editingTaskForDate.scheduledAt" 
+          dark
+          :enable-time-picker="true"
+          inline
+          auto-apply
+          :is-24="true"
+        />
+      </div>
+      <div class="flex border-t border-[#3a3a3c]">
+        <button 
+          @click="isDatePickerModalOpen = false; editingTaskForDate = null"
+          class="flex-1 py-3.5 text-[#8e8e93] font-medium hover:bg-white/5 transition-colors"
+        >
+          Cancel
+        </button>
+        <div class="w-[1px] bg-[#3a3a3c]"></div>
+        <button 
+          @click="confirmDatePickerModal"
+          class="flex-1 py-3.5 text-[#0a7aff] font-semibold hover:bg-white/5 transition-colors"
         >
           Save
         </button>
@@ -245,22 +228,22 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue';
+import { VueDatePicker } from '@vuepic/vue-datepicker';
+import '@vuepic/vue-datepicker/dist/main.css';
 import { useTasksStore } from '@/stores/tasks';
 import { useAuthStore } from '@/stores/auth';
 import { api } from '@/api/client';
 import { 
-  CalendarIcon, 
-  CalendarDaysIcon,
-  InboxIcon, 
-  FlagIcon, 
   CheckIcon, 
   ClockIcon, 
   ListBulletIcon,
   PlusCircleIcon,
   MagnifyingGlassIcon,
   ArrowRightOnRectangleIcon,
-  ChevronUpIcon,
-  ChevronDownIcon
+  FolderIcon,
+  BriefcaseIcon,
+  ShoppingCartIcon,
+  StarIcon
 } from '@heroicons/vue/24/outline';
 
 const tasksStore = useTasksStore();
@@ -268,7 +251,24 @@ const authStore = useAuthStore();
 const newTaskDescription = ref('');
 
 const isAddGroupModalOpen = ref(false);
-const newGroupName = ref('');
+const editingGroupId = ref<string | null>(null);
+
+const isDatePickerModalOpen = ref(false);
+const editingTaskForDate = ref<any>(null);
+
+const newGroupData = ref({
+  name: '',
+  color: 'bg-[#0a7aff]',
+  icon: 'ListBulletIcon'
+});
+
+const iconMap: Record<string, any> = {
+  ListBulletIcon,
+  FolderIcon,
+  BriefcaseIcon,
+  ShoppingCartIcon,
+  StarIcon
+};
 
 const draggedIndex = ref<number | null>(null);
 const draggedOverIndex = ref<number | null>(null);
@@ -413,7 +413,8 @@ async function updateTask(task: any) {
   await api.patch(`/tasks/${task.id}`, {
     description: task.description,
     isFlagged: task.isFlagged,
-    isUrgent: task.isUrgent
+    isUrgent: task.isUrgent,
+    scheduledAt: task.scheduledAt ? new Date(task.scheduledAt).toISOString() : null
   });
 }
 
@@ -426,17 +427,53 @@ async function clearCompleted() {
 }
 
 function openAddGroupModal() {
-  newGroupName.value = '';
+  editingGroupId.value = null;
+  newGroupData.value = { name: '', color: groupColors[groups.value.length % groupColors.length], icon: 'ListBulletIcon' };
+  isAddGroupModalOpen.value = true;
+}
+
+function openEditGroupModal(group: any) {
+  editingGroupId.value = group.id;
+  newGroupData.value = { 
+    name: group.name, 
+    color: group.color || getGroupColor(groups.value.findIndex(g => g.id === group.id)),
+    icon: group.icon || 'ListBulletIcon'
+  };
   isAddGroupModalOpen.value = true;
 }
 
 async function confirmAddGroup() {
-  const name = newGroupName.value.trim();
+  const name = newGroupData.value.name.trim();
   if (name) {
-    await api.post('/groups', { name });
-    await tasksStore.fetchAll();
+    if (editingGroupId.value) {
+      await tasksStore.updateGroup(editingGroupId.value, {
+        name,
+        color: newGroupData.value.color,
+        icon: newGroupData.value.icon
+      });
+    } else {
+      await api.post('/groups', { 
+        name,
+        color: newGroupData.value.color,
+        icon: newGroupData.value.icon
+      });
+      await tasksStore.fetchAll();
+    }
   }
   isAddGroupModalOpen.value = false;
+}
+
+function openDatePickerModal(task: any) {
+  editingTaskForDate.value = task;
+  isDatePickerModalOpen.value = true;
+}
+
+function confirmDatePickerModal() {
+  if (editingTaskForDate.value) {
+    updateTask(editingTaskForDate.value);
+  }
+  isDatePickerModalOpen.value = false;
+  editingTaskForDate.value = null;
 }
 
 function logout() {

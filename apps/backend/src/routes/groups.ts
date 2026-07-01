@@ -37,6 +37,8 @@ groupsRouter.post('/', async (req, res) => {
     id,
     userId: telegramId,
     name: parsed.name,
+    color: parsed.color,
+    icon: parsed.icon,
     order: await db.query.taskGroups.findMany({ where: eq(schema.taskGroups.userId, telegramId) }).then(res => res.length),
   }).returning();
   
@@ -66,6 +68,8 @@ groupsRouter.patch('/:id', async (req, res) => {
   
   const updateData: any = {};
   if (parsed.name !== undefined) updateData.name = parsed.name;
+  if (parsed.color !== undefined) updateData.color = parsed.color;
+  if (parsed.icon !== undefined) updateData.icon = parsed.icon;
   if (parsed.order !== undefined) updateData.order = parsed.order;
 
   const updated = await db.update(schema.taskGroups)

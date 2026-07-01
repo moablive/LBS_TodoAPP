@@ -56,13 +56,13 @@
 CRUD completo de tarefas com descrição, agendamento (`scheduledAt`), marcação como **concluída**, **flagged** (destaque) e **urgente**. Filtros inteligentes por: Hoje, Agendadas, Todas, Flagged, Urgentes e Concluídas. Reordenação livre de tarefas via **Drag-and-Drop**.
 
 ### 📂 Grupos
-Organize suas tarefas em grupos personalizados (ex: Trabalho, Pessoal, Estudos). Cada grupo exibe a contagem de tarefas pendentes na sidebar.
+Organize suas tarefas em grupos personalizados (ex: Trabalho, Pessoal, Estudos). Cada grupo possui sua própria cor e ícone para fácil identificação, e exibe a contagem de tarefas pendentes na sidebar.
 
 </td>
 <td width="50%">
 
 ### 📅 Agendamento
-Agende tarefas para datas específicas. O filtro **Hoje** mostra apenas o que precisa ser feito no dia atual.
+Agende tarefas para datas e horários específicos utilizando uma interface de Modal amigável com calendário e seletor de horas. O filtro **Hoje** mostra apenas o que precisa ser feito no dia atual.
 
 ### 🔐 Autenticação
 Autenticação centralizada via **LoginHUB** (IDP). JWT Bearer token com auth guard em todas as rotas protegidas. Inclui fluxo inteligente para troca obrigatória de senha no primeiro acesso (`requirePasswordChange`).
@@ -164,6 +164,8 @@ erDiagram
     varchar id PK
     varchar user_id
     varchar name
+    varchar color
+    varchar icon
     timestamptz created_at
   }
   tasks {

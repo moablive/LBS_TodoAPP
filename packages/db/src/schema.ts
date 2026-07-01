@@ -20,6 +20,8 @@ export const taskGroups = pgTable(
     id: varchar("id", { length: 36 }).primaryKey(),
     userId: varchar("user_id", { length: 50 }).notNull(),
     name: varchar("name", { length: 120 }).notNull(),
+    color: varchar("color", { length: 20 }),
+    icon: varchar("icon", { length: 50 }),
     order: integer("order").default(0).notNull(),
     createdAt: timestamp("created_at", { withTimezone: true })
       .defaultNow()

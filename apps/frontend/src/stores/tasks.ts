@@ -28,6 +28,13 @@ export const useTasksStore = defineStore('tasks', {
       const task = await api.post<TaskDto>('/tasks', { description, groupId, isFlagged, isUrgent, scheduledAt });
       this.tasks.unshift(task);
     },
+    async updateGroup(groupId: string, data: { name?: string, color?: string, icon?: string }) {
+      const updated = await api.patch<TaskGroupDto>(`/groups/${groupId}`, data);
+      const idx = this.groups.findIndex(g => g.id === groupId);
+      if (idx !== -1) {
+        this.groups[idx] = updated;
+      }
+    },
     async toggleComplete(task: TaskDto) {
       const completedAt = task.completedAt ? null : new Date().toISOString();
       const updated = await api.patch<TaskDto>(`/tasks/${task.id}`, { completedAt });
