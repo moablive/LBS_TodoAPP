@@ -35,6 +35,13 @@ export const useTasksStore = defineStore('tasks', {
         this.groups[idx] = updated;
       }
     },
+    async deleteGroup(groupId: string) {
+      await api.delete(`/groups/${groupId}`);
+      this.groups = this.groups.filter(g => g.id !== groupId);
+      if (this.selectedFilter === groupId) {
+        this.selectedFilter = 'today';
+      }
+    },
     async toggleComplete(task: TaskDto) {
       const completedAt = task.completedAt ? null : new Date().toISOString();
       const updated = await api.patch<TaskDto>(`/tasks/${task.id}`, { completedAt });

@@ -56,7 +56,7 @@
 CRUD completo de tarefas com descrição, agendamento (`scheduledAt`), marcação como **concluída**, **flagged** (destaque) e **urgente**. Filtros inteligentes por: Hoje, Agendadas, Todas, Flagged, Urgentes e Concluídas. Reordenação livre de tarefas via **Drag-and-Drop**.
 
 ### 📂 Grupos
-Organize suas tarefas em grupos personalizados (ex: Trabalho, Pessoal, Estudos). Cada grupo possui sua própria cor e ícone para fácil identificação, e exibe a contagem de tarefas pendentes na sidebar.
+Organize suas tarefas em grupos personalizados (ex: Trabalho, Pessoal, Estudos). Cada grupo possui sua própria cor e ícone para fácil identificação, exibe a contagem de tarefas pendentes na sidebar e suporta **exclusão via modal confirmado** (sem uso do `confirm()` nativo do browser).
 
 </td>
 <td width="50%">
@@ -209,10 +209,12 @@ erDiagram
 | | `POST` | `/api/tasks` | Cria tarefa |
 | | `PATCH` | `/api/tasks/:id` | Atualiza (completar, flag, etc.) |
 | | `DELETE` | `/api/tasks/:id` | Remove tarefa |
+| | `POST` | `/api/tasks/reorder` | Reordena tarefas (drag-and-drop) |
 | 📂 **Groups** | `GET` | `/api/groups` | Lista grupos do usuário |
 | | `POST` | `/api/groups` | Cria grupo |
-| | `PATCH` | `/api/groups/:id` | Atualiza grupo |
-| | `DELETE` | `/api/groups/:id` | Remove grupo |
+| | `PATCH` | `/api/groups/:id` | Atualiza grupo (nome, cor, ícone) |
+| | `DELETE` | `/api/groups/:id` | **Remove grupo** |
+| | `POST` | `/api/groups/reorder` | Reordena grupos (drag-and-drop) |
 | ❤️ **Health** | `GET` | `/health` | Healthcheck do container |
 
 ---
@@ -265,6 +267,19 @@ pnpm dev                  # backend :3000 + frontend :5173
 | `pnpm db:generate` | 🗃️ Gera SQL das migrations a partir do schema |
 | `pnpm db:migrate` | 🚀 Aplica migrations pendentes no banco |
 | `pnpm db:studio` | 🎛️ Abre o Drizzle Studio (interface visual do DB) |
+
+---
+
+## 🤖 Telegram Bot — Rotina de Notificações
+
+O bot opera 24/7 como worker e envia mensagens automáticas nos seguintes horários (fuso `America/Sao_Paulo`):
+
+| Horário | Envio | Conteúdo |
+| ------- | ----- | -------- |
+| **08:00** | ☀️ Bom dia + prioridades | Só tarefas com prioridade **Alta** (urgentes) |
+| **09:00** | 🌅 Resumo matinal completo | Todas as tarefas agrupadas por prioridade |
+| **13:00** | ☀️ Resumo da tarde | Todas as tarefas agrupadas por prioridade |
+| **Cada minuto** | ⏰ Lembrete pontual | Tarefas cujo `scheduledAt` bate com o minuto atual |
 
 ---
 

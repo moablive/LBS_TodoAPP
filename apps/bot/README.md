@@ -54,7 +54,10 @@ O projeto foi projetado para rodar na infraestrutura Docker via `docker-compose`
 ## Atualizações Recentes 🆕
 
 - **Assistente de Criação Melhorado**: A inserção manual de data e hora para as tarefas agora é feita em dois passos separados e amigáveis, facilitando o uso sem precisar lembrar do formato ISO (suporta formatos como `25/12/2026`, `hoje`, `amanhã`, `14:30`).
-- **Resumo Diário de Tarefas**: Foi implementado um novo cron job que envia, automaticamente, um resumo das suas tarefas pendentes todos os dias às 08:00 e às 13:00 (Fuso horário de SP), ajudando no planejamento diário.
+- **Resumo Diário de Tarefas (3 envios)**: Rotina automática com 3 horários fixos:
+  - **08:00** ☀️ — Bom dia personalizado + apenas tarefas **prioritárias** (urgentes/alto)
+  - **09:00** 🌅 — Resumo completo matinal com todas as tarefas por prioridade
+  - **13:00** ☀️ — Resumo da tarde com todas as tarefas por prioridade
 - **Numeração de Tarefas**: Substituição da exibição de GUIDs por ícones numéricos (1️⃣, 2️⃣, etc.) na listagem geral. A contagem reinicia para cada lista separadamente, mantendo a consistência com o assistente interativo de conclusão de tarefas.
 - **Tratamento de Erro de IA**: Melhoria no pipeline de transcrição de voz. O sistema agora retorna a mensagem de erro exata (ex: problemas no Ollama local) em vez de mensagens genéricas relacionadas à Groq API.
 - **Notificações de Tarefas**: O bot do Telegram agora inclui a data e hora formatadas na notificação de tarefas agendadas, garantindo que o usuário saiba exatamente quando a demanda deveria ocorrer.

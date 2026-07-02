@@ -209,6 +209,15 @@
         >
           Cancel
         </button>
+        <template v-if="editingGroupId">
+          <div class="w-[1px] bg-[#3a3a3c]"></div>
+          <button 
+            @click="confirmDeleteGroup"
+            class="flex-1 py-3.5 text-[#ff3b30] font-semibold hover:bg-white/5 transition-colors"
+          >
+            Delete
+          </button>
+        </template>
         <div class="w-[1px] bg-[#3a3a3c]"></div>
         <button 
           @click="confirmAddGroup"
@@ -294,6 +303,30 @@
       </div>
     </div>
   </div>
+  <!-- Delete Group Modal -->
+  <div v-if="isDeleteGroupModalOpen" class="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[60] p-4">
+    <div class="bg-[#2c2c2e] rounded-2xl shadow-2xl w-full max-w-sm overflow-hidden border border-white/10 transform transition-all">
+      <div class="p-6">
+        <h2 class="text-xl font-semibold text-white mb-2">Delete List</h2>
+        <p class="text-[14px] text-[#8e8e93]">Are you sure you want to delete this list and all its tasks? This action cannot be undone.</p>
+      </div>
+      <div class="flex border-t border-[#3a3a3c]">
+        <button 
+          @click="isDeleteGroupModalOpen = false"
+          class="flex-1 py-3.5 text-[#8e8e93] font-medium hover:bg-white/5 transition-colors"
+        >
+          Cancel
+        </button>
+        <div class="w-[1px] bg-[#3a3a3c]"></div>
+        <button 
+          @click="executeDeleteGroup"
+          class="flex-1 py-3.5 text-[#ff3b30] font-semibold hover:bg-white/5 transition-colors"
+        >
+          Delete
+        </button>
+      </div>
+    </div>
+  </div>
 </template>
 
 <script setup lang="ts">
@@ -331,6 +364,7 @@ const authStore = useAuthStore();
 const newTaskDescription = ref('');
 
 const isAddGroupModalOpen = ref(false);
+const isDeleteGroupModalOpen = ref(false);
 const editingGroupId = ref<string | null>(null);
 
 const isDatePickerModalOpen = ref(false);
@@ -560,6 +594,18 @@ async function confirmAddGroup() {
       await tasksStore.fetchAll();
     }
   }
+  isAddGroupModalOpen.value = false;
+}
+
+function confirmDeleteGroup() {
+  if (!editingGroupId.value) return;
+  isDeleteGroupModalOpen.value = true;
+}
+
+async function executeDeleteGroup() {
+  if (!editingGroupId.value) return;
+  await tasksStore.deleteGroup(editingGroupId.value);
+  isDeleteGroupModalOpen.value = false;
   isAddGroupModalOpen.value = false;
 }
 
