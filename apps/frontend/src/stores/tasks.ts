@@ -24,8 +24,8 @@ export const useTasksStore = defineStore('tasks', {
         this.isLoading = false;
       }
     },
-    async addTask(description: string, groupId?: string, isFlagged?: boolean, isUrgent?: boolean, scheduledAt?: string) {
-      const task = await api.post<TaskDto>('/tasks', { description, groupId, isFlagged, isUrgent, scheduledAt });
+    async addTask(description: string, groupId?: string, isFlagged?: boolean, isUrgent?: boolean, scheduledAt?: string, priority: 'low'|'medium'|'high' = 'low') {
+      const task = await api.post<TaskDto>('/tasks', { description, groupId, isFlagged, isUrgent, scheduledAt, priority });
       this.tasks.unshift(task);
     },
     async updateGroup(groupId: string, data: { name?: string, color?: string, icon?: string }) {

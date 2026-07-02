@@ -29,8 +29,13 @@
               ]"
             >
               <div class="flex items-center gap-3">
-                <div class="w-[28px] h-[28px] rounded-full flex items-center justify-center text-white shadow-sm" :class="group.color || getGroupColor(idx)">
-                  <component :is="iconMap[group.icon || 'ListBulletIcon']" class="w-4 h-4" />
+                <div class="w-[28px] h-[28px] rounded-full flex items-center justify-center text-white shadow-sm overflow-hidden" :class="group.color || getGroupColor(idx)">
+                  <template v-if="group.icon && (group.icon.startsWith('http') || group.icon.startsWith('data:'))">
+                    <img :src="group.icon" class="w-full h-full object-cover" />
+                  </template>
+                  <template v-else>
+                    <component :is="iconMap[group.icon || 'ListBulletIcon']" class="w-4 h-4" />
+                  </template>
                 </div>
                 <span class="text-[13px] font-medium">{{ group.name }}</span>
               </div>
@@ -106,11 +111,24 @@
           </button>
           
           <div class="flex-1 flex flex-col">
+            <div v-if="editingTaskId !== task.id"
+                 class="text-[14px] truncate w-full flex items-center gap-2"
+                 :class="{ 'text-[#8e8e93] line-through': task.completedAt }">
+              <template v-if="task.description.startsWith('http')">
+                <a :href="task.description" target="_blank" class="text-blue-400 hover:underline truncate max-w-[200px] sm:max-w-xs" @click.stop>🔗 {{ getDomain(task.description) }}</a>
+                <span class="text-xs text-[#555] hover:text-white cursor-pointer ml-1" @click="editingTaskId = task.id">✎</span>
+              </template>
+              <template v-else>
+                <span class="cursor-text truncate w-full" @click="editingTaskId = task.id">{{ task.description }}</span>
+              </template>
+            </div>
             <input 
+              v-else
+              :id="'task-input-' + task.id"
               v-model="task.description"
-              class="bg-transparent outline-none text-[14px]"
+              class="bg-transparent outline-none text-[14px] w-full"
               :class="{ 'text-[#8e8e93] line-through': task.completedAt }"
-              @blur="updateTask(task)"
+              @blur="editingTaskId = null; updateTask(task)"
               @keydown.enter="($event.target as HTMLElement).blur()"
             />
             <div class="flex items-center gap-2 mt-1" v-if="task.scheduledAt || tasksStore.searchQuery.trim()">
@@ -122,6 +140,9 @@
           </div>
 
           <div class="flex items-center gap-3 opacity-0 group-hover:opacity-100 transition-opacity">
+            <button @click="openPriorityModal(task)" class="text-[#555] hover:text-white transition-colors flex items-center justify-center p-1" title="Set Priority">
+              <FlagIcon class="w-5 h-5" :class="getPriorityTextColor(task.priority)" />
+            </button>
             <button @click="openDatePickerModal(task)" class="text-[#555] hover:text-[#0a7aff] transition-colors flex items-center justify-center p-1" title="Set Reminder">
               <ClockIcon class="w-5 h-5" :class="{'text-[#0a7aff]': task.scheduledAt}" />
             </button>
@@ -165,11 +186,20 @@
 
         <div>
           <label class="block text-xs font-semibold text-[#8e8e93] uppercase tracking-wider mb-2">Icon</label>
-          <div class="flex gap-2">
-            <button v-for="(iconComp, iconName) in iconMap" :key="iconName" @click="newGroupData.icon = iconName" :class="['w-8 h-8 rounded-full flex items-center justify-center transition-all border border-transparent', newGroupData.icon === iconName ? 'bg-white/20 border-white/50 text-white' : 'text-[#8e8e93] hover:bg-white/10 hover:text-white']">
+          <div class="flex gap-2 mb-3">
+            <button v-for="(iconComp, iconName) in iconMap" :key="iconName" @click="newGroupData.icon = iconName" :class="['w-8 h-8 rounded-full flex items-center justify-center transition-all border border-transparent flex-shrink-0', newGroupData.icon === iconName ? 'bg-white/20 border-white/50 text-white' : 'text-[#8e8e93] hover:bg-white/10 hover:text-white']">
               <component :is="iconComp" class="w-5 h-5" />
             </button>
+            <div v-if="newGroupData.icon && (newGroupData.icon.startsWith('http') || newGroupData.icon.startsWith('data:'))" class="w-8 h-8 rounded-full overflow-hidden border-2 border-white flex-shrink-0 ml-auto bg-black/20">
+              <img :src="newGroupData.icon" class="w-full h-full object-cover" />
+            </div>
           </div>
+          <input 
+            v-model="newGroupData.icon"
+            type="text" 
+            placeholder="Or enter image URL (https://...)" 
+            class="w-full bg-[#1c1c1e] border border-[#3a3a3c] rounded-xl px-4 py-2 text-white placeholder-[#8e8e93] focus:outline-none focus:border-[#0a7aff] focus:ring-1 focus:ring-[#0a7aff] transition-all text-sm"
+          />
         </div>
       </div>
       <div class="flex border-t border-[#3a3a3c]">
@@ -187,6 +217,46 @@
           :class="{ 'opacity-50 cursor-not-allowed text-[#0a7aff]/50': !newGroupData.name.trim() }"
         >
           Save
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Priority Modal -->
+  <div v-if="isPriorityModalOpen" class="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+    <div class="bg-[#2c2c2e] rounded-2xl shadow-2xl w-full max-w-sm overflow-hidden border border-white/10 transform transition-all">
+      <div class="p-6">
+        <h2 class="text-xl font-semibold text-white mb-4">Set Priority</h2>
+        <div class="flex flex-col gap-2">
+          <button @click="setPriorityAndClose('low')" class="flex items-center justify-between p-3 rounded-xl hover:bg-white/10 transition-colors" :class="editingTaskForPriority?.priority === 'low' ? 'bg-white/10' : ''">
+            <div class="flex items-center gap-3">
+              <div class="w-4 h-4 rounded-full bg-[#34c759]"></div>
+              <span class="text-white font-medium">Low (Verde)</span>
+            </div>
+            <CheckIcon v-if="editingTaskForPriority?.priority === 'low'" class="w-5 h-5 text-[#34c759]" />
+          </button>
+          <button @click="setPriorityAndClose('medium')" class="flex items-center justify-between p-3 rounded-xl hover:bg-white/10 transition-colors" :class="editingTaskForPriority?.priority === 'medium' ? 'bg-white/10' : ''">
+            <div class="flex items-center gap-3">
+              <div class="w-4 h-4 rounded-full bg-[#ffcc00]"></div>
+              <span class="text-white font-medium">Medium (Amarelo)</span>
+            </div>
+            <CheckIcon v-if="editingTaskForPriority?.priority === 'medium'" class="w-5 h-5 text-[#ffcc00]" />
+          </button>
+          <button @click="setPriorityAndClose('high')" class="flex items-center justify-between p-3 rounded-xl hover:bg-white/10 transition-colors" :class="editingTaskForPriority?.priority === 'high' ? 'bg-white/10' : ''">
+            <div class="flex items-center gap-3">
+              <div class="w-4 h-4 rounded-full bg-[#ff3b30]"></div>
+              <span class="text-white font-medium">High (Vermelha)</span>
+            </div>
+            <CheckIcon v-if="editingTaskForPriority?.priority === 'high'" class="w-5 h-5 text-[#ff3b30]" />
+          </button>
+        </div>
+      </div>
+      <div class="flex border-t border-[#3a3a3c]">
+        <button 
+          @click="isPriorityModalOpen = false; editingTaskForPriority = null"
+          class="flex-1 py-3.5 text-[#8e8e93] font-medium hover:bg-white/5 transition-colors"
+        >
+          Cancel
         </button>
       </div>
     </div>
@@ -243,10 +313,20 @@ import {
   FolderIcon,
   BriefcaseIcon,
   ShoppingCartIcon,
-  StarIcon
+  StarIcon,
+  FlagIcon
 } from '@heroicons/vue/24/outline';
 
 const tasksStore = useTasksStore();
+const editingTaskId = ref<string | null>(null);
+
+function getDomain(urlStr: string) {
+  try {
+    return new URL(urlStr).hostname.replace('www.', '');
+  } catch (e) {
+    return urlStr;
+  }
+}
 const authStore = useAuthStore();
 const newTaskDescription = ref('');
 
@@ -255,6 +335,9 @@ const editingGroupId = ref<string | null>(null);
 
 const isDatePickerModalOpen = ref(false);
 const editingTaskForDate = ref<any>(null);
+
+const isPriorityModalOpen = ref(false);
+const editingTaskForPriority = ref<any>(null);
 
 const newGroupData = ref({
   name: '',
@@ -360,6 +443,16 @@ const groupColors = [
   'bg-[#ff2d55]', // pink
   'bg-[#bf5af2]', // purple
 ];
+
+const textColorMap: Record<string, string> = {
+  'bg-[#0a7aff]': 'text-[#0a7aff]',
+  'bg-[#30d158]': 'text-[#30d158]',
+  'bg-[#ff3b30]': 'text-[#ff3b30]',
+  'bg-[#ff9500]': 'text-[#ff9500]',
+  'bg-[#ff2d55]': 'text-[#ff2d55]',
+  'bg-[#bf5af2]': 'text-[#bf5af2]',
+};
+
 function getGroupColor(idx: number) {
   return groupColors[idx % groupColors.length];
 }
@@ -394,7 +487,13 @@ const headerColor = computed(() => {
     case 'flagged': return 'text-[#ff9500]';
     case 'completed': return 'text-[#636366]';
     case 'urgent': return 'text-[#ff2d55]';
-    default: return 'text-[#30d158]';
+    default: {
+      const group = groups.value.find((g: any) => g.id === filter.value);
+      if (group && group.color) {
+        return textColorMap[group.color] || 'text-[#30d158]';
+      }
+      return 'text-[#30d158]';
+    }
   }
 });
 
@@ -414,7 +513,8 @@ async function updateTask(task: any) {
     description: task.description,
     isFlagged: task.isFlagged,
     isUrgent: task.isUrgent,
-    scheduledAt: task.scheduledAt ? new Date(task.scheduledAt).toISOString() : null
+    scheduledAt: task.scheduledAt ? new Date(task.scheduledAt).toISOString() : null,
+    priority: task.priority
   });
 }
 
@@ -478,5 +578,25 @@ function confirmDatePickerModal() {
 
 function logout() {
   authStore.logout();
+}
+
+function openPriorityModal(task: any) {
+  editingTaskForPriority.value = task;
+  isPriorityModalOpen.value = true;
+}
+
+function setPriorityAndClose(priority: string) {
+  if (editingTaskForPriority.value) {
+    editingTaskForPriority.value.priority = priority;
+    updateTask(editingTaskForPriority.value);
+  }
+  isPriorityModalOpen.value = false;
+  editingTaskForPriority.value = null;
+}
+
+function getPriorityTextColor(priority: string) {
+  if (priority === 'high') return 'text-[#ff3b30]';
+  if (priority === 'medium') return 'text-[#ffcc00]';
+  return 'text-[#34c759]'; // low
 }
 </script>

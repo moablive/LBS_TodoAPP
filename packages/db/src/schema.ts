@@ -21,7 +21,7 @@ export const taskGroups = pgTable(
     userId: varchar("user_id", { length: 50 }).notNull(),
     name: varchar("name", { length: 120 }).notNull(),
     color: varchar("color", { length: 20 }),
-    icon: varchar("icon", { length: 50 }),
+    icon: text("icon"),
     order: integer("order").default(0).notNull(),
     createdAt: timestamp("created_at", { withTimezone: true })
       .defaultNow()
@@ -46,6 +46,7 @@ export const tasks = pgTable(
     completedAt: timestamp("completed_at", { withTimezone: true }),
     isFlagged: boolean("is_flagged").default(false).notNull(),
     isUrgent: boolean("is_urgent").default(false).notNull(),
+    priority: varchar("priority", { length: 10 }).default("low").notNull(),
     order: integer("order").default(0).notNull(),
   },
   (t) => ({

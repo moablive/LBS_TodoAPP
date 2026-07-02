@@ -43,6 +43,7 @@ tasksRouter.post('/', async (req, res) => {
     groupId: parsed.groupId || null,
     isFlagged: parsed.isFlagged || false,
     isUrgent: parsed.isUrgent || false,
+    priority: parsed.priority || 'low',
     order: parsed.order || 0,
   }).returning();
   
@@ -60,6 +61,7 @@ tasksRouter.patch('/:id', async (req, res) => {
   if (parsed.completedAt !== undefined) updates.completedAt = parsed.completedAt ? new Date(parsed.completedAt) : null;
   if (parsed.isFlagged !== undefined) updates.isFlagged = parsed.isFlagged;
   if (parsed.isUrgent !== undefined) updates.isUrgent = parsed.isUrgent;
+  if (parsed.priority !== undefined) updates.priority = parsed.priority;
   if (parsed.order !== undefined) updates.order = parsed.order;
 
   const updated = await db.update(schema.tasks)
