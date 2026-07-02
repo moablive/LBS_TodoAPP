@@ -1,0 +1,68 @@
+import { Telegraf, session, Scenes } from 'telegraf';
+import { env } from './config.js';
+import type { BotContext } from './context.js';
+import { auth } from './auth.js';
+import { handleAddTask, handleListTasks, handleRemoveTask } from './handlers/tasks.js';
+import { handleVoiceMessage } from './handlers/voice.js';
+import { startNotificationsCron } from './cron/notifications.js';
+import { addTaskWizard } from './scenes/addTaskWizard.js';
+import { removeTaskWizard } from './scenes/removeTaskWizard.js';
+import { completeTaskWizard } from './scenes/completeTaskWizard.js';
+import { addGroupWizard } from './scenes/addGroupWizard.js';
+import { menuKeyboard } from './ui/menu.js';
+
+// Inicializar Bot
+const bot = new Telegraf<BotContext>(env.TELEGRAM_BOT_TOKEN);
+
+// Middleware de autenticação
+bot.use(auth);
+
+// Configuração de Sessão e Stages
+const stage = new Scenes.Stage<BotContext>([
+  addTaskWizard, 
+  removeTaskWizard, 
+  completeTaskWizard,
+  addGroupWizard
+]);
+bot.use(session());
+bot.use(stage.middleware());
+
+// Iniciar cron jobs
+startNotificationsCron(bot);
+
+// Menu principal / Start
+bot.start((ctx) => {
+  ctx.reply(
+    '👋 Fala, Patrão Moab! Aqui é o seu Assistente Pessoal.\n\nO que o chefe deseja fazer agora?',
+    menuKeyboard
+  );
+});
+
+// Mensagem de voz
+bot.on('voice', handleVoiceMessage);
+
+// Ações dos Botões
+bot.hears('✅ Concluir Tarefa', (ctx) => ctx.scene.enter('COMPLETE_TASK_WIZARD'));
+bot.hears('📋 Listar Tarefas', handleListTasks);
+bot.hears('📂 Minhas Listas', handleListTasks);
+bot.hears('📁 Nova Lista', (ctx) => ctx.scene.enter('ADD_GROUP_WIZARD'));
+bot.hears('📝 Adicionar Tarefa', (ctx) => ctx.scene.enter('ADD_TASK_WIZARD'));
+bot.hears('❌ Remover Tarefa', (ctx) => ctx.scene.enter('REMOVE_TASK_WIZARD'));
+
+// Comandos
+bot.command('add', handleAddTask);
+bot.command('list', handleListTasks);
+bot.command('remove', handleRemoveTask);
+
+bot.catch((err, ctx) => {
+  console.error(`[bot] erro ao processar update ${ctx.updateType}:`, err);
+});
+
+bot.launch({ dropPendingUpdates: true }).catch((err: unknown) => {
+  console.error('[bot] polling encerrado por erro:', err);
+  process.exit(1);
+});
+console.log('🤖 TODO Bot rodando...');
+
+process.once('SIGINT', () => bot.stop('SIGINT'));
+process.once('SIGTERM', () => bot.stop('SIGTERM'));

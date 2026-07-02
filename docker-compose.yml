@@ -53,9 +53,18 @@ services:
         - todoapp_frontend
     restart: unless-stopped
 
+  app_todoapp_bot:
+    build:
+      context: apps/bot
+    container_name: app_todoapp_bot
+    env_file:
+      - .env
+    networks:
+      awl_network:
+        aliases:
+        - todoapp_bot
+    restart: unless-stopped
+
 networks:
-  # External — already exists on the host alongside `awlsrvDB_postgres`.
-  # NOTE: the brief mentioned `awlsrv_network`, but the real network name on
-  # this host (verified via `docker inspect awlsrvDB_postgres`) is `awl_network`.
   awl_network:
     external: true

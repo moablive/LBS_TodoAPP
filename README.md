@@ -91,6 +91,9 @@ Autenticação centralizada via **LoginHUB** (IDP). JWT Bearer token com auth gu
 ```
 todoapp/
 ├── 📂 apps/
+│   ├── 📂 bot/                   # Telegram Bot Worker
+│   │   ├── 📂 src/
+│   │   └── Dockerfile
 │   ├── 📂 frontend/              # Vue 3 PWA
 │   │   ├── 📂 src/
 │   │   │   ├── 📂 api/           # Cliente HTTP (wrapper do api-client)
@@ -123,7 +126,8 @@ todoapp/
 │   ├── 📂 models/                # Zod schemas e tipos TypeScript
 │   └── 📂 services/              # Serviços core (auth, tasks)
 │
-├── docker-compose.yml            # 2 serviços (backend + frontend)
+├── .env                          # Variáveis de ambiente consolidadas (Backend, Frontend e Bot)
+├── docker-compose.yml            # 3 serviços (backend, frontend e bot)
 ├── pnpm-workspace.yaml
 └── tsconfig.base.json
 ```
@@ -139,12 +143,14 @@ flowchart LR
   subgraph awl_network["🐳 Docker · awl_network"]
     NGINX["nginx<br/>todoapp_frontend:80"]
     API["Express + Drizzle<br/>todoapp_backend:3000"]
+    BOT["Telegram Bot<br/>todoapp_bot"]
     PG["PostgreSQL<br/>awlsrvDB_postgres:5432<br/>database 'todo_bot'"]
   end
 
   PWA -- "HTTPS" --> NGINX
   NGINX -- "/api/*" --> API
   API -- "pg" --> PG
+  BOT -- "pg" --> PG
 ```
 
 > [!NOTE]
@@ -229,10 +235,13 @@ git clone https://github.com/moablive/TodoAPP.git && cd TodoAPP
 
 # 2️⃣  Configure as variáveis de ambiente
 cp .env.example .env
-# Edite .env:
-#   → JWT_SECRET       string aleatória de 32+ chars
-#   → DATABASE_URL     connection string do PostgreSQL
-#   → LOGINHUB_API_URL URL da API do LoginHub
+# Edite .env com os dados consolidados:
+#   → JWT_SECRET           string aleatória de 32+ chars
+#   → DATABASE_URL         connection string do PostgreSQL
+#   → LOGINHUB_API_URL     URL da API do LoginHub
+#   → TELEGRAM_BOT_TOKEN   Token do bot no Telegram
+#   → GROQ_API_KEY         Chave de API do Groq (transcrição de voz)
+#   → ALLOWED_USER_IDS     IDs do Telegram autorizados
 
 # 3️⃣  Instale dependências
 pnpm install
@@ -261,7 +270,7 @@ pnpm dev                  # backend :3000 + frontend :5173
 
 ## 🐳 Deploy com Docker
 
-O projeto roda como **2 containers** conectados a um PostgreSQL externo na rede `awl_network`.
+O projeto roda como **3 containers** conectados a um PostgreSQL externo na rede `awl_network`.
 
 ```bash
 # Garanta que a rede Docker existe
@@ -275,6 +284,7 @@ docker compose --env-file .env up -d --build
 | --------- | ---- | ----- | ------ |
 | `app_todoapp_backend` | Node 20 | `3000` (interno) | API REST + healthcheck |
 | `app_todoapp_frontend` | nginx | `80` (interno) | Static assets + reverse proxy `/api/` → backend |
+| `app_todoapp_bot` | Node 20 | `-` | Telegram Bot Worker |
 
 > [!IMPORTANT]
 > **Ingress em produção**: O tráfego chega via **Cloudflare Tunnel** diretamente ao `app_todoapp_frontend:80` dentro da `awl_network`. Nenhuma porta é exposta ao host.
