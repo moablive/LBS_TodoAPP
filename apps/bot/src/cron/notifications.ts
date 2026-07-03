@@ -3,6 +3,7 @@ import { Telegraf } from 'telegraf';
 import { botApi } from '@todo/api-client';
 import type { BotContext } from '../context.js';
 import { isNotificationEnabled } from '../utils/user-cache.js';
+import { sendPushToUser } from '../utils/push.js';
 
 // ── helpers ────────────────────────────────────────────────────────────────
 
@@ -111,9 +112,35 @@ export const sendDailySummary = async (bot: Telegraf<BotContext>, label: string)
 
 // ── Cron jobs ──────────────────────────────────────────────────────────────
 
+// Um lembrete dispara quando o "gatilho" (horário da tarefa menos o offset)
+// cai exatamente no minuto atual — mesma estratégia do cron antigo, agora com
+// três gatilhos por tarefa: no horário, X minutos antes e X dias antes.
+function isSameMinute(a: Date, b: Date): boolean {
+  return a.getFullYear() === b.getFullYear() &&
+         a.getMonth()    === b.getMonth()    &&
+         a.getDate()     === b.getDate()     &&
+         a.getHours()    === b.getHours()    &&
+         a.getMinutes()  === b.getMinutes();
+}
+
+// Tarefas recorrentes (estilo Google Calendar): `scheduledAt` é a primeira
+// ocorrência e a regra gera as seguintes. Testa se `target` cai numa ocorrência.
+function occursAt(base: Date, recurrence: string | null | undefined, target: Date): boolean {
+  if (!recurrence) return isSameMinute(base, target);
+  if (target.getTime() < base.getTime() - 59_000) return false; // antes da 1ª ocorrência
+  if (base.getHours() !== target.getHours() || base.getMinutes() !== target.getMinutes()) return false;
+  switch (recurrence) {
+    case 'daily':   return true;
+    case 'weekly':  return base.getDay() === target.getDay();
+    case 'monthly': return base.getDate() === target.getDate();
+    case 'yearly':  return base.getDate() === target.getDate() && base.getMonth() === target.getMonth();
+    default:        return isSameMinute(base, target);
+  }
+}
+
 export function startNotificationsCron(bot: Telegraf<BotContext>) {
 
-  // Cada minuto — lembrete de tarefa com scheduledAt atingido
+  // Cada minuto — lembretes de tarefas com data (no horário / 30min antes / 7d antes)
   cron.schedule('* * * * *', async () => {
     try {
       const users = await botApi.getAllBotUsers();
@@ -123,29 +150,68 @@ export function startNotificationsCron(bot: Telegraf<BotContext>) {
 
       for (const user of users) {
         if (!user.telegramId) continue;
-        if (!isNotificationEnabled(String(user.telegramId))) continue;
 
         try {
+          const settings = await botApi.getReminderSettings(user.id);
           const tasks = await botApi.listTasks(user.id);
-          const dueTasks = tasks.filter(t => {
-            if (!t.scheduledAt) return false;
+
+          const dueNow: typeof tasks = [];
+          const dueSoon: typeof tasks = [];
+          const dueInDays: typeof tasks = [];
+
+          // "X antes do evento" ⇔ o evento ocorre em (agora + X) — assim a
+          // mesma checagem de ocorrência serve para tarefas únicas e recorrentes.
+          const beforeTarget = new Date(now.getTime() + settings.remindBeforeMinutes * 60_000);
+          const daysTarget   = new Date(now.getTime() + settings.remindDaysBefore * 86_400_000);
+
+          for (const t of tasks) {
+            if (!t.scheduledAt) continue;
             const s = new Date(t.scheduledAt);
-            return s.getFullYear() === now.getFullYear() &&
-                   s.getMonth()    === now.getMonth()    &&
-                   s.getDate()     === now.getDate()     &&
-                   s.getHours()    === now.getHours()    &&
-                   s.getMinutes()  === now.getMinutes();
-          });
 
-          if (dueTasks.length === 0) continue;
-
-          let msg = `⏰ <b>Lembrete de Tarefa</b>\n\n`;
-          for (const t of dueTasks) {
-            msg += `▫️ ${t.description} — 📅 ${new Date(t.scheduledAt!).toLocaleString('pt-BR')}\n`;
+            if (settings.remindAtTime && occursAt(s, t.recurrence, now)) dueNow.push(t);
+            if (settings.remindBeforeEnabled && occursAt(s, t.recurrence, beforeTarget)) dueSoon.push(t);
+            if (settings.remindDaysEnabled && occursAt(s, t.recurrence, daysTarget)) dueInDays.push(t);
           }
 
-          await bot.telegram.sendMessage(user.telegramId, msg, { parse_mode: 'HTML' });
-          console.log(`⏰ Lembrete enviado para ${user.telegramId}`);
+          if (dueNow.length === 0 && dueSoon.length === 0 && dueInDays.length === 0) continue;
+
+          // Para recorrentes, a data exibida é a da OCORRÊNCIA (= alvo do
+          // gatilho), não a primeira data agendada.
+          const fmt = (t: any, when: Date) => {
+            const occurrence = t.recurrence ? when : new Date(t.scheduledAt!);
+            let line = `▫️ ${t.description} — 📅 ${occurrence.toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' })}`;
+            if (t.recurrence) line += ' 🔁';
+            if (t.groupName) line += ` <i>[${t.groupName}]</i>`;
+            return line;
+          };
+
+          let msg = '';
+          const pushLines: string[] = [];
+          if (dueNow.length) {
+            msg += `⏰ <b>É agora!</b>\n${dueNow.map(t => fmt(t, now)).join('\n')}\n\n`;
+            pushLines.push(`⏰ Agora: ${dueNow.map(t => t.description).join(', ')}`);
+          }
+          if (dueSoon.length) {
+            msg += `🔜 <b>Em ${settings.remindBeforeMinutes} minutos</b>\n${dueSoon.map(t => fmt(t, beforeTarget)).join('\n')}\n\n`;
+            pushLines.push(`🔜 Em ${settings.remindBeforeMinutes}min: ${dueSoon.map(t => t.description).join(', ')}`);
+          }
+          if (dueInDays.length) {
+            msg += `📅 <b>Faltam ${settings.remindDaysBefore} dias</b>\n${dueInDays.map(t => fmt(t, daysTarget)).join('\n')}\n\n`;
+            pushLines.push(`📅 Em ${settings.remindDaysBefore} dias: ${dueInDays.map(t => t.description).join(', ')}`);
+          }
+
+          if (settings.notifyTelegram && isNotificationEnabled(String(user.telegramId))) {
+            await bot.telegram.sendMessage(user.telegramId, msg.trimEnd(), { parse_mode: 'HTML' });
+            console.log(`⏰ Lembrete (telegram) enviado para ${user.telegramId}`);
+          }
+
+          if (settings.notifyPush) {
+            await sendPushToUser(user.id, {
+              title: '⏰ Lembrete de Tarefa',
+              body: pushLines.join('\n'),
+              url: '/',
+            });
+          }
         } catch (uErr) {
           console.error(`Erro ao processar lembrete para ${user.id}:`, uErr);
         }
@@ -170,5 +236,5 @@ export function startNotificationsCron(bot: Telegraf<BotContext>) {
     await sendDailySummary(bot, 'Resumo da Tarde ☀️');
   }, { timezone: 'America/Sao_Paulo' });
 
-  console.log('✅ Crons: 08h (bom dia + prioridades), 09h (resumo completo), 13h (tarde), lembretes por minuto.');
+  console.log('✅ Crons: 08h (bom dia + prioridades), 09h (resumo completo), 13h (tarde), lembretes por minuto (horário / antes / dias antes) via Telegram + Push.');
 }

@@ -5,6 +5,15 @@ const envSchema = z.object({
   NODE_ENV: z.enum(['development', 'production', 'test']).default('development'),
   TELEGRAM_BOT_TOKEN: z.string().min(1, 'TELEGRAM_BOT_TOKEN is required'),
   ALLOWED_USER_IDS: z.string().optional(),
+  // LoginHub — o bot valida e-mail+senha direto no LoginHub (padrão MoneyAPP)
+  // e então vincula o telegramId ao usuário no banco do TodoAPP.
+  LOGINHUB_API_URL: z.string().default('https://api-auth.astralwavelabel.com/api'),
+  LOGINHUB_APP_ID: z.coerce.number().default(4),
+  // Web Push (VAPID) — mesmas chaves do backend; opcional, sem elas o bot só
+  // envia lembretes pelo Telegram.
+  VAPID_PUBLIC_KEY: z.string().optional(),
+  VAPID_PRIVATE_KEY: z.string().optional(),
+  VAPID_SUBJECT: z.string().default('mailto:admin@astralwavelabel.com'),
 });
 
 const parsed = envSchema.safeParse(process.env);

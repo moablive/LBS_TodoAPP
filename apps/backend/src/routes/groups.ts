@@ -4,20 +4,11 @@ import { schema } from '@todoapp/db';
 import { eq, and } from 'drizzle-orm';
 import { createTaskGroupSchema, updateTaskGroupSchema } from '@todoapp/models';
 import crypto from 'crypto';
+import { resolveTelegramId } from '../middleware/telegram-id.js';
 
 export const groupsRouter = Router();
 
-groupsRouter.use(async (req, res, next) => {
-  const user = await db.query.userSettings.findFirst({
-    where: eq(schema.userSettings.loginhubId, req.user!.loginhubId),
-  });
-  if (!user || !user.telegramId) {
-    (req as any).telegramId = '442697753';
-  } else {
-    (req as any).telegramId = user.telegramId;
-  }
-  next();
-});
+groupsRouter.use(resolveTelegramId);
 
 groupsRouter.get('/', async (req, res) => {
   const telegramId = (req as any).telegramId;

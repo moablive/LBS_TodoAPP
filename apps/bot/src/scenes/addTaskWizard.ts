@@ -104,9 +104,9 @@ export const addTaskWizard = new Scenes.WizardScene<BotContext>(
       } else {
         const parts = text.split('/');
         if (parts.length === 2 || parts.length === 3) {
-          const day = parseInt(parts[0], 10);
-          const month = parseInt(parts[1], 10) - 1;
-          const year = parts.length === 3 ? parseInt(parts[2], 10) : new Date().getFullYear();
+          const day = parseInt(parts[0] ?? '', 10);
+          const month = parseInt(parts[1] ?? '', 10) - 1;
+          const year = parts.length === 3 ? parseInt(parts[2] ?? '', 10) : new Date().getFullYear();
           dateObj = new Date(year, month, day);
         } else {
           dateObj = new Date(text);
@@ -177,8 +177,8 @@ export const addTaskWizard = new Scenes.WizardScene<BotContext>(
         return;
       }
       
-      const hours = match[1].padStart(2, '0');
-      const minutes = match[2];
+      const hours = (match[1] ?? '0').padStart(2, '0');
+      const minutes = match[2] ?? '00';
       
       // Assumindo fuso horário -03:00 para Brasil
       const localDate = new Date(`${taskDateStr}T${hours}:${minutes}:00-03:00`);

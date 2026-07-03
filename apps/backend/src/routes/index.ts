@@ -2,6 +2,9 @@ import { Router } from 'express';
 import { tasksRouter } from './tasks.js';
 import { groupsRouter } from './groups.js';
 import { userRouter } from './user.js';
+import { pushRouter } from './push.js';
+import { remindersRouter } from './reminders.js';
+import { prefsRouter } from './prefs.js';
 import { requireAuth } from '../middleware/auth.js';
 import { db } from '@todoapp/db';
 import { schema } from '@todoapp/db';
@@ -52,3 +55,6 @@ apiRouter.use(async (req, res, next) => {
 apiRouter.use('/user', userRouter);
 apiRouter.use('/tasks', tasksRouter);
 apiRouter.use('/groups', groupsRouter);
+apiRouter.use('/push', pushRouter);
+apiRouter.use('/reminders', remindersRouter);
+apiRouter.use('/prefs', prefsRouter);

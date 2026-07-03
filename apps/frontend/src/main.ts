@@ -20,10 +20,21 @@ setupApi({
 
 
 if ('serviceWorker' in navigator) {
+  // Reload when a NEW sw version takes over (skipWaiting + clients.claim), but
+  // not on the very first registration — that would reload every fresh visit.
+  const hadController = Boolean(navigator.serviceWorker.controller);
   let reloading = false;
   navigator.serviceWorker.addEventListener('controllerchange', () => {
-    if (reloading) return;
+    if (!hadController || reloading) return;
     reloading = true;
     window.location.reload();
   });
+
+  if (import.meta.env.PROD) {
+    window.addEventListener('load', () => {
+      navigator.serviceWorker.register('/sw.js').catch((err) => {
+        console.error('Falha ao registrar service worker:', err);
+      });
+    });
+  }
 }

@@ -1,5 +1,8 @@
 import { z } from "zod";
 
+export const recurrenceSchema = z.enum(["daily", "weekly", "monthly", "yearly"]);
+export type Recurrence = z.infer<typeof recurrenceSchema>;
+
 export const taskSchema = z.object({
   id: z.string(),
   description: z.string(),
@@ -11,6 +14,7 @@ export const taskSchema = z.object({
   isUrgent: z.boolean(),
   priority: z.enum(["low", "medium", "high"]).default("low"),
   order: z.number().int().default(0),
+  recurrence: recurrenceSchema.nullable().optional(),
 });
 export type TaskDto = z.infer<typeof taskSchema>;
 
@@ -22,6 +26,7 @@ export const createTaskSchema = z.object({
   isUrgent: z.boolean().optional(),
   priority: z.enum(["low", "medium", "high"]).optional(),
   order: z.number().int().optional(),
+  recurrence: recurrenceSchema.nullable().optional(),
 });
 export type CreateTaskDto = z.infer<typeof createTaskSchema>;
 
@@ -34,6 +39,7 @@ export const updateTaskSchema = z.object({
   isUrgent: z.boolean().optional(),
   priority: z.enum(["low", "medium", "high"]).optional(),
   order: z.number().int().optional(),
+  recurrence: recurrenceSchema.nullable().optional(),
 });
 export type UpdateTaskDto = z.infer<typeof updateTaskSchema>;
 

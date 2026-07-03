@@ -9,23 +9,26 @@ import { addTaskWizard } from './scenes/addTaskWizard.js';
 import { removeTaskWizard } from './scenes/removeTaskWizard.js';
 import { completeTaskWizard } from './scenes/completeTaskWizard.js';
 import { addGroupWizard } from './scenes/addGroupWizard.js';
+import { loginWizard } from './scenes/loginWizard.js';
 import { menuKeyboard } from './ui/menu.js';
 
 // Inicializar Bot
 const bot = new Telegraf<BotContext>(env.TELEGRAM_BOT_TOKEN);
 
-// Middleware de autenticação
-bot.use(auth);
-
-// Configuração de Sessão e Stages
+// Sessão e Stages precisam vir ANTES do auth: usuários não vinculados são
+// jogados no LOGIN_WIZARD, e isso exige ctx.scene disponível.
 const stage = new Scenes.Stage<BotContext>([
-  addTaskWizard, 
-  removeTaskWizard, 
+  addTaskWizard,
+  removeTaskWizard,
   completeTaskWizard,
-  addGroupWizard
+  addGroupWizard,
+  loginWizard
 ]);
 bot.use(session());
 bot.use(stage.middleware());
+
+// Middleware de autenticação (LoginHub via bot — padrão MoneyAPP)
+bot.use(auth);
 
 // Iniciar cron jobs
 startNotificationsCron(bot);

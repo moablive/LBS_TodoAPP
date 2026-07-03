@@ -7,13 +7,18 @@ export default defineConfig({
   plugins: [
     vue(),
     VitePWA({
-      // Kill switch: the generated sw.js unregisters any previously installed
-      // service worker and clears all its caches on the client's next visit,
-      // then reloads — no manual hard-reload needed. The PWA caching was the
-      // sole cause of clients getting stuck on a stale ("FINK") build, and
-      // this app needs live data anyway, so offline precaching adds no value.
-      selfDestroying: true,
-      registerType: 'autoUpdate',
+      // Web Push needs a live service worker, so the old self-destroying kill
+      // switch is gone. The stale-build ("FINK") problem came from Workbox
+      // precaching, NOT from having a SW: src/sw.ts registers no fetch handler
+      // and creates no caches (injectionPoint: undefined skips the precache
+      // manifest entirely), so every load still goes straight to the network.
+      strategies: 'injectManifest',
+      srcDir: 'src',
+      filename: 'sw.js',
+      injectRegister: false,
+      injectManifest: {
+        injectionPoint: undefined,
+      },
       manifest: {
         name: 'TodoAPP',
         short_name: 'TodoAPP',
@@ -25,17 +30,6 @@ export default defineConfig({
           { src: '/logo/pwa-192x192.png', sizes: '192x192', type: 'image/png', purpose: 'any' },
           { src: '/logo/pwa-512x512.png', sizes: '512x512', type: 'image/png', purpose: 'any' },
           { src: '/logo/pwa-maskable-512x512.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' },
-        ],
-      },
-      workbox: {
-        cleanupOutdatedCaches: true,
-        navigateFallback: '/index.html',
-        runtimeCaching: [
-          {
-            urlPattern: ({ url }) => url.pathname.startsWith('/api/'),
-            handler: 'NetworkFirst',
-            options: { cacheName: 'api', networkTimeoutSeconds: 4 },
-          },
         ],
       },
     }),

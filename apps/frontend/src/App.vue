@@ -19,10 +19,10 @@ useAuthStore();
   background: transparent;
 }
 ::-webkit-scrollbar-thumb {
-  background: #212737;
+  background: var(--border);
   border-radius: 4px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: #3a445c;
+  background: var(--muted2);
 }
 </style>

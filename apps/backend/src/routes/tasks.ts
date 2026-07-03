@@ -4,22 +4,11 @@ import { schema } from '@todoapp/db';
 import { eq, and } from 'drizzle-orm';
 import { createTaskSchema, updateTaskSchema, reorderTasksSchema } from '@todoapp/models';
 import crypto from 'crypto';
+import { resolveTelegramId } from '../middleware/telegram-id.js';
 
 export const tasksRouter = Router();
 
-// Middleware to ensure user has telegramId linked and pass it as req.telegramId
-tasksRouter.use(async (req, _res, next) => {
-  const user = await db.query.userSettings.findFirst({
-    where: eq(schema.userSettings.loginhubId, req.user!.loginhubId),
-  });
-  if (!user || !user.telegramId) {
-    // Fallback to the known telegram ID if none is linked yet
-    (req as any).telegramId = '442697753';
-  } else {
-    (req as any).telegramId = user.telegramId;
-  }
-  next();
-});
+tasksRouter.use(resolveTelegramId);
 
 tasksRouter.get('/', async (req, res) => {
   const telegramId = (req as any).telegramId;
@@ -45,6 +34,7 @@ tasksRouter.post('/', async (req, res) => {
     isUrgent: parsed.isUrgent || false,
     priority: parsed.priority || 'low',
     order: parsed.order || 0,
+    recurrence: parsed.recurrence || null,
   }).returning();
   
   res.status(201).json(inserted[0]);
@@ -63,6 +53,7 @@ tasksRouter.patch('/:id', async (req, res) => {
   if (parsed.isUrgent !== undefined) updates.isUrgent = parsed.isUrgent;
   if (parsed.priority !== undefined) updates.priority = parsed.priority;
   if (parsed.order !== undefined) updates.order = parsed.order;
+  if (parsed.recurrence !== undefined) updates.recurrence = parsed.recurrence || null;
 
   const updated = await db.update(schema.tasks)
     .set(updates)
