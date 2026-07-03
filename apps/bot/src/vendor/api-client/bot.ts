@@ -60,7 +60,7 @@ export const botApi = {
 
   listTasks: async (userId: string): Promise<Task[]> => {
     const result = await pool.query(`
-      SELECT t.id, t.description, t.scheduled_at, t.created_at, t.group_id, g.name as group_name, t.is_flagged, t.is_urgent, t.recurrence
+      SELECT t.id, t.description, t.scheduled_at, t.created_at, t.group_id, g.name as group_name, t.is_flagged, t.is_urgent, t.priority, t.recurrence
       FROM tasks t
       LEFT JOIN task_groups g ON t.group_id = g.id
       WHERE t.user_id = $1 AND t.completed_at IS NULL
@@ -75,7 +75,7 @@ export const botApi = {
       groupName: row.group_name || undefined,
       isFlagged: row.is_flagged,
       isUrgent: row.is_urgent,
-      priority: row.is_urgent ? 'alto' : (row.is_flagged ? 'médio' : 'baixo'),
+      priority: row.priority || 'low',
       recurrence: row.recurrence || null
     }));
   },

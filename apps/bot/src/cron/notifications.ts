@@ -40,7 +40,7 @@ export const sendMorningGreeting = async (bot: Telegraf<BotContext>) => {
 
       try {
         const tasks = await botApi.listTasks(user.id);
-        const priorityTasks = tasks.filter(t => t.priority === 'alto');
+        const priorityTasks = tasks.filter(t => t.priority === 'high');
 
         const today = new Date().toLocaleDateString('pt-BR', {
           weekday: 'long', day: '2-digit', month: 'long'
@@ -89,9 +89,9 @@ export const sendDailySummary = async (bot: Telegraf<BotContext>, label: string)
         const tasks = await botApi.listTasks(user.id);
         if (tasks.length === 0) continue;
 
-        const highTasks   = tasks.filter(t => t.priority === 'alto');
-        const mediumTasks = tasks.filter(t => t.priority === 'médio');
-        const lowTasks    = tasks.filter(t => t.priority === 'baixo');
+        const highTasks   = tasks.filter(t => t.priority === 'high');
+        const mediumTasks = tasks.filter(t => t.priority === 'medium');
+        const lowTasks    = tasks.filter(t => t.priority === 'low');
 
         let msg = `📋 <b>${label}</b>\n`;
         msg += `Total de tarefas pendentes: <b>${tasks.length}</b>\n\n`;

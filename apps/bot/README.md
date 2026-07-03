@@ -9,7 +9,7 @@ Um bot de Telegram avançado para gerenciamento de tarefas, inspirado na simplic
 - **Conclusão Guiada:** Sistema intuitivo (Wizard) de "Concluir Tarefas" onde o bot lista as pendências numeradas da lista escolhida para baixa rápida no sistema.
 - **Inteligência Artificial (Voz para Tarefa):** Envie áudios para o bot! Ele transcreve a sua voz instantaneamente usando o modelo **Whisper-Large-V3 (via Groq API)** e entende a intenção usando seu LLM local (**Ollama - llama3**). Ele identifica sozinho a tarefa, a data e a lista correta para inserção.
 - **Notificações:** Um Cron Job interno avisa quando uma tarefa agendada chegou no horário.
-- **Autenticação Segura:** Somente IDs de usuários do Telegram permitidos no `.env` conseguem usar o bot.
+- **Autenticação Segura:** Usuários validam acesso via LoginHub para vincular sua conta do Telegram de forma segura.
 
 ## Tecnologias Utilizadas 🛠️
 
@@ -29,7 +29,7 @@ O projeto foi projetado para rodar na infraestrutura Docker via `docker-compose`
    ```env
    NODE_ENV=production
    TELEGRAM_BOT_TOKEN=seu_token_aqui
-   ALLOWED_USER_IDS=seu_id_telegram
+
    DATABASE_URL=postgres://usuario:senha@host:5432/todo_bot
    GROQ_API_KEY=sua_chave_groq_aqui
    ```

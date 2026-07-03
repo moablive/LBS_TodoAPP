@@ -23,8 +23,8 @@ self.addEventListener('push', (event) => {
   event.waitUntil(
     self.registration.showNotification(data.title, {
       body: data.body,
-      icon: '/logo/pwa-192x192.png',
-      badge: '/logo/pwa-192x192.png',
+      icon: '/logo/icon-192.png',
+      badge: '/logo/icon-192.png',
       data: { url: data.url },
       tag: `todoapp-${Date.now()}`,
     })

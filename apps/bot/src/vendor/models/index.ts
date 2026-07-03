@@ -14,6 +14,6 @@ export interface Task {
   groupName?: string;
   isFlagged?: boolean;
   isUrgent?: boolean;
-  priority?: 'alto' | 'médio' | 'baixo';
+  priority?: 'low' | 'medium' | 'high';
   recurrence?: 'daily' | 'weekly' | 'monthly' | 'yearly' | null;
 }

@@ -28,14 +28,15 @@
               @click="setFilter(group.id)"
               draggable="true"
               @dragstart="onDragStart(idx, $event)"
-              @dragover.prevent="onDragOver(idx, $event)"
-              @dragleave="onDragLeave(idx, $event)"
-              @drop="onDrop(idx, $event)"
+              @dragover.prevent="onGroupDragOver(idx, $event)"
+              @dragleave="onGroupDragLeave(idx, $event)"
+              @drop="onGroupDrop(idx, $event)"
               @dragend="onDragEnd"
               :class="[
-                'group flex items-center justify-between py-2 px-3 rounded-lg cursor-pointer transition-colors',
+                'group flex items-center justify-between py-2 px-3 rounded-lg cursor-pointer transition-all duration-150',
                 filter === group.id ? 'bg-[var(--accent)] text-white' : 'hover:bg-[var(--bg-hover)] text-[var(--text)]',
                 draggedOverIndex === idx ? 'ring-2 ring-[var(--accent)] bg-[var(--bg-hover)]' : '',
+                taskDropTargetGroupIdx === idx ? 'ring-2 ring-[#30d158] bg-[#30d158]/10 scale-[1.02]' : '',
                 draggedIndex === idx ? 'opacity-50' : ''
               ]"
             >
@@ -133,10 +134,7 @@
         <CalendarView :tasks="tasksStore.tasks" @task-click="openDatePickerModal" />
       </div>
 
-      <!-- Kanban view -->
-      <div v-else-if="viewMode === 'kanban'" class="flex-1 min-h-0 min-w-0 overflow-hidden mt-12">
-        <KanbanBoard @task-date="openDatePickerModal" />
-      </div>
+
 
       <!-- List view -->
       <div v-else class="flex-1 overflow-y-auto custom-scrollbar pr-2 -mx-2 px-2">
@@ -149,10 +147,10 @@
           @dragleave="onTaskDragLeave(idx, $event)"
           @drop="onTaskDrop(idx, $event)"
           @dragend="onTaskDragEnd"
-          class="group flex items-start gap-3 py-3 border-b border-[var(--border-soft)] last:border-0 relative transition-all"
+          class="group flex items-start gap-3 py-3 px-2 -mx-2 border-b border-[var(--border-soft)] last:border-0 relative transition-all duration-150 rounded-lg hover:bg-[var(--bg-hover)] hover:shadow-sm hover:translate-x-0.5 cursor-default"
           :class="[
-            draggedOverTaskIndex === idx ? 'bg-[var(--bg-hover)] ring-1 ring-[var(--accent)] rounded-lg' : '',
-            draggedTaskIndex === idx ? 'opacity-50' : ''
+            draggedOverTaskIndex === idx ? 'bg-[var(--bg-hover)] ring-1 ring-[var(--accent)]' : '',
+            draggedTaskIndex === idx ? 'opacity-50 scale-95' : ''
           ]"
         >
           <button 
@@ -192,7 +190,7 @@
             </div>
           </div>
 
-          <div class="flex items-center gap-3 max-md:opacity-100 opacity-0 group-hover:opacity-100 transition-opacity">
+          <div class="flex items-center gap-3 transition-opacity">
             <button @click="openPriorityModal(task)" class="text-[var(--muted2)] hover:text-[var(--text)] transition-colors flex items-center justify-center p-1" title="Set Priority">
               <FlagIcon class="w-5 h-5" :class="getPriorityTextColor(task.priority)" />
             </button>
@@ -433,14 +431,13 @@ import {
   FlagIcon,
   BellAlertIcon,
   CalendarDaysIcon,
-  ViewColumnsIcon,
   QueueListIcon,
   ArrowPathIcon,
   Bars3Icon,
   SwatchIcon
 } from '@heroicons/vue/24/outline';
 import CalendarView from '@/components/CalendarView.vue';
-import KanbanBoard from '@/components/KanbanBoard.vue';
+
 import ReminderSettingsModal from '@/components/ReminderSettingsModal.vue';
 import ThemeSettingsModal from '@/components/ThemeSettingsModal.vue';
 import '@/composables/useTheme'; // aplica o tema salvo já no carregamento
@@ -448,12 +445,11 @@ import '@/composables/useTheme'; // aplica o tema salvo já no carregamento
 const tasksStore = useTasksStore();
 const editingTaskId = ref<string | null>(null);
 
-type ViewMode = 'list' | 'calendar' | 'kanban';
-const viewMode = ref<ViewMode>('list');
+type ViewMode = 'list' | 'calendar';
+const viewMode = ref<ViewMode>('calendar');
 const viewModes: { id: ViewMode; label: string; icon: any }[] = [
   { id: 'list', label: 'Lista (⌘⌃1)', icon: QueueListIcon },
   { id: 'calendar', label: 'Calendário (⌘⌃2)', icon: CalendarDaysIcon },
-  { id: 'kanban', label: 'Kanban (⌘⌃3)', icon: ViewColumnsIcon },
 ];
 
 const isReminderSettingsOpen = ref(false);
@@ -504,20 +500,44 @@ function onDragStart(idx: number, event: DragEvent) {
   draggedIndex.value = idx;
   if (event.dataTransfer) {
     event.dataTransfer.effectAllowed = 'move';
+    event.dataTransfer.setData('type', 'group');
   }
 }
 
-function onDragOver(idx: number, event: DragEvent) {
-  draggedOverIndex.value = idx;
-}
+// Índice do grupo alvo quando arrastamos uma TASK para a sidebar.
+const taskDropTargetGroupIdx = ref<number | null>(null);
 
-function onDragLeave(idx: number, event: DragEvent) {
-  if (draggedOverIndex.value === idx) {
-    draggedOverIndex.value = null;
+function onGroupDragOver(idx: number, event: DragEvent) {
+  // Se é uma task sendo arrastada para a sidebar → destacar como alvo de mover.
+  if (draggedTaskIndex.value !== null) {
+    taskDropTargetGroupIdx.value = idx;
+  } else {
+    draggedOverIndex.value = idx;
   }
 }
 
-async function onDrop(idx: number, event: DragEvent) {
+function onGroupDragLeave(idx: number, event: DragEvent) {
+  if (draggedOverIndex.value === idx) draggedOverIndex.value = null;
+  if (taskDropTargetGroupIdx.value === idx) taskDropTargetGroupIdx.value = null;
+}
+
+async function onGroupDrop(idx: number, event: DragEvent) {
+  // Caso 1: Task arrastada para um grupo da sidebar → mover de categoria.
+  if (draggedTaskIndex.value !== null) {
+    const task = filteredTasks.value[draggedTaskIndex.value];
+    const targetGroup = groups.value[idx];
+    taskDropTargetGroupIdx.value = null;
+    draggedTaskIndex.value = null;
+    draggedOverTaskIndex.value = null;
+    if (task && targetGroup && task.groupId !== targetGroup.id) {
+      task.groupId = targetGroup.id;
+      await api.patch(`/tasks/${task.id}`, { groupId: targetGroup.id });
+      await tasksStore.fetchAll();
+    }
+    return;
+  }
+
+  // Caso 2: Grupo arrastado sobre outro grupo → reordenar listas.
   const fromIdx = draggedIndex.value;
   draggedOverIndex.value = null;
   draggedIndex.value = null;
@@ -533,12 +553,14 @@ async function onDrop(idx: number, event: DragEvent) {
 function onDragEnd() {
   draggedIndex.value = null;
   draggedOverIndex.value = null;
+  taskDropTargetGroupIdx.value = null;
 }
 
 function onTaskDragStart(idx: number, event: DragEvent) {
   draggedTaskIndex.value = idx;
   if (event.dataTransfer) {
     event.dataTransfer.effectAllowed = 'move';
+    event.dataTransfer.setData('type', 'task');
   }
 }
 
@@ -565,12 +587,13 @@ async function onTaskDrop(idx: number, event: DragEvent) {
 function onTaskDragEnd() {
   draggedTaskIndex.value = null;
   draggedOverTaskIndex.value = null;
+  taskDropTargetGroupIdx.value = null;
 }
 
-// Atalhos de visualização: ⌘+Ctrl+1 Lista, ⌘+Ctrl+2 Calendário, ⌘+Ctrl+3 Kanban.
+// Atalhos de visualização: ⌘+Ctrl+1 Lista, ⌘+Ctrl+2 Calendário.
 function onViewShortcut(e: KeyboardEvent) {
   if (!(e.metaKey && e.ctrlKey) || e.altKey || e.shiftKey) return;
-  const map: Record<string, ViewMode> = { Digit1: 'list', Digit2: 'calendar', Digit3: 'kanban' };
+  const map: Record<string, ViewMode> = { Digit1: 'list', Digit2: 'calendar' };
   const mode = map[e.code];
   if (!mode) return;
   e.preventDefault();

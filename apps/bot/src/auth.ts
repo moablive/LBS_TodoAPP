@@ -23,10 +23,6 @@ export const auth: MiddlewareFn<BotContext> = async (ctx, next) => {
 
   const telegramId = String(id);
 
-  // Donos listados no .env continuam passando direto (compatibilidade).
-  if (env.ALLOWED_USER_IDS && env.ALLOWED_USER_IDS.includes(telegramId)) {
-    return next();
-  }
 
   if (linkedCache.has(telegramId)) return next();
 

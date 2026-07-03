@@ -267,7 +267,7 @@ const weekdays = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
 const weekdayHeaders = ['Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb', 'Dom'];
 
 type ViewType = 'month' | 'week' | 'day' | 'year';
-const viewType = ref<ViewType>('month');
+const viewType = ref<ViewType>('week');
 const viewTypes: { id: ViewType; label: string; key: string }[] = [
   { id: 'day', label: 'Dia', key: 'd' },
   { id: 'week', label: 'Semana', key: 'w' },
