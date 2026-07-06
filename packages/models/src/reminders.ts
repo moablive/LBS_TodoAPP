@@ -41,5 +41,6 @@ export type PushUnsubscribeDto = z.infer<typeof pushUnsubscribeSchema>;
 // Preferências de UI por usuário (kanban: listas visíveis; 'none' = Sem Lista)
 export const updateUserPrefsSchema = z.object({
   kanbanLists: z.array(z.string().max(50)).max(100).optional(),
+  showMoneyAppEvents: z.boolean().optional(),
 });
 export type UpdateUserPrefsDto = z.infer<typeof updateUserPrefsSchema>;

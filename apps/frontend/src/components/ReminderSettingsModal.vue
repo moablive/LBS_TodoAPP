@@ -109,6 +109,17 @@
               <p v-if="push.error.value" class="text-[12px] text-[#ff3b30] mt-2">{{ push.error.value }}</p>
             </template>
           </div>
+          <!-- Integrações -->
+          <h3 class="text-[11px] font-bold text-[var(--muted)] uppercase tracking-wider mb-2 mt-5">Integrações</h3>
+          <div class="bg-[var(--bg)] rounded-xl divide-y divide-[var(--border)] mb-5">
+            <div class="flex items-center justify-between px-4 py-3">
+              <div>
+                <p class="text-[14px] text-[var(--text)] font-medium">Eventos do MoneyAPP</p>
+                <p class="text-[12px] text-[var(--muted)]">Exibir faturas e compromissos no calendário</p>
+              </div>
+              <ToggleSwitch v-model="prefs.showMoneyAppEvents" />
+            </div>
+          </div>
         </template>
       </div>
 
@@ -153,6 +164,11 @@ interface ReminderSettings {
   notifyTelegram: boolean;
 }
 
+interface UserPrefs {
+  kanbanLists: string[];
+  showMoneyAppEvents: boolean;
+}
+
 const emit = defineEmits<{ (e: 'close'): void }>();
 
 const push = usePush();
@@ -169,11 +185,21 @@ const settings = ref<ReminderSettings>({
   notifyTelegram: true,
 });
 
+const prefs = ref<UserPrefs>({
+  kanbanLists: [],
+  showMoneyAppEvents: true,
+});
+
 onMounted(async () => {
   try {
-    settings.value = await api.get<ReminderSettings>('/reminders');
+    const [s, p] = await Promise.all([
+      api.get<ReminderSettings>('/reminders'),
+      api.get<UserPrefs>('/prefs')
+    ]);
+    settings.value = s;
+    prefs.value = p;
   } catch (err) {
-    console.error('Erro ao carregar lembretes:', err);
+    console.error('Erro ao carregar configurações:', err);
   } finally {
     isLoading.value = false;
   }
@@ -193,10 +219,13 @@ async function save() {
   settings.value.remindBeforeMinutes = Math.min(1440, Math.max(1, Math.round(Number(settings.value.remindBeforeMinutes) || 30)));
   settings.value.remindDaysBefore = Math.min(60, Math.max(1, Math.round(Number(settings.value.remindDaysBefore) || 7)));
   try {
-    settings.value = await api.patch<ReminderSettings>('/reminders', settings.value);
+    await Promise.all([
+      api.patch<ReminderSettings>('/reminders', settings.value),
+      api.patch<UserPrefs>('/prefs', { showMoneyAppEvents: prefs.value.showMoneyAppEvents })
+    ]);
     emit('close');
   } catch (err) {
-    console.error('Erro ao salvar lembretes:', err);
+    console.error('Erro ao salvar configurações:', err);
   } finally {
     isSaving.value = false;
   }

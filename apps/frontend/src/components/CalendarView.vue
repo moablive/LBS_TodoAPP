@@ -13,6 +13,24 @@
       </div>
 
       <div class="flex items-center gap-2">
+        <button
+          @click="toggleTodoAppVisibility"
+          class="flex items-center gap-2 text-[13px] font-semibold pl-2 pr-3 py-1.5 rounded-xl transition-colors border"
+          :class="isTodoAppVisible ? 'bg-[var(--accent)]/20 border-[var(--accent)] text-[var(--accent)]' : 'bg-[var(--bg-hover)] border-white/5 text-[var(--muted)] hover:text-white'"
+          title="Exibir tarefas do TodoAPP"
+        >
+          <ListBulletIcon class="w-4 h-4" /> TodoAPP
+        </button>
+
+        <button
+          @click="toggleMoneyAppVisibility"
+          class="flex items-center gap-2 text-[13px] font-semibold pl-2 pr-3 py-1.5 rounded-xl transition-colors border"
+          :class="isMoneyAppVisible ? 'bg-[#30d158]/20 border-[#30d158] text-[#30d158]' : 'bg-[var(--bg-hover)] border-white/5 text-[var(--muted)] hover:text-white'"
+          title="Exibir lançamentos do MoneyAPP"
+        >
+          <BriefcaseIcon class="w-4 h-4" /> MoneyAPP
+        </button>
+
         <button @click="navigate(-1)" title="Anterior (←)" class="p-1.5 rounded-md hover:bg-[var(--bg-hover)] text-[var(--muted)] hover:text-[var(--text)] transition-colors">
           <ChevronLeftIcon class="w-5 h-5" />
         </button>
@@ -273,6 +291,7 @@
 
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
+import { api } from '@/api/client';
 import {
   ChevronLeftIcon,
   ChevronRightIcon,
@@ -417,32 +436,109 @@ function nextOccurrence(d: Date, rule: string, base: Date): Date {
 }
 
 interface Occurrence {
-  task: TaskDto;
+  task: any;
   date: Date;
   key: string;
   style?: Record<string, string>;
+  isMoneyApp?: boolean;
+}
+
+const moneyAppEvents = ref<any[]>([]);
+const isMoneyAppVisible = ref(true);
+
+async function fetchMoneyAppEvents() {
+  try {
+    const start = new Date();
+    start.setFullYear(start.getFullYear() - 1);
+    const end = new Date();
+    end.setFullYear(end.getFullYear() + 1);
+    const startStr = start.toISOString().split('T')[0];
+    const endStr = end.toISOString().split('T')[0];
+    
+    const res = await api.get<any[]>(`/integrations/moneyapp/calendar?start=${startStr}&end=${endStr}`);
+    moneyAppEvents.value = res || [];
+  } catch (err) {
+    console.error('Failed to fetch moneyapp events:', err);
+  }
+}
+
+onMounted(async () => {
+  try {
+    const prefs = await api.get<{ showMoneyAppEvents: boolean }>('/prefs');
+    isMoneyAppVisible.value = prefs.showMoneyAppEvents;
+    if (isMoneyAppVisible.value) {
+      await fetchMoneyAppEvents();
+    }
+  } catch (err) {
+    console.error('Failed to load prefs:', err);
+  }
+});
+
+async function toggleMoneyAppVisibility() {
+  isMoneyAppVisible.value = !isMoneyAppVisible.value;
+  try {
+    await api.patch('/prefs', { showMoneyAppEvents: isMoneyAppVisible.value });
+    if (isMoneyAppVisible.value && moneyAppEvents.value.length === 0) {
+      await fetchMoneyAppEvents();
+    }
+  } catch(e) {
+    console.error('Failed to update prefs', e);
+  }
+}
+
+const isTodoAppVisible = ref(localStorage.getItem('showTodoAppEvents_TodoApp') !== 'false');
+
+function toggleTodoAppVisibility() {
+  isTodoAppVisible.value = !isTodoAppVisible.value;
+  localStorage.setItem('showTodoAppEvents_TodoApp', String(isTodoAppVisible.value));
 }
 
 function occurrencesInRange(rangeStart: Date, rangeEnd: Date): Occurrence[] {
   const out: Occurrence[] = [];
-  for (const task of props.tasks) {
-    if (!task.scheduledAt) continue;
-    const base = new Date(task.scheduledAt);
+  
+  if (isTodoAppVisible.value) {
+    for (const task of props.tasks) {
+      if (!task.scheduledAt) continue;
+      const base = new Date(task.scheduledAt);
 
-    if (!task.recurrence) {
-      if (base >= rangeStart && base < rangeEnd) {
-        out.push({ task, date: base, key: `${task.id}` });
+      if (!task.recurrence) {
+        if (base >= rangeStart && base < rangeEnd) {
+          out.push({ task, date: base, key: `${task.id}` });
+        }
+        continue;
       }
-      continue;
-    }
 
-    let d = new Date(base);
-    let guard = 0;
-    while (d < rangeEnd && guard++ < 5000) {
-      if (d >= rangeStart) out.push({ task, date: new Date(d), key: `${task.id}-${d.getTime()}` });
-      d = nextOccurrence(d, task.recurrence, base);
+      let d = new Date(base);
+      let guard = 0;
+      while (d < rangeEnd && guard++ < 5000) {
+        if (d >= rangeStart) out.push({ task, date: new Date(d), key: `${task.id}-${d.getTime()}` });
+        d = nextOccurrence(d, task.recurrence, base);
+      }
     }
   }
+
+  // Merge MoneyApp events
+  if (isMoneyAppVisible.value) {
+    for (const ev of moneyAppEvents.value) {
+    const d = new Date(ev.date);
+    if (d >= rangeStart && d < rangeEnd) {
+      const amount = ev.amount ? ` - R$ ${ev.amount}` : '';
+      out.push({
+        isMoneyApp: true,
+        task: {
+          id: ev.id,
+          description: ev.description + amount,
+          completedAt: ev.status === 'paid' ? new Date().toISOString() : null,
+          categoryColor: ev.categoryColor,
+          type: ev.type
+        },
+        date: d,
+        key: `moneyapp-${ev.id}`
+      });
+    }
+  }
+  }
+
   return out.sort((a, b) => a.date.getTime() - b.date.getTime());
 }
 
@@ -696,6 +792,11 @@ function onSlotClick(day: Date, event: MouseEvent) {
 }
 
 function onEventClick(occ: Occurrence) {
+  if (occ.isMoneyApp) {
+    const moneyAppUrl = import.meta.env.VITE_MONEYAPP_API_URL?.replace('/api', '');
+    if (moneyAppUrl) window.open(moneyAppUrl, '_blank');
+    return;
+  }
   conflictPrompt.value = { date: occ.date, events: [occ] };
 }
 
@@ -707,7 +808,15 @@ function timeLabel(d: Date, always = false) {
 }
 
 const fallbackColors = ['bg-[var(--accent)]', 'bg-[#30d158]', 'bg-[#ff3b30]', 'bg-[#ff9500]', 'bg-[#ff2d55]', 'bg-[#bf5af2]'];
-function groupColor(task: TaskDto) {
+function groupColor(task: any) {
+  if (task.categoryColor) {
+    // If it's a MoneyApp event with a hex color, we return a style object later, but for now we inject it if possible.
+    // Actually, Vue classes accept strings. We can use style for custom hex.
+    // To keep it simple, we just return a default green for income and red for expense if no categoryColor matches standard classes.
+    if (task.type === 'income') return 'bg-[#30d158]';
+    if (task.type === 'expense') return 'bg-[#ff3b30]';
+    return 'bg-[#ff9500]';
+  }
   if (!task.groupId) return 'bg-[var(--accent)]';
   const idx = tasksStore.groups.findIndex((g: any) => g.id === task.groupId);
   if (idx === -1) return 'bg-[var(--accent)]';
@@ -729,7 +838,11 @@ const iconMap: Record<string, any> = {
   StarIcon,
 };
 
-function groupIconInfo(task: TaskDto): { img?: string; comp?: any } {
+function groupIconInfo(task: any): { img?: string; comp?: any } {
+  if (task.categoryColor) {
+    // MoneyApp item => we can use a DollarSign or something, but we don't have DollarSign imported.
+    return { comp: BriefcaseIcon };
+  }
   const g = tasksStore.groups.find((gr: any) => gr.id === task.groupId);
   if (!g?.icon) return { comp: ListBulletIcon };
   if (g.icon.startsWith('http') || g.icon.startsWith('data:')) return { img: g.icon };

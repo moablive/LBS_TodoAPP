@@ -8,7 +8,23 @@ import {
   varchar,
   pgTable,
   integer,
+  primaryKey,
 } from "drizzle-orm/pg-core";
+
+export const userIntegrations = pgTable(
+  "user_integrations",
+  {
+    telegramId: varchar("telegram_id", { length: 50 }).notNull(),
+    appId: integer("app_id").notNull(),
+    appUserId: integer("app_user_id").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+  },
+  (t) => ({
+    pk: primaryKey({ columns: [t.telegramId, t.appId] }),
+  })
+);
 
 export const userSettings = pgTable("user_settings", {
   loginhubId: integer("loginhub_id").primaryKey(),
@@ -81,6 +97,7 @@ export const userPrefs = pgTable("user_prefs", {
   userId: varchar("user_id", { length: 50 }).primaryKey(),
   // ids das listas visíveis no kanban ('none' = coluna Sem Lista)
   kanbanLists: jsonb("kanban_lists").$type<string[]>().default([]).notNull(),
+  showMoneyAppEvents: boolean("show_moneyapp_events").default(true).notNull(),
   updatedAt: timestamp("updated_at", { withTimezone: true })
     .defaultNow()
     .notNull(),

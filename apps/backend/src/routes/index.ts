@@ -5,7 +5,9 @@ import { userRouter } from './user.js';
 import { pushRouter } from './push.js';
 import { remindersRouter } from './reminders.js';
 import { prefsRouter } from './prefs.js';
-import { requireAuth } from '../middleware/auth.js';
+import { integrationsRouter } from './integrations.js';
+import { botRouter } from './bot.js';
+import { requireAuth, requireBotKey } from '../middleware/auth.js';
 import { db } from '@todoapp/db';
 import { schema } from '@todoapp/db';
 import { eq } from 'drizzle-orm';
@@ -38,6 +40,8 @@ apiRouter.post('/auth/login', async (req, res) => {
   }
 });
 
+apiRouter.use('/bot', requireBotKey, botRouter);
+
 apiRouter.use(requireAuth);
 apiRouter.use(async (req, res, next) => {
   // auto-create user_settings if not exists
@@ -58,3 +62,4 @@ apiRouter.use('/groups', groupsRouter);
 apiRouter.use('/push', pushRouter);
 apiRouter.use('/reminders', remindersRouter);
 apiRouter.use('/prefs', prefsRouter);
+apiRouter.use('/integrations', integrationsRouter);

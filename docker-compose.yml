@@ -43,6 +43,7 @@ services:
       args:
         VITE_API_BASE_URL: ${VITE_API_BASE_URL}
         VITE_LOGINHUB_API_URL: ${VITE_LOGINHUB_API_URL}
+        VITE_MONEYAPP_API_URL: ${VITE_MONEYAPP_API_URL}
     container_name: app_todoapp_frontend
     depends_on:
       app_todoapp_backend:

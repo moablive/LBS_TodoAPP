@@ -1,0 +1,1 @@
+ALTER TABLE "user_prefs" ADD COLUMN "show_moneyapp_events" boolean DEFAULT true NOT NULL;
