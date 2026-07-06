@@ -61,11 +61,31 @@ Organize suas tarefas em grupos personalizados (ex: Trabalho, Pessoal, Estudos).
 </td>
 <td width="50%">
 
-### 📅 Agendamento
-Agende tarefas para datas e horários específicos utilizando uma interface de Modal amigável com calendário e seletor de horas. O filtro **Hoje** mostra apenas o que precisa ser feito no dia atual.
+### 📅 Agendamento & Recorrência
+Agende tarefas para datas e horários específicos, com **recorrência** (diária, semanal, mensal, anual). O filtro **Hoje** mostra apenas o que precisa ser feito no dia atual.
 
 ### 🔐 Autenticação
-Autenticação centralizada via **LoginHUB** (IDP). JWT Bearer token com auth guard em todas as rotas protegidas. Inclui fluxo inteligente para troca obrigatória de senha no primeiro acesso (`requirePasswordChange`).
+Autenticação centralizada via **LoginHUB** (IDP, `app_id 4`). JWT Bearer token com auth guard em todas as rotas protegidas. Inclui fluxo inteligente para troca obrigatória de senha no primeiro acesso (`requirePasswordChange`).
+
+</td>
+</tr>
+<tr>
+<td width="50%">
+
+### 🗓️ Views: Lista, Calendário e Kanban
+Seletor de visualização no Dashboard. O **Calendário** (Dia/Semana/Mês, tela cheia) mostra tarefas, ocorrências de recorrência e — opcionalmente — os **lançamentos do MoneyAPP** (toggle). O **Kanban** organiza a lista selecionada em colunas por prioridade, com drag-and-drop que altera prioridade/conclui.
+
+### 🔔 Lembretes & Web Push
+Lembretes configuráveis por usuário (`no horário`, `30 min antes`, `7 dias antes`) com canais independentes: **Telegram** (via bot) e **Web Push** (VAPID + Service Worker). Rotinas diárias do bot às 08h/09h/13h.
+
+</td>
+<td width="50%">
+
+### 🤖 Bot do Telegram
+Wizards de adicionar/concluir/remover tarefas e grupos, transcrição de **voz** (Groq) e login vinculado ao LoginHub (LOGIN_WIZARD grava `user_settings.telegram_id` e migra os dados do namespace provisório).
+
+### 🔗 Integração MoneyAPP
+Lançamentos financeiros do **MoneyAPP** aparecem no calendário (toggle "MoneyAPP"), e as tarefas do TodoAPP aparecem no dashboard do Money. Ver a seção [Integração com MoneyAPP](#-integração-com-moneyapp).
 
 </td>
 </tr>
@@ -166,6 +186,31 @@ erDiagram
     int loginhub_id PK
     varchar telegram_id UK
   }
+  user_integrations {
+    varchar telegram_id PK
+    int app_id PK
+    int app_user_id
+    timestamptz created_at
+  }
+  user_prefs {
+    varchar user_id PK
+    jsonb kanban_lists
+    boolean show_moneyapp_events
+    timestamptz updated_at
+  }
+  reminder_settings {
+    varchar user_id PK
+    boolean remind_at_time
+    boolean remind_30min
+    boolean remind_7days
+    boolean notify_telegram
+    boolean notify_push
+  }
+  push_subscriptions {
+    varchar user_id
+    text endpoint PK
+    text keys
+  }
   task_groups {
     varchar id PK
     varchar user_id
@@ -178,12 +223,16 @@ erDiagram
     varchar id PK
     varchar user_id
     text description
+    text details
     timestamptz scheduled_at
     timestamptz created_at
     varchar group_id FK
     timestamptz completed_at
     boolean is_flagged
     boolean is_urgent
+    varchar priority
+    varchar recurrence
+    int order
   }
   task_groups ||--o{ tasks : contains
 ```
@@ -192,9 +241,11 @@ erDiagram
 
 | Convenção | Detalhe |
 | --------- | ------- |
-| 🔑 PKs | `varchar(36)` (UUID gerado no app) |
+| 🔑 PKs | `varchar(36)` (UUID gerado no app; tasks usam UUID curto de 8 chars) |
+| 👤 Identidade | `user_id` das tabelas de dados = **`telegramId`** (ou `String(loginhubId)` enquanto o Telegram não é vinculado — o LOGIN_WIZARD do bot migra o namespace) |
 | 🕒 Timestamps | `timestamptz` (with timezone). Lógica do server em UTC |
 | 🗑️ Soft delete | **Não usado.** Hard deletes com FK cascades/set null |
+| 🔁 Recorrência | `tasks.recurrence` (`daily`/`weekly`/`monthly`/`yearly`/`null`); `scheduled_at` = primeira ocorrência, as demais são expandidas em runtime (frontend e bot) |
 
 ---
 
@@ -204,10 +255,11 @@ erDiagram
 
 | Grupo | Método | Path | Notas |
 | ----- | ------ | ---- | ----- |
-| 🔐 **Auth** | `POST` | `/api/auth/login` | Retorna `{ token }` via LoginHUB |
+| 🔐 **Auth** | `POST` | `/api/auth/login` | Proxy para o LoginHUB (`app_id 4`) · retorna `{ token }` |
+| 👤 **User** | `GET`/`PATCH` | `/api/user/me` | Dados/ajustes do usuário |
 | 📋 **Tasks** | `GET` | `/api/tasks` | Lista tarefas do usuário |
-| | `POST` | `/api/tasks` | Cria tarefa |
-| | `PATCH` | `/api/tasks/:id` | Atualiza (completar, flag, etc.) |
+| | `POST` | `/api/tasks` | Cria tarefa (`createTaskSchema`: prioridade, recorrência, detalhes) |
+| | `PATCH` | `/api/tasks/:id` | Atualiza (completar, flag, agendar, etc.) |
 | | `DELETE` | `/api/tasks/:id` | Remove tarefa |
 | | `POST` | `/api/tasks/reorder` | Reordena tarefas (drag-and-drop) |
 | 📂 **Groups** | `GET` | `/api/groups` | Lista grupos do usuário |
@@ -215,6 +267,13 @@ erDiagram
 | | `PATCH` | `/api/groups/:id` | Atualiza grupo (nome, cor, ícone) |
 | | `DELETE` | `/api/groups/:id` | **Remove grupo** |
 | | `POST` | `/api/groups/reorder` | Reordena grupos (drag-and-drop) |
+| ⚙️ **Prefs** | `GET`/`PATCH` | `/api/prefs` | `{ kanbanLists, showMoneyAppEvents }` (toggle do calendário) |
+| 🔔 **Reminders** | `GET`/`PATCH` | `/api/reminders` | Configuração de lembretes (horário/30min/7dias · telegram/push) |
+| 📲 **Push** | `GET` | `/api/push/public-key` | VAPID public key |
+| | `POST` | `/api/push/subscribe` | Registra subscription do Service Worker |
+| | `POST` | `/api/push/unsubscribe` | Remove subscription |
+| 🔗 **Integrations** | `GET` | `/api/integrations/moneyapp/calendar` | Lançamentos do MoneyAPP (`?start&end`) — ver [integração](#-integração-com-moneyapp) |
+| 🤖 **Bot** (interno) | `GET` | `/api/bot/tasks` | `?telegramId&start&end` · requer header `x-api-key: BOT_SERVICE_KEY` (consumido pelo MoneyAPP e pelo bot) |
 | ❤️ **Health** | `GET` | `/health` | Healthcheck do container |
 
 ---
@@ -279,7 +338,28 @@ O bot opera 24/7 como worker e envia mensagens automáticas nos seguintes horár
 | **08:00** | ☀️ Bom dia + prioridades | Só tarefas com prioridade **Alta** (urgentes) |
 | **09:00** | 🌅 Resumo matinal completo | Todas as tarefas agrupadas por prioridade |
 | **13:00** | ☀️ Resumo da tarde | Todas as tarefas agrupadas por prioridade |
-| **Cada minuto** | ⏰ Lembrete pontual | Tarefas cujo `scheduledAt` bate com o minuto atual |
+| **Cada minuto** | ⏰ Lembrete pontual | Tarefas cujo `scheduledAt` (± offsets de lembrete configurados) bate com o minuto atual — respeita `reminder_settings` e envia por Telegram e/ou Web Push |
+
+---
+
+## 🔗 Integração com MoneyAPP
+
+> Documentação completa (fluxos, contratos, troubleshooting): `documentacao/integracao-todoapp-moneyapp.md` no repo de docs do servidor.
+
+A integração é **bidirecional em leitura** e toda **interna** à rede Docker `awl_network` (backend → backend, nada exposto no Cloudflare):
+
+| Direção | Fluxo |
+| ------- | ----- |
+| **Money → Todo** (calendário) | `CalendarView` → `GET /api/integrations/moneyapp/calendar?start&end` → backend resolve o vínculo em `user_integrations` (`app_id 3`) → `GET http://moneyapp_backend:3000/api/calendar` com `x-api-key: BOT_SERVICE_KEY` + `x-user-id: <loginhub_id do usuário NO Money>` |
+| **Todo → Money** (dashboard) | O backend do MoneyAPP chama `GET /api/bot/tasks?telegramId&start&end` (protegido por `x-api-key`) e exibe as tarefas em "Próximos Lançamentos" |
+
+**Pontos-chave:**
+
+- ⚠️ O `loginhub_id` é **por app** (TodoAPP = app 4, MoneyAPP = app 3): o mesmo e-mail tem IDs diferentes em cada app. A chave de junção entre os apps é o **`telegramId`**, mapeado na tabela `user_integrations (telegram_id, app_id, app_user_id)`.
+- O vínculo em `user_integrations` é **manual** (SQL) por enquanto — não há UI/endpoint de escrita.
+- `BOT_SERVICE_KEY` deve ser **idêntico** nos `.env` do TodoAPP e do MoneyAPP.
+- Contrato do `/api/calendar` do Money: itens `{ id, title, date, amount, type, status, category, color }` (atenção: `title`/`color`, não `description`/`categoryColor`).
+- Toggle do usuário: `user_prefs.show_moneyapp_events` (via `PATCH /api/prefs`), botão "MoneyAPP" no header do calendário. Falha do Money não quebra o calendário — retorna lista vazia.
 
 ---
 
@@ -310,9 +390,10 @@ docker compose --env-file .env up -d --build
 
 | Aspecto | Implementação |
 | ------- | ------------- |
-| **Identidade** | Centralizada no LoginHUB (IDP) |
+| **Identidade** | Centralizada no LoginHUB (IDP, `app_id 4`) |
 | **Tokens** | JWT Bearer emitido pelo LoginHUB, verificado via `JWT_SECRET` compartilhado |
-| **userId** | Extraído **apenas** de `req.user` (payload JWT) — nunca do body/query |
+| **userId** | Extraído **apenas** de `req.user` (payload JWT) — nunca do body/query. O middleware `resolveTelegramId` converte `loginhubId` → `telegramId` (chave real dos dados) |
+| **Identidade delegada** | Serviços internos (bot do Telegram, backend do MoneyAPP) autenticam com `x-api-key: BOT_SERVICE_KEY` (+ `x-user-id` quando agem em nome de um usuário) |
 | **Segurança HTTP** | Helmet (headers), CORS configurável via env |
 
 ---

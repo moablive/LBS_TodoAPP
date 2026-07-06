@@ -527,9 +527,10 @@ function occurrencesInRange(rangeStart: Date, rangeEnd: Date): Occurrence[] {
         isMoneyApp: true,
         task: {
           id: ev.id,
-          description: ev.description + amount,
+          // /api/calendar do MoneyAPP retorna { title, color }
+          description: (ev.title ?? ev.description ?? '') + amount,
           completedAt: ev.status === 'paid' ? new Date().toISOString() : null,
-          categoryColor: ev.categoryColor,
+          categoryColor: ev.color ?? ev.categoryColor,
           type: ev.type
         },
         date: d,
