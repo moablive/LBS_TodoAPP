@@ -51,6 +51,7 @@ export const tasks = pgTable(
     order: integer("order").default(0).notNull(),
     // null = não se repete; senão 'daily' | 'weekly' | 'monthly' | 'yearly'
     recurrence: varchar("recurrence", { length: 20 }),
+    details: text("details"),
   },
   (t) => ({
     userIdx: index("tasks_user_idx").on(t.userId),

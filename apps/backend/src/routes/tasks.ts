@@ -35,6 +35,7 @@ tasksRouter.post('/', async (req, res) => {
     priority: parsed.priority || 'low',
     order: parsed.order || 0,
     recurrence: parsed.recurrence || null,
+    details: parsed.details || null,
   }).returning();
   
   res.status(201).json(inserted[0]);
@@ -54,6 +55,7 @@ tasksRouter.patch('/:id', async (req, res) => {
   if (parsed.priority !== undefined) updates.priority = parsed.priority;
   if (parsed.order !== undefined) updates.order = parsed.order;
   if (parsed.recurrence !== undefined) updates.recurrence = parsed.recurrence || null;
+  if (parsed.details !== undefined) updates.details = parsed.details || null;
 
   const updated = await db.update(schema.tasks)
     .set(updates)

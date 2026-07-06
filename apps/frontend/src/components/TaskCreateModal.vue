@@ -69,23 +69,50 @@
             </button>
           </div>
         </div>
+        
+        <!-- Detalhes -->
+        <div class="flex items-start gap-3 py-2">
+          <div class="w-5 h-5 shrink-0 mt-1 flex items-center justify-center text-[var(--muted)]">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25H12" />
+            </svg>
+          </div>
+          <textarea
+            v-model="form.details"
+            placeholder="Adicionar detalhes..."
+            rows="3"
+            class="flex-1 w-full bg-[var(--bg-hover)] text-[var(--text)] text-[13px] rounded-lg px-3 py-2 border border-transparent focus:border-[var(--accent)] outline-none transition-colors resize-none"
+          ></textarea>
+        </div>
       </div>
 
       <!-- Ações -->
-      <div class="flex justify-end gap-2 px-5 py-4">
-        <button
-          @click="$emit('close')"
-          class="px-4 py-2 rounded-full text-[13px] font-semibold text-[var(--muted)] hover:bg-[var(--bg-hover)] hover:text-[var(--text)] transition-colors"
-        >
-          Cancelar
-        </button>
-        <button
-          @click="save"
-          :disabled="!form.description.trim() || isSaving"
-          class="px-5 py-2 rounded-full text-[13px] font-semibold bg-[var(--accent)] text-white hover:bg-[var(--accent-hover)] disabled:opacity-40 transition-colors"
-        >
-          {{ isSaving ? 'Salvando…' : 'Salvar' }}
-        </button>
+      <div class="flex justify-between items-center px-5 py-4">
+        <div>
+          <button
+            v-if="initialTask"
+            @click="deleteTask"
+            :disabled="isSaving"
+            class="px-4 py-2 rounded-full text-[13px] font-semibold text-[#ff3b30] hover:bg-[#ff3b30]/10 disabled:opacity-40 transition-colors"
+          >
+            Deletar
+          </button>
+        </div>
+        <div class="flex gap-2">
+          <button
+            @click="$emit('close')"
+            class="px-4 py-2 rounded-full text-[13px] font-semibold text-[var(--muted)] hover:bg-[var(--bg-hover)] hover:text-[var(--text)] transition-colors"
+          >
+            Cancelar
+          </button>
+          <button
+            @click="save"
+            :disabled="!form.description.trim() || isSaving"
+            class="px-5 py-2 rounded-full text-[13px] font-semibold bg-[var(--accent)] text-white hover:bg-[var(--accent-hover)] disabled:opacity-40 transition-colors"
+          >
+            {{ isSaving ? 'Salvando…' : 'Salvar' }}
+          </button>
+        </div>
       </div>
     </div>
   </div>
@@ -95,9 +122,10 @@
 import { computed, onMounted, ref } from 'vue';
 import { ClockIcon, ArrowPathIcon, FolderIcon, FlagIcon } from '@heroicons/vue/24/outline';
 import { useTasksStore } from '@/stores/tasks';
+import type { TaskDto } from '@todoapp/models';
 
-const props = defineProps<{ initialDate?: Date | null }>();
-const emit = defineEmits<{ (e: 'close'): void; (e: 'created'): void }>();
+const props = defineProps<{ initialDate?: Date | null; initialTask?: TaskDto | null }>();
+const emit = defineEmits<{ (e: 'close'): void; (e: 'created'): void; (e: 'updated'): void }>();
 
 const tasksStore = useTasksStore();
 const isSaving = ref(false);
@@ -108,22 +136,26 @@ function pad(n: number) {
   return String(n).padStart(2, '0');
 }
 
-const initial = props.initialDate ?? defaultDate();
-const dateStr = ref(`${initial.getFullYear()}-${pad(initial.getMonth() + 1)}-${pad(initial.getDate())}`);
-const timeStr = ref(`${pad(initial.getHours())}:${pad(initial.getMinutes())}`);
-
-const form = ref({
-  description: '',
-  groupId: null as string | null,
-  priority: 'low' as 'low' | 'medium' | 'high',
-  recurrence: null as 'daily' | 'weekly' | 'monthly' | 'yearly' | null,
-});
-
 function defaultDate() {
   const d = new Date();
   d.setHours(d.getHours() + 1, 0, 0, 0);
   return d;
 }
+
+const initial = props.initialTask && props.initialTask.scheduledAt 
+  ? new Date(props.initialTask.scheduledAt) 
+  : (props.initialDate ?? defaultDate());
+
+const dateStr = ref(props.initialTask && !props.initialTask.scheduledAt ? '' : `${initial.getFullYear()}-${pad(initial.getMonth() + 1)}-${pad(initial.getDate())}`);
+const timeStr = ref(props.initialTask && !props.initialTask.scheduledAt ? '' : `${pad(initial.getHours())}:${pad(initial.getMinutes())}`);
+
+const form = ref({
+  description: props.initialTask?.description || '',
+  groupId: props.initialTask?.groupId || null,
+  priority: props.initialTask?.priority || 'low',
+  recurrence: props.initialTask?.recurrence || null,
+  details: props.initialTask?.details || '',
+});
 
 const priorities = [
   { id: 'low' as const, label: 'Baixa', dot: 'bg-[#34c759]' },
@@ -155,17 +187,44 @@ async function save() {
   if (!description || isSaving.value) return;
   isSaving.value = true;
   try {
-    await tasksStore.addTaskFull({
-      description,
-      groupId: form.value.groupId,
-      scheduledAt: selectedDate.value ? selectedDate.value.toISOString() : null,
-      priority: form.value.priority,
-      recurrence: form.value.recurrence,
-    });
-    emit('created');
+    if (props.initialTask) {
+      await tasksStore.updateTaskFields(props.initialTask.id, {
+        description,
+        groupId: form.value.groupId,
+        scheduledAt: selectedDate.value ? selectedDate.value.toISOString() : null,
+        priority: form.value.priority,
+        recurrence: form.value.recurrence,
+        details: form.value.details.trim() || null,
+      });
+      emit('updated');
+    } else {
+      await tasksStore.addTaskFull({
+        description,
+        groupId: form.value.groupId,
+        scheduledAt: selectedDate.value ? selectedDate.value.toISOString() : null,
+        priority: form.value.priority,
+        recurrence: form.value.recurrence,
+        details: form.value.details.trim() || null,
+      });
+      emit('created');
+    }
     emit('close');
   } catch (err) {
-    console.error('Erro ao criar evento:', err);
+    console.error('Erro ao salvar evento:', err);
+  } finally {
+    isSaving.value = false;
+  }
+}
+
+async function deleteTask() {
+  if (!props.initialTask || isSaving.value) return;
+  isSaving.value = true;
+  try {
+    await tasksStore.deleteTask(props.initialTask.id);
+    emit('updated');
+    emit('close');
+  } catch (err) {
+    console.error('Erro ao deletar evento:', err);
   } finally {
     isSaving.value = false;
   }

@@ -15,6 +15,7 @@ export const taskSchema = z.object({
   priority: z.enum(["low", "medium", "high"]).default("low"),
   order: z.number().int().default(0),
   recurrence: recurrenceSchema.nullable().optional(),
+  details: z.string().nullable().optional(),
 });
 export type TaskDto = z.infer<typeof taskSchema>;
 
@@ -27,6 +28,7 @@ export const createTaskSchema = z.object({
   priority: z.enum(["low", "medium", "high"]).optional(),
   order: z.number().int().optional(),
   recurrence: recurrenceSchema.nullable().optional(),
+  details: z.string().nullable().optional(),
 });
 export type CreateTaskDto = z.infer<typeof createTaskSchema>;
 
@@ -40,6 +42,7 @@ export const updateTaskSchema = z.object({
   priority: z.enum(["low", "medium", "high"]).optional(),
   order: z.number().int().optional(),
   recurrence: recurrenceSchema.nullable().optional(),
+  details: z.string().nullable().optional(),
 });
 export type UpdateTaskDto = z.infer<typeof updateTaskSchema>;
 

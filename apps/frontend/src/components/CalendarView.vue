@@ -23,7 +23,7 @@
           <button
             v-for="vt in viewTypes"
             :key="vt.id"
-            @click="viewType = vt.id"
+            @click="setViewType(vt.id)"
             :title="`${vt.label} (${vt.key.toUpperCase()})`"
             class="px-3 py-1 rounded-md text-[13px] font-medium transition-colors flex items-center gap-1.5"
             :class="viewType === vt.id ? 'bg-[var(--accent)] text-white' : 'text-[var(--muted)] hover:text-[var(--text)]'"
@@ -62,7 +62,7 @@
             <button
               v-for="occ in cell.occurrences"
               :key="occ.key"
-              @click.stop="$emit('task-click', occ.task)"
+              @click.stop="onEventClick(occ)"
               class="w-full text-left rounded-md px-1.5 py-1 text-[11px] leading-tight truncate transition-opacity flex items-center gap-1 text-white"
               :class="[groupColor(occ.task), occ.task.completedAt ? 'opacity-40 line-through' : 'hover:opacity-80']"
               :title="occ.task.description"
@@ -71,6 +71,7 @@
               <component v-else :is="groupIconInfo(occ.task).comp" class="w-3 h-3 shrink-0" />
               <span class="truncate">{{ timeLabel(occ.date) }}{{ occ.task.description }}</span>
               <ArrowPathIcon v-if="occ.task.recurrence" class="w-3 h-3 shrink-0 opacity-70" />
+              <FlagIconSolid v-if="occ.task.priority && occ.task.priority !== 'low'" class="w-3 h-3 shrink-0" :class="getPriorityTextColor(occ.task.priority)" />
             </button>
           </div>
         </div>
@@ -142,12 +143,15 @@
               <button
                 v-for="occ in day.allDay"
                 :key="occ.key"
-                @click.stop="$emit('task-click', occ.task)"
+                @click.stop="onEventClick(occ)"
                 class="w-full text-left rounded px-1.5 py-0.5 text-[11px] truncate text-white transition-colors"
                 :class="[groupColor(occ.task), occ.task.completedAt ? 'opacity-40 line-through' : 'hover:opacity-80']"
                 :title="occ.task.description"
               >
-                {{ occ.task.description }}
+                <div class="flex items-center gap-1 overflow-hidden">
+                  <span class="truncate flex-1">{{ occ.task.description }}</span>
+                  <FlagIconSolid v-if="occ.task.priority && occ.task.priority !== 'low'" class="w-3 h-3 shrink-0" :class="getPriorityTextColor(occ.task.priority)" />
+                </div>
               </button>
             </div>
           </div>
@@ -198,7 +202,8 @@
               <button
                 v-for="occ in day.timed"
                 :key="occ.key"
-                @click.stop="$emit('task-click', occ.task)"
+                @click.stop="onEventClick(occ)"
+                @mousemove.stop="hoverSlot = null"
                 class="absolute rounded-lg px-2 py-1 text-left text-[11px] leading-tight text-white overflow-hidden border border-black/30 transition-opacity"
                 :class="[groupColor(occ.task), occ.task.completedAt ? 'opacity-40 line-through' : 'hover:opacity-85']"
                 :style="occ.style"
@@ -209,6 +214,7 @@
                   <component v-else :is="groupIconInfo(occ.task).comp" class="w-3 h-3 shrink-0" />
                   <span class="truncate">{{ occ.task.description }}</span>
                   <ArrowPathIcon v-if="occ.task.recurrence" class="w-3 h-3 shrink-0" />
+                  <FlagIconSolid v-if="occ.task.priority && occ.task.priority !== 'low'" class="w-3 h-3 shrink-0 drop-shadow-md" :class="getPriorityTextColor(occ.task.priority)" />
                 </span>
                 <span class="opacity-80">{{ timeLabel(occ.date, true) }}</span>
               </button>
@@ -236,6 +242,33 @@
     :initial-date="createDate"
     @close="isCreateOpen = false"
   />
+
+  <div v-if="conflictPrompt" class="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[60] p-4" @click.self="conflictPrompt = null">
+    <div class="bg-[var(--bg-card)] rounded-2xl shadow-2xl w-full max-w-sm border border-white/10 p-6">
+      <h3 class="text-lg font-semibold text-white mb-4">{{ conflictPrompt.events.length > 1 ? 'Múltiplos eventos' : 'Evento Existente' }}</h3>
+      <p class="text-[13px] text-[var(--muted)] mb-5">
+        {{ conflictPrompt.events.length > 1 ? 'Você clicou em um horário com múltiplos eventos. O que deseja fazer?' : 'Você clicou em um horário que já possui um evento. O que deseja fazer?' }}
+      </p>
+      <div class="flex flex-col gap-2">
+        <button @click="openCreate(conflictPrompt.date); conflictPrompt = null" class="w-full py-2.5 rounded-xl bg-[var(--accent)] hover:bg-[var(--accent-hover)] text-white font-medium transition-colors">
+          Inserir novo evento
+        </button>
+        <button
+          v-for="occ in conflictPrompt.events"
+          :key="occ.key"
+          @click="$emit('task-click', occ.task); conflictPrompt = null"
+          class="w-full py-2.5 rounded-xl bg-[var(--bg-hover)] hover:bg-[var(--bg)] border border-[var(--border)] text-white font-medium transition-colors truncate px-3"
+        >
+          Visualizar: {{ occ.task.description }}
+        </button>
+      </div>
+      <div class="mt-4 pt-4 border-t border-white/5">
+        <button @click="conflictPrompt = null" class="w-full py-2 rounded-xl text-[var(--muted)] hover:text-white hover:bg-[var(--bg-hover)] font-medium transition-colors">
+          Cancelar
+        </button>
+      </div>
+    </div>
+  </div>
 </template>
 
 <script setup lang="ts">
@@ -249,8 +282,9 @@ import {
   FolderIcon,
   BriefcaseIcon,
   ShoppingCartIcon,
-  StarIcon,
+  StarIcon
 } from '@heroicons/vue/24/outline';
+import { FlagIcon as FlagIconSolid } from '@heroicons/vue/24/solid';
 import type { TaskDto } from '@todoapp/models';
 import { useTasksStore } from '@/stores/tasks';
 import TaskCreateModal from './TaskCreateModal.vue';
@@ -275,6 +309,13 @@ const viewTypes: { id: ViewType; label: string; key: string }[] = [
   { id: 'year', label: 'Ano', key: 'y' },
 ];
 
+function setViewType(vtId: ViewType) {
+  if (vtId === 'day' || vtId === 'week') {
+    cursor.value = new Date();
+  }
+  viewType.value = vtId;
+}
+
 const cursor = ref(new Date());
 const now = ref(new Date());
 const nowTimer = window.setInterval(() => (now.value = new Date()), 60_000);
@@ -293,16 +334,29 @@ watch(viewType, scrollToMorning);
 
 // Atalhos estilo Google Calendar: D/W/M trocam a visão, T = hoje, ←/→ navegam.
 function onKeydown(e: KeyboardEvent) {
+  if (e.key === 'Escape') {
+    if (conflictPrompt.value) {
+      conflictPrompt.value = null;
+      e.preventDefault();
+      return;
+    }
+    if (isCreateOpen.value) {
+      isCreateOpen.value = false;
+      e.preventDefault();
+      return;
+    }
+  }
+
   if (e.metaKey || e.ctrlKey || e.altKey) return;
   const target = e.target as HTMLElement | null;
   if (target && ['INPUT', 'SELECT', 'TEXTAREA'].includes(target.tagName)) return;
-  if (isCreateOpen.value) return;
+  if (isCreateOpen.value || conflictPrompt.value) return;
 
   switch (e.key.toLowerCase()) {
-    case 'd': viewType.value = 'day'; break;
-    case 'w': viewType.value = 'week'; break;
-    case 'm': viewType.value = 'month'; break;
-    case 'y': viewType.value = 'year'; break;
+    case 'd': setViewType('day'); break;
+    case 'w': setViewType('week'); break;
+    case 'm': setViewType('month'); break;
+    case 'y': setViewType('year'); break;
     case 't': goToday(); break;
     case 'c': openCreate(null); break;
     case 'arrowleft':
@@ -476,28 +530,74 @@ const gridDays = computed(() => {
 
 // Blocos de 1h; eventos sobrepostos dividem a largura da coluna (lanes).
 function layoutTimed(occs: Occurrence[]): Occurrence[] {
-  const laneEnds: number[] = [];
-  const placed = occs.map((occ) => {
-    const startMin = occ.date.getHours() * 60 + occ.date.getMinutes();
-    let lane = laneEnds.findIndex((end) => end <= startMin);
-    if (lane === -1) {
-      lane = laneEnds.length;
-      laneEnds.push(startMin + 60);
-    } else {
-      laneEnds[lane] = startMin + 60;
-    }
-    return { occ, lane, startMin };
+  if (occs.length === 0) return [];
+
+  // Ordena por horário de início
+  const sorted = [...occs].sort((a, b) => {
+    const aStart = a.date.getHours() * 60 + a.date.getMinutes();
+    const bStart = b.date.getHours() * 60 + b.date.getMinutes();
+    return aStart - bStart;
   });
-  const laneCount = Math.max(1, laneEnds.length);
-  return placed.map(({ occ, lane, startMin }) => ({
-    ...occ,
-    style: {
-      top: (startMin / 60) * HOUR_PX + 1 + 'px',
-      height: HOUR_PX - 4 + 'px',
-      left: `calc(${(lane / laneCount) * 100}% + 2px)`,
-      width: `calc(${100 / laneCount}% - 5px)`,
-    },
-  }));
+
+  const clusters: { occ: Occurrence; start: number; end: number; col?: number }[][] = [];
+  let currentCluster: { occ: Occurrence; start: number; end: number; col?: number }[] = [];
+  let currentClusterEnd = 0;
+
+  for (const occ of sorted) {
+    const start = occ.date.getHours() * 60 + occ.date.getMinutes();
+    const end = start + 60; // Eventos ocupam 1h visualmente
+
+    if (currentCluster.length > 0 && start >= currentClusterEnd) {
+      clusters.push(currentCluster);
+      currentCluster = [];
+      currentClusterEnd = 0;
+    }
+
+    currentCluster.push({ occ, start, end });
+    if (end > currentClusterEnd) {
+      currentClusterEnd = end;
+    }
+  }
+  if (currentCluster.length > 0) {
+    clusters.push(currentCluster);
+  }
+
+  const placed: Occurrence[] = [];
+
+  for (const cluster of clusters) {
+    const columns: typeof currentCluster[] = [];
+
+    for (const item of cluster) {
+      let placedInColumn = false;
+      for (let i = 0; i < columns.length; i++) {
+        const col = columns[i];
+        const lastInCol = col[col.length - 1];
+        if (lastInCol.end <= item.start) {
+          col.push(item);
+          item.col = i;
+          placedInColumn = true;
+          break;
+        }
+      }
+      if (!placedInColumn) {
+        item.col = columns.length;
+        columns.push([item]);
+      }
+    }
+
+    const numCols = columns.length;
+    for (const item of cluster) {
+      item.occ.style = {
+        top: (item.start / 60) * HOUR_PX + 1 + 'px',
+        height: HOUR_PX - 2 + 'px',
+        left: `calc(${(item.col! / numCols) * 100}% + 1px)`,
+        width: `calc(${100 / numCols}% - 2px)`,
+      };
+      placed.push(item.occ);
+    }
+  }
+
+  return placed;
 }
 
 const nowOffsetPx = computed(
@@ -566,11 +666,37 @@ function fmtMin(min: number) {
   return `${String(Math.floor(min / 60)).padStart(2, '0')}:${String(min % 60).padStart(2, '0')}`;
 }
 
+const conflictPrompt = ref<{ date: Date, events: Occurrence[] } | null>(null);
+
 function onSlotClick(day: Date, event: MouseEvent) {
   const min = slotMinFromEvent(event);
+  const slotStartMin = Math.floor(min / 30) * 30; // 30-min block start
+  const slotEndMin = slotStartMin + 30;
+  
   const d = new Date(day.getFullYear(), day.getMonth(), day.getDate(), Math.floor(min / 60), min % 60, 0, 0);
+
+  const dayKeyStr = dayKey(day);
+  const dayData = gridDays.value.find(g => g.key === dayKeyStr);
+
+  if (dayData) {
+    const overlappingEvents = dayData.timed.filter(occ => {
+      const occStartMin = occ.date.getHours() * 60 + occ.date.getMinutes();
+      const occEndMin = occStartMin + 60; // Eventos ocupam 1h visualmente
+      return slotStartMin < occEndMin && slotEndMin > occStartMin;
+    });
+
+    if (overlappingEvents.length >= 1) {
+      conflictPrompt.value = { date: d, events: overlappingEvents };
+      return;
+    }
+  }
+
   createDate.value = d;
   isCreateOpen.value = true;
+}
+
+function onEventClick(occ: Occurrence) {
+  conflictPrompt.value = { date: occ.date, events: [occ] };
 }
 
 // ── misc ────────────────────────────────────────────────────────────────────
@@ -583,9 +709,15 @@ function timeLabel(d: Date, always = false) {
 const fallbackColors = ['bg-[var(--accent)]', 'bg-[#30d158]', 'bg-[#ff3b30]', 'bg-[#ff9500]', 'bg-[#ff2d55]', 'bg-[#bf5af2]'];
 function groupColor(task: TaskDto) {
   if (!task.groupId) return 'bg-[var(--accent)]';
-  const idx = tasksStore.groups.findIndex((g) => g.id === task.groupId);
+  const idx = tasksStore.groups.findIndex((g: any) => g.id === task.groupId);
   if (idx === -1) return 'bg-[var(--accent)]';
   return tasksStore.groups[idx]?.color || fallbackColors[idx % fallbackColors.length];
+}
+
+function getPriorityTextColor(p: string) {
+  if (p === 'high') return 'text-[#ff3b30] bg-white rounded-sm';
+  if (p === 'medium') return 'text-[#ffcc00] bg-black/20 rounded-sm';
+  return 'text-white/70';
 }
 
 // Mesmo mapa de ícones da sidebar de listas do todo.
@@ -598,7 +730,7 @@ const iconMap: Record<string, any> = {
 };
 
 function groupIconInfo(task: TaskDto): { img?: string; comp?: any } {
-  const g = tasksStore.groups.find((gr) => gr.id === task.groupId);
+  const g = tasksStore.groups.find((gr: any) => gr.id === task.groupId);
   if (!g?.icon) return { comp: ListBulletIcon };
   if (g.icon.startsWith('http') || g.icon.startsWith('data:')) return { img: g.icon };
   return { comp: iconMap[g.icon] || ListBulletIcon };

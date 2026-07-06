@@ -59,6 +59,10 @@ export const useTasksStore = defineStore('tasks', {
       const idx = this.tasks.findIndex(t => t.id === task.id);
       if (idx !== -1) this.tasks[idx] = updated;
     },
+    async deleteTask(taskId: string) {
+      await api.delete(`/tasks/${taskId}`);
+      this.tasks = this.tasks.filter(t => t.id !== taskId);
+    },
     setFilter(filterId: string) {
       this.selectedFilter = filterId;
     },

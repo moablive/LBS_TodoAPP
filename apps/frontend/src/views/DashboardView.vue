@@ -131,7 +131,7 @@
 
       <!-- Calendar view -->
       <div v-if="viewMode === 'calendar'" class="flex-1 min-h-0 min-w-0 overflow-y-auto custom-scrollbar mt-12">
-        <CalendarView :tasks="tasksStore.tasks" @task-click="openDatePickerModal" />
+        <CalendarView :tasks="tasksStore.tasks" @task-click="openDetailsModal" />
       </div>
 
 
@@ -191,6 +191,9 @@
           </div>
 
           <div class="flex items-center gap-3 transition-opacity">
+            <button @click="openDetailsModal(task)" class="text-[var(--muted2)] hover:text-[var(--accent)] transition-colors flex items-center justify-center p-1" title="Edit Details">
+              <DocumentTextIcon class="w-5 h-5" :class="{'text-[var(--accent)]': task.details}" />
+            </button>
             <button @click="openPriorityModal(task)" class="text-[var(--muted2)] hover:text-[var(--text)] transition-colors flex items-center justify-center p-1" title="Set Priority">
               <FlagIcon class="w-5 h-5" :class="getPriorityTextColor(task.priority)" />
             </button>
@@ -380,6 +383,14 @@
       </div>
     </div>
   </div>
+  <!-- Details / Edit Modal -->
+  <TaskCreateModal
+    v-if="isDetailsModalOpen"
+    :initial-task="editingTaskForDetails"
+    @close="isDetailsModalOpen = false; editingTaskForDetails = null"
+    @updated="tasksStore.fetchAll()"
+  />
+
   <!-- Reminder Settings Modal -->
   <ReminderSettingsModal v-if="isReminderSettingsOpen" @close="isReminderSettingsOpen = false" />
 
@@ -434,9 +445,11 @@ import {
   QueueListIcon,
   ArrowPathIcon,
   Bars3Icon,
-  SwatchIcon
+  SwatchIcon,
+  DocumentTextIcon
 } from '@heroicons/vue/24/outline';
 import CalendarView from '@/components/CalendarView.vue';
+import TaskCreateModal from '@/components/TaskCreateModal.vue';
 
 import ReminderSettingsModal from '@/components/ReminderSettingsModal.vue';
 import ThemeSettingsModal from '@/components/ThemeSettingsModal.vue';
@@ -475,6 +488,9 @@ const editingTaskForDate = ref<any>(null);
 
 const isPriorityModalOpen = ref(false);
 const editingTaskForPriority = ref<any>(null);
+
+const isDetailsModalOpen = ref(false);
+const editingTaskForDetails = ref<any>(null);
 
 const newGroupData = ref({
   name: '',
@@ -692,7 +708,8 @@ async function updateTask(task: any) {
     isUrgent: task.isUrgent,
     scheduledAt: task.scheduledAt ? new Date(task.scheduledAt).toISOString() : null,
     priority: task.priority,
-    recurrence: task.recurrence ?? null
+    recurrence: task.recurrence ?? null,
+    details: task.details || null
   });
 }
 
@@ -798,6 +815,12 @@ function openPriorityModal(task: any) {
   isPriorityModalOpen.value = true;
 }
 
+function getPriorityTextColor(p: string) {
+  if (p === 'high') return 'text-[#ff3b30]';
+  if (p === 'medium') return 'text-[#ffcc00]';
+  return 'text-[#34c759]';
+}
+
 function setPriorityAndClose(priority: string) {
   if (editingTaskForPriority.value) {
     editingTaskForPriority.value.priority = priority;
@@ -807,9 +830,8 @@ function setPriorityAndClose(priority: string) {
   editingTaskForPriority.value = null;
 }
 
-function getPriorityTextColor(priority: string) {
-  if (priority === 'high') return 'text-[#ff3b30]';
-  if (priority === 'medium') return 'text-[#ffcc00]';
-  return 'text-[#34c759]'; // low
+function openDetailsModal(task: any) {
+  editingTaskForDetails.value = { ...task }; // Clone to avoid saving before confirm
+  isDetailsModalOpen.value = true;
 }
 </script>
