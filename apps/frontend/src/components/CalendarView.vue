@@ -9,17 +9,17 @@
         >
           <PlusIcon class="w-4 h-4" /> Criar
         </button>
-        <h2 class="text-[20px] font-bold text-[var(--text)] capitalize">{{ title }}</h2>
+        <h2 class="text-[15px] sm:text-[20px] font-bold text-[var(--text)] capitalize">{{ title }}</h2>
       </div>
 
-      <div class="flex items-center gap-2">
+      <div class="flex items-center gap-1.5 sm:gap-2 flex-wrap">
         <button
           @click="toggleTodoAppVisibility"
           class="flex items-center gap-2 text-[13px] font-semibold pl-2 pr-3 py-1.5 rounded-xl transition-colors border"
           :class="isTodoAppVisible ? 'bg-[var(--accent)]/20 border-[var(--accent)] text-[var(--accent)]' : 'bg-[var(--bg-hover)] border-white/5 text-[var(--muted)] hover:text-white'"
           title="Exibir tarefas do TodoAPP"
         >
-          <ListBulletIcon class="w-4 h-4" /> TodoAPP
+          <ListBulletIcon class="w-4 h-4" /><span class="hidden sm:inline">TodoAPP</span>
         </button>
 
         <button
@@ -28,7 +28,7 @@
           :class="isMoneyAppVisible ? 'bg-[#30d158]/20 border-[#30d158] text-[#30d158]' : 'bg-[var(--bg-hover)] border-white/5 text-[var(--muted)] hover:text-white'"
           title="Exibir lançamentos do MoneyAPP"
         >
-          <BriefcaseIcon class="w-4 h-4" /> MoneyAPP
+          <img src="/moneyapp-logo.png" class="w-4 h-4 rounded-full" alt="" /><span class="hidden sm:inline">MoneyAPP</span>
         </button>
 
         <button @click="navigate(-1)" title="Anterior (←)" class="p-1.5 rounded-md hover:bg-[var(--bg-hover)] text-[var(--muted)] hover:text-[var(--text)] transition-colors">
@@ -43,11 +43,11 @@
             :key="vt.id"
             @click="setViewType(vt.id)"
             :title="`${vt.label} (${vt.key.toUpperCase()})`"
-            class="px-3 py-1 rounded-md text-[13px] font-medium transition-colors flex items-center gap-1.5"
+            class="px-2 sm:px-3 py-1 rounded-md text-[12px] sm:text-[13px] font-medium transition-colors flex items-center gap-1.5"
             :class="viewType === vt.id ? 'bg-[var(--accent)] text-white' : 'text-[var(--muted)] hover:text-[var(--text)]'"
           >
             {{ vt.label }}
-            <span class="text-[10px] font-bold uppercase" :class="viewType === vt.id ? 'opacity-60' : 'opacity-40'">{{ vt.key }}</span>
+            <span class="hidden sm:inline text-[10px] font-bold uppercase" :class="viewType === vt.id ? 'opacity-60' : 'opacity-40'">{{ vt.key }}</span>
           </button>
         </div>
       </div>
@@ -56,7 +56,12 @@
     <!-- ══════════ MONTH ══════════ -->
     <template v-if="viewType === 'month'">
       <div class="grid grid-cols-7 gap-px mb-1">
-        <div v-for="wd in weekdayHeaders" :key="wd" class="text-center text-[11px] font-bold text-[var(--muted)] uppercase tracking-wide py-1">
+        <div
+          v-for="(wd, i) in weekdayHeaders"
+          :key="wd"
+          class="text-center text-[11px] font-bold uppercase tracking-wide py-1"
+          :class="i >= 5 ? 'text-[#ff453a]/70' : 'text-[var(--muted)]'"
+        >
           {{ wd }}
         </div>
       </div>
@@ -65,7 +70,7 @@
           v-for="cell in monthCells"
           :key="cell.key"
           class="bg-[var(--bg)] p-1 md:p-1.5 min-h-[60px] md:min-h-[92px] flex flex-col overflow-hidden cursor-pointer hover:bg-[var(--bg-hover)] transition-colors"
-          :class="{ 'opacity-40': !cell.inMonth }"
+          :class="{ 'opacity-40': !cell.inMonth, 'weekend-cell': isWeekend(cell.date) }"
           @click.self="openCreate(cell.date)"
         >
           <div class="flex justify-end mb-1 pointer-events-none">
@@ -146,9 +151,10 @@
             v-for="day in gridDays"
             :key="day.key"
             class="flex-1 min-w-0 py-2 px-1 text-center border-r border-[var(--border-soft)] last:border-r-0 cursor-pointer hover:bg-[var(--bg-hover)] transition-colors"
+            :class="{ 'weekend-cell': isWeekend(day.date) }"
             @click="cursor = new Date(day.date); viewType = 'day'"
           >
-            <p class="text-[11px] font-bold uppercase tracking-wide" :class="day.isToday ? 'text-[var(--accent)]' : 'text-[var(--muted)]'">
+            <p class="text-[11px] font-bold uppercase tracking-wide" :class="day.isToday ? 'text-[var(--accent)]' : (isWeekend(day.date) ? 'text-[#ff453a]/80' : 'text-[var(--muted)]')">
               {{ weekdays[day.date.getDay()] }}
             </p>
             <p
@@ -195,6 +201,7 @@
               v-for="day in gridDays"
               :key="day.key"
               class="flex-1 min-w-0 relative border-r border-[var(--border-soft)] last:border-r-0 cursor-pointer"
+              :class="{ 'weekend-cell': isWeekend(day.date) }"
               @click="onSlotClick(day.date, $event)"
               @mousemove="onSlotHover(day.key, $event)"
               @mouseleave="hoverSlot = null"
@@ -234,7 +241,7 @@
                   <ArrowPathIcon v-if="occ.task.recurrence" class="w-3 h-3 shrink-0" />
                   <FlagIconSolid v-if="occ.task.priority && occ.task.priority !== 'low'" class="w-3 h-3 shrink-0 drop-shadow-md" :class="getPriorityTextColor(occ.task.priority)" />
                 </span>
-                <span class="opacity-80">{{ timeLabel(occ.date, true) }}</span>
+                <span class="opacity-80">{{ timedRangeLabel(occ) }}</span>
               </button>
 
               <!-- current time indicator -->
@@ -274,7 +281,7 @@
         <button
           v-for="occ in conflictPrompt.events"
           :key="occ.key"
-          @click="$emit('task-click', occ.task); conflictPrompt = null"
+          @click="viewOccurrence(occ)"
           class="w-full py-2.5 rounded-xl bg-[var(--bg-hover)] hover:bg-[var(--bg)] border border-[var(--border)] text-white font-medium transition-colors truncate px-3"
         >
           Visualizar: {{ occ.task.description }}
@@ -286,6 +293,136 @@
         </button>
       </div>
     </div>
+  </div>
+
+  <!-- Lista de lançamentos do MoneyAPP no dia -->
+  <div v-if="moneyList" class="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[60] p-4" @click.self="moneyList = null">
+    <div class="bg-[var(--bg-card)] rounded-2xl shadow-2xl w-full max-w-md border border-white/10 p-6">
+      <div class="flex items-center gap-2 mb-1">
+        <img src="/moneyapp-logo.png" class="w-5 h-5 rounded-full" alt="MoneyAPP" />
+        <h3 class="text-lg font-semibold text-white flex-1">Lançamentos do MoneyAPP</h3>
+        <span class="text-[12px] font-bold text-[#30d158] bg-[#30d158]/10 border border-[#30d158]/40 rounded-full px-2.5 py-0.5">
+          {{ moneyList.events.length }}
+        </span>
+      </div>
+      <p class="text-[13px] text-[var(--muted)] capitalize mb-4">
+        {{ moneyList.date.toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }) }}
+      </p>
+
+      <div class="max-h-[50vh] overflow-y-auto custom-scrollbar space-y-2 pr-1">
+        <button
+          v-for="ev in moneyList.events"
+          :key="ev.id"
+          @click="moneyDetail = ev"
+          class="w-full flex items-center gap-3 rounded-xl bg-[var(--bg)] hover:bg-[var(--bg-hover)] border border-white/5 px-3 py-2.5 text-left transition-colors"
+        >
+          <span class="w-2.5 h-2.5 rounded-full shrink-0" :style="{ backgroundColor: ev.color || '#30d158' }"></span>
+          <div class="flex-1 min-w-0">
+            <p class="text-[13px] font-semibold text-white truncate">{{ ev.title }}</p>
+            <p class="text-[11px] text-[var(--muted)]">{{ timeLabel(new Date(ev.date), true).trim() }}<template v-if="ev.category"> · {{ ev.category }}</template></p>
+          </div>
+          <span class="text-[13px] font-bold shrink-0" :class="ev.type === 'expense' ? 'text-[#ff453a]' : 'text-[#30d158]'">
+            {{ moneyAmountLabel(ev) }}
+          </span>
+        </button>
+      </div>
+
+      <div class="flex items-center justify-between mt-4 pt-4 border-t border-white/5">
+        <span class="text-[13px] text-[var(--muted)]">Total do dia:
+          <span class="font-bold" :class="moneyListTotal < 0 ? 'text-[#ff453a]' : 'text-[#30d158]'">
+            {{ (moneyListTotal < 0 ? '-' : '+') + formatBRL(moneyListTotal) }}
+          </span>
+        </span>
+        <button @click="moneyList = null" class="px-4 py-2 rounded-full text-[13px] font-semibold text-[var(--muted)] hover:bg-[var(--bg-hover)] hover:text-white transition-colors">
+          Fechar
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Detalhes da transação (estilo MoneyAPP) -->
+  <div v-if="moneyDetail" class="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[70] p-4" @click.self="moneyDetail = null">
+    <div class="bg-[var(--bg-card)] rounded-2xl shadow-2xl w-full max-w-md border border-white/10 p-6">
+      <div class="flex items-center gap-2.5 mb-5">
+        <img src="/moneyapp-logo.png" class="w-8 h-8 rounded-full" alt="MoneyAPP" />
+        <div>
+          <h3 class="text-xl font-bold text-white leading-tight">Detalhes da Transação</h3>
+          <p class="text-[11px] font-semibold text-[#30d158] uppercase tracking-wide">MoneyAPP</p>
+        </div>
+      </div>
+
+      <div class="bg-[var(--bg)] rounded-xl px-4 py-3 border border-white/5 mb-3">
+        <p class="text-[12px] text-[var(--muted)] mb-0.5">Descrição</p>
+        <p class="text-[15px] font-semibold text-white break-words">{{ moneyDetail.title }}</p>
+      </div>
+
+      <div class="grid grid-cols-2 gap-3 mb-3">
+        <div class="bg-[var(--bg)] rounded-xl px-4 py-3 border border-white/5">
+          <p class="text-[12px] text-[var(--muted)] mb-0.5">💰 Valor</p>
+          <p class="text-[16px] font-bold" :class="moneyDetail.type === 'expense' ? 'text-[#ff453a]' : 'text-[#30d158]'">
+            {{ moneyAmountLabel(moneyDetail) }}
+          </p>
+        </div>
+        <div class="bg-[var(--bg)] rounded-xl px-4 py-3 border border-white/5">
+          <p class="text-[12px] text-[var(--muted)] mb-0.5">📅 Data</p>
+          <p class="text-[15px] font-semibold text-white">{{ moneyDateLabel(moneyDetail) }}</p>
+        </div>
+      </div>
+
+      <div class="grid grid-cols-2 gap-3 mb-3">
+        <div class="bg-[var(--bg)] rounded-xl px-4 py-3 border border-white/5">
+          <p class="text-[12px] text-[var(--muted)] mb-0.5 flex items-center gap-1.5">
+            <span class="w-2 h-2 rounded-full inline-block" :style="{ backgroundColor: moneyDetail.color || '#30d158' }"></span>Categoria
+          </p>
+          <p class="text-[15px] font-semibold text-white truncate">{{ moneyDetail.category || 'Sem categoria' }}</p>
+        </div>
+        <div class="bg-[var(--bg)] rounded-xl px-4 py-3 border border-white/5">
+          <p class="text-[12px] text-[var(--muted)] mb-1">Status</p>
+          <span class="inline-block text-[11px] font-bold border rounded-full px-2.5 py-0.5" :class="moneyStatusInfo(moneyDetail).cls">
+            {{ moneyStatusInfo(moneyDetail).label }}
+          </span>
+        </div>
+      </div>
+
+      <div v-if="moneyDetail.hasReceipt" class="flex items-center justify-between bg-[var(--bg)] rounded-xl px-4 py-3 border border-white/5 mb-3">
+        <p class="text-[13px] font-semibold text-[#30d158]">🧾 Comprovante</p>
+        <button
+          @click="openReceipt"
+          :disabled="receiptLoading"
+          class="px-3 py-1.5 rounded-lg text-[12px] font-semibold bg-white text-black hover:bg-white/80 disabled:opacity-50 transition-colors"
+        >
+          {{ receiptLoading ? 'Carregando…' : 'Ver Comprovante' }}
+        </button>
+      </div>
+
+      <div class="flex justify-end gap-2 mt-5">
+        <button
+          @click="openMoneyApp"
+          class="px-4 py-2 rounded-full text-[13px] font-semibold text-[#30d158] border border-[#30d158]/40 hover:bg-[#30d158]/10 transition-colors"
+        >
+          Abrir no MoneyAPP
+        </button>
+        <button
+          @click="moneyDetail = null"
+          class="px-4 py-2 rounded-full text-[13px] font-semibold bg-[var(--bg-hover)] text-white hover:bg-[var(--bg)] border border-white/10 transition-colors"
+        >
+          Fechar
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Visualizador de comprovante (imagem ou PDF) -->
+  <div v-if="receiptView" class="fixed inset-0 bg-black/85 backdrop-blur-sm flex items-center justify-center z-[80] p-4" @click.self="closeReceipt">
+    <button
+      @click="closeReceipt"
+      class="absolute top-4 right-4 w-9 h-9 flex items-center justify-center rounded-full bg-white/10 hover:bg-white/20 text-white text-lg font-bold transition-colors"
+      title="Fechar (Esc)"
+    >
+      ✕
+    </button>
+    <iframe v-if="receiptView.isPdf" :src="receiptView.url" class="w-full max-w-3xl h-[85vh] rounded-xl bg-white border-0"></iframe>
+    <img v-else :src="receiptView.url" class="max-w-full max-h-[85vh] rounded-xl object-contain shadow-2xl" alt="Comprovante" />
   </div>
 </template>
 
@@ -309,7 +446,7 @@ import { useTasksStore } from '@/stores/tasks';
 import TaskCreateModal from './TaskCreateModal.vue';
 
 const props = defineProps<{ tasks: TaskDto[] }>();
-defineEmits<{ (e: 'task-click', task: TaskDto): void }>();
+const emit = defineEmits<{ (e: 'task-click', task: TaskDto): void }>();
 
 const tasksStore = useTasksStore();
 
@@ -320,7 +457,8 @@ const weekdays = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
 const weekdayHeaders = ['Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb', 'Dom'];
 
 type ViewType = 'month' | 'week' | 'day' | 'year';
-const viewType = ref<ViewType>('week');
+// No mobile a semana força rolagem horizontal — abre direto na visão Dia.
+const viewType = ref<ViewType>(window.innerWidth < 640 ? 'day' : 'week');
 const viewTypes: { id: ViewType; label: string; key: string }[] = [
   { id: 'day', label: 'Dia', key: 'd' },
   { id: 'week', label: 'Semana', key: 'w' },
@@ -354,6 +492,21 @@ watch(viewType, scrollToMorning);
 // Atalhos estilo Google Calendar: D/W/M trocam a visão, T = hoje, ←/→ navegam.
 function onKeydown(e: KeyboardEvent) {
   if (e.key === 'Escape') {
+    if (receiptView.value) {
+      closeReceipt();
+      e.preventDefault();
+      return;
+    }
+    if (moneyDetail.value) {
+      moneyDetail.value = null;
+      e.preventDefault();
+      return;
+    }
+    if (moneyList.value) {
+      moneyList.value = null;
+      e.preventDefault();
+      return;
+    }
     if (conflictPrompt.value) {
       conflictPrompt.value = null;
       e.preventDefault();
@@ -369,7 +522,7 @@ function onKeydown(e: KeyboardEvent) {
   if (e.metaKey || e.ctrlKey || e.altKey) return;
   const target = e.target as HTMLElement | null;
   if (target && ['INPUT', 'SELECT', 'TEXTAREA'].includes(target.tagName)) return;
-  if (isCreateOpen.value || conflictPrompt.value) return;
+  if (isCreateOpen.value || conflictPrompt.value || moneyDetail.value || moneyList.value || receiptView.value) return;
 
   switch (e.key.toLowerCase()) {
     case 'd': setViewType('day'); break;
@@ -413,6 +566,11 @@ function startOfWeek(d: Date) {
 
 function nextOccurrence(d: Date, rule: string, base: Date): Date {
   if (rule === 'daily') return addDays(d, 1);
+  if (rule === 'weekdays') {
+    let c = addDays(d, 1);
+    while (c.getDay() === 0 || c.getDay() === 6) c = addDays(c, 1);
+    return c;
+  }
   if (rule === 'weekly') return addDays(d, 7);
   if (rule === 'monthly') {
     let y = d.getFullYear();
@@ -441,6 +599,8 @@ interface Occurrence {
   key: string;
   style?: Record<string, string>;
   isMoneyApp?: boolean;
+  money?: any;        // evento único do MoneyAPP (payload cru do /api/calendar)
+  moneyGroup?: any[]; // vários lançamentos no mesmo dia, agrupados num chip só
 }
 
 const moneyAppEvents = ref<any[]>([]);
@@ -511,33 +671,62 @@ function occurrencesInRange(rangeStart: Date, rangeEnd: Date): Occurrence[] {
       let d = new Date(base);
       let guard = 0;
       while (d < rangeEnd && guard++ < 5000) {
-        if (d >= rangeStart) out.push({ task, date: new Date(d), key: `${task.id}-${d.getTime()}` });
+        // regra de dias úteis nunca gera ocorrência em fim de semana, nem a base
+        const skip = task.recurrence === 'weekdays' && (d.getDay() === 0 || d.getDay() === 6);
+        if (d >= rangeStart && !skip) out.push({ task, date: new Date(d), key: `${task.id}-${d.getTime()}` });
         d = nextOccurrence(d, task.recurrence, base);
       }
     }
   }
 
-  // Merge MoneyApp events
+  // Merge MoneyApp events — vários lançamentos no mesmo dia viram UM chip
+  // "N lançamentos" (clique abre a lista); um só abre direto os detalhes.
   if (isMoneyAppVisible.value) {
+    const byDay = new Map<string, any[]>();
     for (const ev of moneyAppEvents.value) {
-    const d = new Date(ev.date);
-    if (d >= rangeStart && d < rangeEnd) {
-      const amount = ev.amount ? ` - R$ ${ev.amount}` : '';
-      out.push({
-        isMoneyApp: true,
-        task: {
-          id: ev.id,
-          // /api/calendar do MoneyAPP retorna { title, color }
-          description: (ev.title ?? ev.description ?? '') + amount,
-          completedAt: ev.status === 'paid' ? new Date().toISOString() : null,
-          categoryColor: ev.color ?? ev.categoryColor,
-          type: ev.type
-        },
-        date: d,
-        key: `moneyapp-${ev.id}`
-      });
+      const d = new Date(ev.date);
+      if (d >= rangeStart && d < rangeEnd) {
+        const k = dayKey(d);
+        if (!byDay.has(k)) byDay.set(k, []);
+        byDay.get(k)!.push(ev);
+      }
     }
-  }
+    for (const [k, evs] of byDay) {
+      evs.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+      if (evs.length === 1) {
+        const ev = evs[0];
+        const d = new Date(ev.date);
+        const amount = ev.amount ? ` - R$ ${ev.amount}` : '';
+        out.push({
+          isMoneyApp: true,
+          money: ev,
+          task: {
+            id: ev.id,
+            // /api/calendar do MoneyAPP retorna { title, color }
+            description: (ev.title ?? ev.description ?? '') + amount,
+            completedAt: ev.status === 'paid' ? new Date().toISOString() : null,
+            categoryColor: ev.color ?? ev.categoryColor,
+            type: ev.type
+          },
+          date: d,
+          key: `moneyapp-${ev.id}`
+        });
+      } else {
+        out.push({
+          isMoneyApp: true,
+          moneyGroup: evs,
+          task: {
+            id: `moneyapp-group-${k}`,
+            description: `${evs.length} lançamentos`,
+            completedAt: null,
+            categoryColor: '#30d158',
+            type: 'group'
+          },
+          date: new Date(evs[0].date),
+          key: `moneyapp-group-${k}`
+        });
+      }
+    }
   }
 
   return out.sort((a, b) => a.date.getTime() - b.date.getTime());
@@ -625,7 +814,12 @@ const gridDays = computed(() => {
   });
 });
 
-// Blocos de 1h; eventos sobrepostos dividem a largura da coluna (lanes).
+// Duração visual do evento em minutos (padrão 1h; mínimo 15min p/ dar clique).
+function occDuration(occ: Occurrence) {
+  return Math.max(15, occ.task.durationMinutes || 60);
+}
+
+// Blocos com a duração real; eventos sobrepostos dividem a largura (lanes).
 function layoutTimed(occs: Occurrence[]): Occurrence[] {
   if (occs.length === 0) return [];
 
@@ -642,7 +836,7 @@ function layoutTimed(occs: Occurrence[]): Occurrence[] {
 
   for (const occ of sorted) {
     const start = occ.date.getHours() * 60 + occ.date.getMinutes();
-    const end = start + 60; // Eventos ocupam 1h visualmente
+    const end = Math.min(start + occDuration(occ), 24 * 60); // clampa na meia-noite
 
     if (currentCluster.length > 0 && start >= currentClusterEnd) {
       clusters.push(currentCluster);
@@ -686,7 +880,7 @@ function layoutTimed(occs: Occurrence[]): Occurrence[] {
     for (const item of cluster) {
       item.occ.style = {
         top: (item.start / 60) * HOUR_PX + 1 + 'px',
-        height: HOUR_PX - 2 + 'px',
+        height: ((item.end - item.start) / 60) * HOUR_PX - 2 + 'px',
         left: `calc(${(item.col! / numCols) * 100}% + 1px)`,
         width: `calc(${100 / numCols}% - 2px)`,
       };
@@ -778,7 +972,7 @@ function onSlotClick(day: Date, event: MouseEvent) {
   if (dayData) {
     const overlappingEvents = dayData.timed.filter(occ => {
       const occStartMin = occ.date.getHours() * 60 + occ.date.getMinutes();
-      const occEndMin = occStartMin + 60; // Eventos ocupam 1h visualmente
+      const occEndMin = occStartMin + occDuration(occ);
       return slotStartMin < occEndMin && slotEndMin > occStartMin;
     });
 
@@ -793,12 +987,89 @@ function onSlotClick(day: Date, event: MouseEvent) {
 }
 
 function onEventClick(occ: Occurrence) {
+  if (occ.moneyGroup) {
+    moneyList.value = { date: occ.date, events: occ.moneyGroup };
+    return;
+  }
   if (occ.isMoneyApp) {
-    const moneyAppUrl = import.meta.env.VITE_MONEYAPP_API_URL?.replace('/api', '');
-    if (moneyAppUrl) window.open(moneyAppUrl, '_blank');
+    moneyDetail.value = occ.money;
     return;
   }
   conflictPrompt.value = { date: occ.date, events: [occ] };
+}
+
+function viewOccurrence(occ: Occurrence) {
+  conflictPrompt.value = null;
+  if (occ.moneyGroup) moneyList.value = { date: occ.date, events: occ.moneyGroup };
+  else if (occ.isMoneyApp) moneyDetail.value = occ.money;
+  else emit('task-click', occ.task);
+}
+
+// ── modais do MoneyAPP (detalhe + lista do dia) ─────────────────────────────
+
+const moneyDetail = ref<any | null>(null);
+const moneyList = ref<{ date: Date; events: any[] } | null>(null);
+
+const moneyListTotal = computed(() => {
+  if (!moneyList.value) return 0;
+  return moneyList.value.events.reduce((sum, ev) => {
+    const v = Math.abs(Number(ev.amount) || 0);
+    return sum + (ev.type === 'expense' ? -v : v);
+  }, 0);
+});
+
+function formatBRL(n: number) {
+  return Math.abs(n).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+}
+
+function moneyAmountLabel(ev: any) {
+  const sign = ev.type === 'expense' ? '-' : '+';
+  return `${sign}${formatBRL(Number(ev.amount) || 0)}`;
+}
+
+function moneyStatusInfo(ev: any): { label: string; cls: string } {
+  const s = String(ev.status || '').toLowerCase();
+  if (s === 'paid') return { label: 'PAGO', cls: 'text-[#30d158] border-[#30d158]/40 bg-[#30d158]/10' };
+  if (s === 'pending') return { label: 'PENDENTE', cls: 'text-[#ffcc00] border-[#ffcc00]/40 bg-[#ffcc00]/10' };
+  return { label: (ev.status || '—').toUpperCase(), cls: 'text-[var(--muted)] border-white/10 bg-white/5' };
+}
+
+function moneyDateLabel(ev: any) {
+  const d = new Date(ev.date);
+  const day = d.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' });
+  const time = d.getHours() === 0 && d.getMinutes() === 0 ? '' : ` · ${timeLabel(d, true).trim()}`;
+  return day + time;
+}
+
+function openMoneyApp() {
+  const moneyAppUrl = import.meta.env.VITE_MONEYAPP_API_URL?.replace('/api', '');
+  if (moneyAppUrl) window.open(moneyAppUrl, '_blank');
+}
+
+const receiptView = ref<{ url: string; isPdf: boolean } | null>(null);
+const receiptLoading = ref(false);
+
+async function openReceipt() {
+  if (!moneyDetail.value || receiptLoading.value) return;
+  receiptLoading.value = true;
+  try {
+    const blob = await api.getBlob(`/integrations/moneyapp/receipt/${moneyDetail.value.id}`);
+    receiptView.value = { url: URL.createObjectURL(blob), isPdf: blob.type === 'application/pdf' };
+  } catch (err) {
+    console.error('Erro ao carregar comprovante:', err);
+  } finally {
+    receiptLoading.value = false;
+  }
+}
+
+function closeReceipt() {
+  if (receiptView.value) URL.revokeObjectURL(receiptView.value.url);
+  receiptView.value = null;
+}
+
+function isWeekend(d: Date) {
+  const g = d.getDay();
+  return g === 0 || g === 6;
 }
 
 // ── misc ────────────────────────────────────────────────────────────────────
@@ -806,6 +1077,14 @@ function onEventClick(occ: Occurrence) {
 function timeLabel(d: Date, always = false) {
   if (!always && d.getHours() === 0 && d.getMinutes() === 0) return '';
   return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')} `;
+}
+
+// "08:00 – 09:30" quando o evento tem duração explícita; senão só o início.
+function timedRangeLabel(occ: Occurrence) {
+  const start = timeLabel(occ.date, true).trim();
+  if (!occ.task.durationMinutes) return start;
+  const end = new Date(occ.date.getTime() + occ.task.durationMinutes * 60_000);
+  return `${start} – ${timeLabel(end, true).trim()}`;
 }
 
 const fallbackColors = ['bg-[var(--accent)]', 'bg-[#30d158]', 'bg-[#ff3b30]', 'bg-[#ff9500]', 'bg-[#ff2d55]', 'bg-[#bf5af2]'];
@@ -816,6 +1095,7 @@ function groupColor(task: any) {
     // To keep it simple, we just return a default green for income and red for expense if no categoryColor matches standard classes.
     if (task.type === 'income') return 'bg-[#30d158]';
     if (task.type === 'expense') return 'bg-[#ff3b30]';
+    if (task.type === 'group') return 'bg-[#30d158]';
     return 'bg-[#ff9500]';
   }
   if (!task.groupId) return 'bg-[var(--accent)]';
@@ -841,8 +1121,8 @@ const iconMap: Record<string, any> = {
 
 function groupIconInfo(task: any): { img?: string; comp?: any } {
   if (task.categoryColor) {
-    // MoneyApp item => we can use a DollarSign or something, but we don't have DollarSign imported.
-    return { comp: BriefcaseIcon };
+    // Item do MoneyAPP → logo dele, sinalizando a origem.
+    return { img: '/moneyapp-logo.png' };
   }
   const g = tasksStore.groups.find((gr: any) => gr.id === task.groupId);
   if (!g?.icon) return { comp: ListBulletIcon };
@@ -850,3 +1130,14 @@ function groupIconInfo(task: any): { img?: string; comp?: any } {
   return { comp: iconMap[g.icon] || ListBulletIcon };
 }
 </script>
+
+<style scoped>
+/* Fim de semana com vermelho fraco — sinaliza dia não útil. !important para
+   vencer as utilities bg-* do Tailwind nas células que já têm fundo. */
+.weekend-cell {
+  background: color-mix(in srgb, #ff453a 6%, var(--bg)) !important;
+}
+.weekend-cell:hover {
+  background: color-mix(in srgb, #ff453a 10%, var(--bg-hover)) !important;
+}
+</style>

@@ -20,11 +20,21 @@
             type="date"
             class="flex-1 min-w-0 bg-[var(--bg)] text-[var(--text)] text-[14px] rounded-lg px-3 py-2 border border-transparent focus:border-[var(--accent)] outline-none transition-colors"
           />
+        </div>
+        <!-- Início – fim (duração) -->
+        <div class="flex items-center gap-2 py-2 pl-8">
           <input
             v-model="timeStr"
             type="time"
-            class="w-[110px] bg-[var(--bg)] text-[var(--text)] text-[14px] rounded-lg px-3 py-2 border border-transparent focus:border-[var(--accent)] outline-none transition-colors"
+            class="flex-1 min-w-0 bg-[var(--bg)] text-[var(--text)] text-[14px] rounded-lg px-3 py-2 border border-transparent focus:border-[var(--accent)] outline-none transition-colors"
           />
+          <span class="text-[var(--muted)] text-[13px] shrink-0">até</span>
+          <input
+            v-model="endTimeStr"
+            type="time"
+            class="flex-1 min-w-0 bg-[var(--bg)] text-[var(--text)] text-[14px] rounded-lg px-3 py-2 border border-transparent focus:border-[var(--accent)] outline-none transition-colors"
+          />
+          <span v-if="durationLabel" class="text-[11px] font-semibold text-[var(--muted)] shrink-0 w-[42px] text-right">{{ durationLabel }}</span>
         </div>
 
         <!-- Repetir -->
@@ -36,6 +46,7 @@
           >
             <option :value="null">Não se repete</option>
             <option value="daily">Todos os dias</option>
+            <option value="weekdays">Dias úteis (seg a sex)</option>
             <option value="weekly">Semanal{{ weekdayHint }}</option>
             <option value="monthly">Mensal{{ monthdayHint }}</option>
             <option value="yearly">Anual{{ yeardayHint }}</option>
@@ -149,6 +160,29 @@ const initial = props.initialTask && props.initialTask.scheduledAt
 const dateStr = ref(props.initialTask && !props.initialTask.scheduledAt ? '' : `${initial.getFullYear()}-${pad(initial.getMonth() + 1)}-${pad(initial.getDate())}`);
 const timeStr = ref(props.initialTask && !props.initialTask.scheduledAt ? '' : `${pad(initial.getHours())}:${pad(initial.getMinutes())}`);
 
+// Fim = início + duração salva (padrão 1h)
+const initialEnd = new Date(initial.getTime() + (props.initialTask?.durationMinutes ?? 60) * 60_000);
+const endTimeStr = ref(props.initialTask && !props.initialTask.scheduledAt ? '' : `${pad(initialEnd.getHours())}:${pad(initialEnd.getMinutes())}`);
+
+// Duração em minutos a partir dos horários; fim menor que início = cruza a meia-noite.
+const durationMinutes = computed<number | null>(() => {
+  if (!timeStr.value || !endTimeStr.value) return null;
+  const [sh, sm] = timeStr.value.split(':').map(Number);
+  const [eh, em] = endTimeStr.value.split(':').map(Number);
+  let dur = (eh! * 60 + em!) - (sh! * 60 + sm!);
+  if (dur <= 0) dur += 24 * 60;
+  return dur;
+});
+
+const durationLabel = computed(() => {
+  const dur = durationMinutes.value;
+  if (!dur) return '';
+  const h = Math.floor(dur / 60);
+  const m = dur % 60;
+  if (!h) return `${m}min`;
+  return m ? `${h}h${pad(m)}` : `${h}h`;
+});
+
 const form = ref({
   description: props.initialTask?.description || '',
   groupId: props.initialTask?.groupId || null,
@@ -195,6 +229,7 @@ async function save() {
         priority: form.value.priority,
         recurrence: form.value.recurrence,
         details: form.value.details.trim() || null,
+        durationMinutes: durationMinutes.value,
       });
       emit('updated');
     } else {
@@ -205,6 +240,7 @@ async function save() {
         priority: form.value.priority,
         recurrence: form.value.recurrence,
         details: form.value.details.trim() || null,
+        durationMinutes: durationMinutes.value,
       });
       emit('created');
     }

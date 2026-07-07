@@ -11,6 +11,7 @@ import { completeTaskWizard } from './scenes/completeTaskWizard.js';
 import { addGroupWizard } from './scenes/addGroupWizard.js';
 import { loginWizard } from './scenes/loginWizard.js';
 import { menuKeyboard } from './ui/menu.js';
+import { botApi } from '@todo/api-client';
 
 // Inicializar Bot
 const bot = new Telegraf<BotContext>(env.TELEGRAM_BOT_TOKEN);
@@ -34,9 +35,14 @@ bot.use(auth);
 startNotificationsCron(bot);
 
 // Menu principal / Start
-bot.start((ctx) => {
-  ctx.reply(
-    '👋 Fala, Patrão Moab! Aqui é o seu Assistente Pessoal.\n\nO que o chefe deseja fazer agora?',
+bot.start(async (ctx) => {
+  let name = 'Patrão';
+  try {
+    const settings = await botApi.getReminderSettings(String(ctx.from.id));
+    if (settings.displayName?.trim()) name = settings.displayName.trim();
+  } catch { /* usa fallback */ }
+  await ctx.reply(
+    `👋 Fala, ${name}! Aqui é o seu Assistente Pessoal.\n\nO que o chefe deseja fazer agora?`,
     menuKeyboard
   );
 });

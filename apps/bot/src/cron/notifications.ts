@@ -7,6 +7,19 @@ import { sendPushToUser } from '../utils/push.js';
 
 // ── helpers ────────────────────────────────────────────────────────────────
 
+const escHtml = (s: string) =>
+  s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+
+// Nome customizado nas configurações de lembretes (fallback "Patrão").
+async function greetingName(userId: string): Promise<string> {
+  try {
+    const settings = await botApi.getReminderSettings(userId);
+    const name = settings.displayName?.trim();
+    if (name) return escHtml(name);
+  } catch { /* usa fallback */ }
+  return 'Patrão';
+}
+
 function buildSection(title: string, taskList: any[], icon: string): string {
   let s = `${icon} <b>${title}</b>\n`;
   if (taskList.length === 0) {
@@ -46,7 +59,7 @@ export const sendMorningGreeting = async (bot: Telegraf<BotContext>) => {
           weekday: 'long', day: '2-digit', month: 'long'
         });
 
-        let msg = `☀️ <b>Bom dia, Patrão Moab!</b>\n`;
+        let msg = `☀️ <b>Bom dia, ${await greetingName(user.id)}!</b>\n`;
         msg += `📅 ${today}\n\n`;
 
         if (priorityTasks.length === 0) {
@@ -131,6 +144,7 @@ function occursAt(base: Date, recurrence: string | null | undefined, target: Dat
   if (base.getHours() !== target.getHours() || base.getMinutes() !== target.getMinutes()) return false;
   switch (recurrence) {
     case 'daily':   return true;
+    case 'weekdays': return target.getDay() >= 1 && target.getDay() <= 5;
     case 'weekly':  return base.getDay() === target.getDay();
     case 'monthly': return base.getDate() === target.getDate();
     case 'yearly':  return base.getDate() === target.getDate() && base.getMonth() === target.getMonth();

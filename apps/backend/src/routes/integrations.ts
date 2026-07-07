@@ -51,3 +51,44 @@ integrationsRouter.get('/moneyapp/calendar', async (req: Request, res: Response,
     next(error);
   }
 });
+
+// Comprovante de um item do calendário do MoneyAPP. O id chega no formato
+// `tx-<uuid>` ou `loan-<uuid>` (mesmo id que o /api/calendar retorna).
+integrationsRouter.get('/moneyapp/receipt/:id', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const telegramId = req.telegramId!;
+    const match = /^(tx|loan)-(.+)$/.exec(req.params.id!);
+    if (!match) {
+      return res.status(400).json({ error: 'Invalid receipt id' });
+    }
+    const resource = match[1] === 'tx' ? 'transactions' : 'loans';
+
+    const integration = await db.query.userIntegrations.findFirst({
+      where: and(
+        eq(schema.userIntegrations.telegramId, telegramId),
+        eq(schema.userIntegrations.appId, 3) // MoneyAPP = 3
+      )
+    });
+
+    if (!integration) {
+      return res.status(404).json({ error: 'No MoneyApp integration' });
+    }
+
+    const moneyappRes = await fetch(`http://moneyapp_backend:3000/api/${resource}/${match[2]}/receipt`, {
+      headers: {
+        'x-api-key': env.BOT_SERVICE_KEY as string,
+        'x-user-id': integration.appUserId.toString()
+      }
+    });
+
+    if (!moneyappRes.ok) {
+      return res.status(moneyappRes.status).json({ error: 'Failed to fetch receipt' });
+    }
+
+    res.setHeader('Content-Type', moneyappRes.headers.get('content-type') || 'application/octet-stream');
+    res.setHeader('Cache-Control', 'private, max-age=300');
+    res.end(Buffer.from(await moneyappRes.arrayBuffer()));
+  } catch (error) {
+    next(error);
+  }
+});

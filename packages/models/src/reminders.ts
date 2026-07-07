@@ -8,6 +8,7 @@ export const reminderSettingsSchema = z.object({
   remindDaysBefore: z.number().int().min(1).max(60),
   notifyPush: z.boolean(),
   notifyTelegram: z.boolean(),
+  displayName: z.string().max(60).nullable(),
 });
 export type ReminderSettingsDto = z.infer<typeof reminderSettingsSchema>;
 
@@ -22,6 +23,7 @@ export const defaultReminderSettings: ReminderSettingsDto = {
   remindDaysBefore: 7,
   notifyPush: true,
   notifyTelegram: true,
+  displayName: null,
 };
 
 export const pushSubscribeSchema = z.object({

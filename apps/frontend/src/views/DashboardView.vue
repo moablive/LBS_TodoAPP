@@ -352,6 +352,7 @@
             >
               <option :value="null">Não se repete</option>
               <option value="daily">Todos os dias</option>
+              <option value="weekdays">Dias úteis (seg a sex)</option>
               <option value="weekly">Toda semana</option>
               <option value="monthly">Todo mês</option>
               <option value="yearly">Todo ano</option>

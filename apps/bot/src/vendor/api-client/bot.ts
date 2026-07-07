@@ -134,7 +134,7 @@ export const botApi = {
   getReminderSettings: async (userId: string): Promise<ReminderSettings> => {
     const result = await pool.query(
       `SELECT remind_at_time, remind_before_enabled, remind_before_minutes,
-              remind_days_enabled, remind_days_before, notify_push, notify_telegram
+              remind_days_enabled, remind_days_before, notify_push, notify_telegram, display_name
        FROM reminder_settings WHERE user_id = $1`,
       [userId]
     );
@@ -148,6 +148,7 @@ export const botApi = {
       remindDaysBefore: row.remind_days_before,
       notifyPush: row.notify_push,
       notifyTelegram: row.notify_telegram,
+      displayName: row.display_name ?? null,
     };
   },
 
@@ -172,6 +173,7 @@ export interface ReminderSettings {
   remindDaysBefore: number;
   notifyPush: boolean;
   notifyTelegram: boolean;
+  displayName: string | null;
 }
 
 export interface PushSubscriptionRow {
@@ -188,4 +190,5 @@ export const defaultReminderSettings: ReminderSettings = {
   remindDaysBefore: 7,
   notifyPush: true,
   notifyTelegram: true,
+  displayName: null,
 };

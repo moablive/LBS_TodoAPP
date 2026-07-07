@@ -50,8 +50,24 @@ async function safeJson(res: Response): Promise<unknown> {
   }
 }
 
+async function requestBlob(path: string): Promise<Blob> {
+  const headers: Record<string, string> = {};
+  const token = apiOptions.getToken();
+  if (token) headers.Authorization = `Bearer ${token}`;
+
+  const res = await fetch(`${apiOptions.baseUrl}${path}`, { headers });
+
+  if (res.status === 401) {
+    apiOptions.onUnauthorized();
+    throw new ApiError(401, await safeJson(res));
+  }
+  if (!res.ok) throw new ApiError(res.status, await safeJson(res));
+  return res.blob();
+}
+
 export const api = {
   get:    <T>(p: string)                  => request<T>('GET',    p),
+  getBlob:      (p: string)               => requestBlob(p),
   post:   <T>(p: string, body?: unknown)  => request<T>('POST',   p, body),
   put:    <T>(p: string, body?: unknown)  => request<T>('PUT',    p, body),
   patch:  <T>(p: string, body?: unknown)  => request<T>('PATCH',  p, body),

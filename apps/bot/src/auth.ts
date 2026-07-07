@@ -1,6 +1,5 @@
 import type { MiddlewareFn } from 'telegraf';
 import type { BotContext } from './context.js';
-import { env } from './config.js';
 import { botApi } from '@todo/api-client';
 
 // Cache em memória de telegramIds já vinculados — evita um SELECT por update.

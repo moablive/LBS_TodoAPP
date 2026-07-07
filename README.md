@@ -62,7 +62,7 @@ Organize suas tarefas em grupos personalizados (ex: Trabalho, Pessoal, Estudos).
 <td width="50%">
 
 ### 📅 Agendamento & Recorrência
-Agende tarefas para datas e horários específicos, com **recorrência** (diária, semanal, mensal, anual). O filtro **Hoje** mostra apenas o que precisa ser feito no dia atual.
+Agende tarefas com data, horário de início e **fim (duração)**, e **recorrência** (diária, **dias úteis seg–sex**, semanal, mensal, anual). No calendário o bloco do evento tem altura proporcional à duração. O filtro **Hoje** mostra apenas o que precisa ser feito no dia atual.
 
 ### 🔐 Autenticação
 Autenticação centralizada via **LoginHUB** (IDP, `app_id 4`). JWT Bearer token com auth guard em todas as rotas protegidas. Inclui fluxo inteligente para troca obrigatória de senha no primeiro acesso (`requirePasswordChange`).
@@ -76,7 +76,7 @@ Autenticação centralizada via **LoginHUB** (IDP, `app_id 4`). JWT Bearer token
 Seletor de visualização no Dashboard. O **Calendário** (Dia/Semana/Mês, tela cheia) mostra tarefas, ocorrências de recorrência e — opcionalmente — os **lançamentos do MoneyAPP** (toggle). O **Kanban** organiza a lista selecionada em colunas por prioridade, com drag-and-drop que altera prioridade/conclui.
 
 ### 🔔 Lembretes & Web Push
-Lembretes configuráveis por usuário (`no horário`, `30 min antes`, `7 dias antes`) com canais independentes: **Telegram** (via bot) e **Web Push** (VAPID + Service Worker). Rotinas diárias do bot às 08h/09h/13h.
+Lembretes configuráveis por usuário (`no horário`, `30 min antes`, `7 dias antes`) com canais independentes: **Telegram** (via bot) e **Web Push** (VAPID + Service Worker). Rotinas diárias do bot às 08h/09h/13h. **Nome de exibição** customizável — como o bot te chama nas mensagens (fallback "Patrão").
 
 </td>
 <td width="50%">
@@ -85,7 +85,7 @@ Lembretes configuráveis por usuário (`no horário`, `30 min antes`, `7 dias an
 Wizards de adicionar/concluir/remover tarefas e grupos, transcrição de **voz** (Groq) e login vinculado ao LoginHub (LOGIN_WIZARD grava `user_settings.telegram_id` e migra os dados do namespace provisório).
 
 ### 🔗 Integração MoneyAPP
-Lançamentos financeiros do **MoneyAPP** aparecem no calendário (toggle "MoneyAPP"), e as tarefas do TodoAPP aparecem no dashboard do Money. Ver a seção [Integração com MoneyAPP](#-integração-com-moneyapp).
+Lançamentos financeiros do **MoneyAPP** aparecem no calendário com o **logo do Money** (toggle "MoneyAPP"): clique abre a modal **Detalhes da Transação** (valor, categoria, status e **comprovante** — imagem/PDF via proxy), vários lançamentos no mesmo dia viram um chip **"N lançamentos"** com modal de lista e total do dia. As tarefas do TodoAPP aparecem no dashboard do Money. Ver a seção [Integração com MoneyAPP](#-integração-com-moneyapp).
 
 </td>
 </tr>
@@ -205,6 +205,7 @@ erDiagram
     boolean remind_7days
     boolean notify_telegram
     boolean notify_push
+    varchar display_name
   }
   push_subscriptions {
     varchar user_id
@@ -232,6 +233,7 @@ erDiagram
     boolean is_urgent
     varchar priority
     varchar recurrence
+    int duration_minutes
     int order
   }
   task_groups ||--o{ tasks : contains
@@ -245,7 +247,8 @@ erDiagram
 | 👤 Identidade | `user_id` das tabelas de dados = **`telegramId`** (ou `String(loginhubId)` enquanto o Telegram não é vinculado — o LOGIN_WIZARD do bot migra o namespace) |
 | 🕒 Timestamps | `timestamptz` (with timezone). Lógica do server em UTC |
 | 🗑️ Soft delete | **Não usado.** Hard deletes com FK cascades/set null |
-| 🔁 Recorrência | `tasks.recurrence` (`daily`/`weekly`/`monthly`/`yearly`/`null`); `scheduled_at` = primeira ocorrência, as demais são expandidas em runtime (frontend e bot) |
+| 🔁 Recorrência | `tasks.recurrence` (`daily`/`weekdays`/`weekly`/`monthly`/`yearly`/`null`); `scheduled_at` = primeira ocorrência, as demais são expandidas em runtime (frontend e bot). `weekdays` = seg–sex, nunca gera ocorrência em fim de semana |
+| ⏱️ Duração | `tasks.duration_minutes` (`null` = 1h visual no calendário); definida na modal pelo horário de fim, cruza a meia-noite se fim < início |
 
 ---
 
@@ -268,11 +271,12 @@ erDiagram
 | | `DELETE` | `/api/groups/:id` | **Remove grupo** |
 | | `POST` | `/api/groups/reorder` | Reordena grupos (drag-and-drop) |
 | ⚙️ **Prefs** | `GET`/`PATCH` | `/api/prefs` | `{ kanbanLists, showMoneyAppEvents }` (toggle do calendário) |
-| 🔔 **Reminders** | `GET`/`PATCH` | `/api/reminders` | Configuração de lembretes (horário/30min/7dias · telegram/push) |
+| 🔔 **Reminders** | `GET`/`PATCH` | `/api/reminders` | Configuração de lembretes (horário/30min/7dias · telegram/push · `displayName` usado pelo bot) |
 | 📲 **Push** | `GET` | `/api/push/public-key` | VAPID public key |
 | | `POST` | `/api/push/subscribe` | Registra subscription do Service Worker |
 | | `POST` | `/api/push/unsubscribe` | Remove subscription |
 | 🔗 **Integrations** | `GET` | `/api/integrations/moneyapp/calendar` | Lançamentos do MoneyAPP (`?start&end`) — ver [integração](#-integração-com-moneyapp) |
+| | `GET` | `/api/integrations/moneyapp/receipt/:id` | Comprovante de um lançamento (`tx-<uuid>` ou `loan-<uuid>`) — proxy que streama imagem/PDF do Money |
 | 🤖 **Bot** (interno) | `GET` | `/api/bot/tasks` | `?telegramId&start&end` · requer header `x-api-key: BOT_SERVICE_KEY` (consumido pelo MoneyAPP e pelo bot) |
 | ❤️ **Health** | `GET` | `/health` | Healthcheck do container |
 
@@ -335,7 +339,7 @@ O bot opera 24/7 como worker e envia mensagens automáticas nos seguintes horár
 
 | Horário | Envio | Conteúdo |
 | ------- | ----- | -------- |
-| **08:00** | ☀️ Bom dia + prioridades | Só tarefas com prioridade **Alta** (urgentes) |
+| **08:00** | ☀️ Bom dia + prioridades | Só tarefas com prioridade **Alta** (urgentes) · saudação usa o **nome de exibição** de `reminder_settings.display_name` (fallback "Patrão") |
 | **09:00** | 🌅 Resumo matinal completo | Todas as tarefas agrupadas por prioridade |
 | **13:00** | ☀️ Resumo da tarde | Todas as tarefas agrupadas por prioridade |
 | **Cada minuto** | ⏰ Lembrete pontual | Tarefas cujo `scheduledAt` (± offsets de lembrete configurados) bate com o minuto atual — respeita `reminder_settings` e envia por Telegram e/ou Web Push |
@@ -351,6 +355,7 @@ A integração é **bidirecional em leitura** e toda **interna** à rede Docker 
 | Direção | Fluxo |
 | ------- | ----- |
 | **Money → Todo** (calendário) | `CalendarView` → `GET /api/integrations/moneyapp/calendar?start&end` → backend resolve o vínculo em `user_integrations` (`app_id 3`) → `GET http://moneyapp_backend:3000/api/calendar` com `x-api-key: BOT_SERVICE_KEY` + `x-user-id: <loginhub_id do usuário NO Money>` |
+| **Money → Todo** (comprovante) | Botão "Ver Comprovante" na modal de detalhes → `GET /api/integrations/moneyapp/receipt/:id` (`tx-*`/`loan-*`) → proxy para `GET /api/transactions/:uuid/receipt` ou `/api/loans/:uuid/receipt` do Money → streama a imagem/PDF |
 | **Todo → Money** (dashboard) | O backend do MoneyAPP chama `GET /api/bot/tasks?telegramId&start&end` (protegido por `x-api-key`) e exibe as tarefas em "Próximos Lançamentos" |
 
 **Pontos-chave:**
@@ -358,8 +363,9 @@ A integração é **bidirecional em leitura** e toda **interna** à rede Docker 
 - ⚠️ O `loginhub_id` é **por app** (TodoAPP = app 4, MoneyAPP = app 3): o mesmo e-mail tem IDs diferentes em cada app. A chave de junção entre os apps é o **`telegramId`**, mapeado na tabela `user_integrations (telegram_id, app_id, app_user_id)`.
 - O vínculo em `user_integrations` é **manual** (SQL) por enquanto — não há UI/endpoint de escrita.
 - `BOT_SERVICE_KEY` deve ser **idêntico** nos `.env` do TodoAPP e do MoneyAPP.
-- Contrato do `/api/calendar` do Money: itens `{ id, title, date, amount, type, status, category, color }` (atenção: `title`/`color`, não `description`/`categoryColor`).
+- Contrato do `/api/calendar` do Money: itens `{ id, title, date, amount, type, status, category, color, hasReceipt }` (atenção: `title`/`color`, não `description`/`categoryColor`; `id` prefixado `tx-`/`loan-`).
 - Toggle do usuário: `user_prefs.show_moneyapp_events` (via `PATCH /api/prefs`), botão "MoneyAPP" no header do calendário. Falha do Money não quebra o calendário — retorna lista vazia.
+- **UI no calendário**: eventos do Money exibem o logo (`/moneyapp-logo.png`); clique abre a modal "Detalhes da Transação" (valor, data, categoria, status, comprovante). Vários lançamentos no mesmo dia são agrupados num chip **"N lançamentos"** que abre a lista do dia com total. Sábado/domingo têm fundo vermelho fraco (dias não úteis).
 
 ---
 

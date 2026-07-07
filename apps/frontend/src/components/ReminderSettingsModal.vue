@@ -10,6 +10,19 @@
         <div v-if="isLoading" class="text-[var(--muted)] text-sm py-8 text-center">Carregando…</div>
 
         <template v-else>
+          <!-- Nome de exibição -->
+          <h3 class="text-[11px] font-bold text-[var(--muted)] uppercase tracking-wider mb-2">Nome de exibição</h3>
+          <div class="bg-[var(--bg)] rounded-xl px-4 py-3 mb-5">
+            <p class="text-[12px] text-[var(--muted)] mb-2">Como o bot deve te chamar nas mensagens (ex.: "☀️ Bom dia, Patrão!")</p>
+            <input
+              v-model="displayNameInput"
+              type="text"
+              maxlength="60"
+              placeholder="Patrão"
+              class="w-full bg-[var(--bg-card)] border border-[var(--border)] rounded-lg px-3 py-2 text-[var(--text)] text-[14px] focus:outline-none focus:border-[var(--accent)] transition-colors"
+            />
+          </div>
+
           <!-- Quando lembrar -->
           <h3 class="text-[11px] font-bold text-[var(--muted)] uppercase tracking-wider mb-2">Quando lembrar</h3>
           <div class="bg-[var(--bg)] rounded-xl divide-y divide-[var(--border)] mb-5">
@@ -162,6 +175,7 @@ interface ReminderSettings {
   remindDaysBefore: number;
   notifyPush: boolean;
   notifyTelegram: boolean;
+  displayName: string | null;
 }
 
 interface UserPrefs {
@@ -183,7 +197,10 @@ const settings = ref<ReminderSettings>({
   remindDaysBefore: 7,
   notifyPush: true,
   notifyTelegram: true,
+  displayName: null,
 });
+
+const displayNameInput = ref('');
 
 const prefs = ref<UserPrefs>({
   kanbanLists: [],
@@ -197,6 +214,7 @@ onMounted(async () => {
       api.get<UserPrefs>('/prefs')
     ]);
     settings.value = s;
+    displayNameInput.value = s.displayName || '';
     prefs.value = p;
   } catch (err) {
     console.error('Erro ao carregar configurações:', err);
@@ -218,6 +236,7 @@ async function save() {
   // Inputs numéricos podem ficar vazios/NaN — normaliza para os padrões.
   settings.value.remindBeforeMinutes = Math.min(1440, Math.max(1, Math.round(Number(settings.value.remindBeforeMinutes) || 30)));
   settings.value.remindDaysBefore = Math.min(60, Math.max(1, Math.round(Number(settings.value.remindDaysBefore) || 7)));
+  settings.value.displayName = displayNameInput.value.trim() || null;
   try {
     await Promise.all([
       api.patch<ReminderSettings>('/reminders', settings.value),

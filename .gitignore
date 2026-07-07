@@ -21,3 +21,6 @@ coverage/
 apps/backend/drizzle/_journal/
 *.db
 *.sqlite
+
+# Dump local de logos do MoneyAPP (o asset usado está em apps/frontend/public/)
+MONEYAPP/

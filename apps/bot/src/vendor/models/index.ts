@@ -15,5 +15,5 @@ export interface Task {
   isFlagged?: boolean;
   isUrgent?: boolean;
   priority?: 'low' | 'medium' | 'high';
-  recurrence?: 'daily' | 'weekly' | 'monthly' | 'yearly' | null;
+  recurrence?: 'daily' | 'weekdays' | 'weekly' | 'monthly' | 'yearly' | null;
 }

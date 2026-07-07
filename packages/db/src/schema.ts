@@ -65,9 +65,11 @@ export const tasks = pgTable(
     isUrgent: boolean("is_urgent").default(false).notNull(),
     priority: varchar("priority", { length: 10 }).default("low").notNull(),
     order: integer("order").default(0).notNull(),
-    // null = não se repete; senão 'daily' | 'weekly' | 'monthly' | 'yearly'
+    // null = não se repete; senão 'daily' | 'weekdays' | 'weekly' | 'monthly' | 'yearly'
     recurrence: varchar("recurrence", { length: 20 }),
     details: text("details"),
+    // null = duração padrão (1h no calendário)
+    durationMinutes: integer("duration_minutes"),
   },
   (t) => ({
     userIdx: index("tasks_user_idx").on(t.userId),
@@ -86,6 +88,8 @@ export const reminderSettings = pgTable("reminder_settings", {
   remindDaysBefore: integer("remind_days_before").default(7).notNull(),
   notifyPush: boolean("notify_push").default(true).notNull(),
   notifyTelegram: boolean("notify_telegram").default(true).notNull(),
+  // Como o bot chama o usuário nas mensagens (null = "Patrão")
+  displayName: varchar("display_name", { length: 60 }),
   updatedAt: timestamp("updated_at", { withTimezone: true })
     .defaultNow()
     .notNull(),

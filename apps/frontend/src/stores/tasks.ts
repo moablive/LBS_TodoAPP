@@ -42,12 +42,12 @@ export const useTasksStore = defineStore('tasks', {
         this.selectedFilter = 'today';
       }
     },
-    async addTaskFull(data: { description: string; groupId?: string | null; scheduledAt?: string | null; priority?: 'low'|'medium'|'high'; recurrence?: 'daily'|'weekly'|'monthly'|'yearly'|null }) {
+    async addTaskFull(data: { description: string; groupId?: string | null; scheduledAt?: string | null; priority?: 'low'|'medium'|'high'; recurrence?: 'daily'|'weekdays'|'weekly'|'monthly'|'yearly'|null; durationMinutes?: number | null }) {
       const task = await api.post<TaskDto>('/tasks', data);
       this.tasks.unshift(task);
       return task;
     },
-    async updateTaskFields(taskId: string, data: Partial<Pick<TaskDto, 'description' | 'groupId' | 'scheduledAt' | 'priority' | 'isFlagged' | 'isUrgent' | 'recurrence' | 'completedAt'>>) {
+    async updateTaskFields(taskId: string, data: Partial<Pick<TaskDto, 'description' | 'groupId' | 'scheduledAt' | 'priority' | 'isFlagged' | 'isUrgent' | 'recurrence' | 'completedAt' | 'durationMinutes'>>) {
       const updated = await api.patch<TaskDto>(`/tasks/${taskId}`, data);
       const idx = this.tasks.findIndex(t => t.id === taskId);
       if (idx !== -1) this.tasks[idx] = updated;
