@@ -14,12 +14,12 @@
 
       <div class="flex items-center gap-1.5 sm:gap-2 flex-wrap">
         <button
-          @click="toggleTodoAppVisibility"
+          @click="toggleTasksVisibility"
           class="flex items-center gap-2 text-[13px] font-semibold pl-2 pr-3 py-1.5 rounded-xl transition-colors border"
-          :class="isTodoAppVisible ? 'bg-[var(--accent)]/20 border-[var(--accent)] text-[var(--accent)]' : 'bg-[var(--bg-hover)] border-white/5 text-[var(--muted)] hover:text-white'"
-          title="Exibir tarefas do TodoAPP"
+          :class="isTasksVisible ? 'bg-[var(--accent)]/20 border-[var(--accent)] text-[var(--accent)]' : 'bg-[var(--bg-hover)] border-white/5 text-[var(--muted)] hover:text-white'"
+          title="Exibir TodoAPP"
         >
-          <ListBulletIcon class="w-4 h-4" /><span class="hidden sm:inline">TodoAPP</span>
+          <img src="/logo/icon-192.png" class="w-4 h-4 rounded-full" alt="" /><span class="hidden sm:inline">TodoAPP</span>
         </button>
 
         <button
@@ -73,28 +73,28 @@
           :class="{ 'opacity-40': !cell.inMonth, 'weekend-cell': isWeekend(cell.date) }"
           @click.self="openCreate(cell.date)"
         >
-          <div class="flex justify-end mb-1 pointer-events-none">
+          <div class="flex justify-between items-center mb-1 pointer-events-none">
             <span
-              class="text-[12px] font-semibold w-6 h-6 flex items-center justify-center rounded-full"
-              :class="cell.isToday ? 'bg-[#ff3b30] text-white' : 'text-[var(--muted)]'"
+              class="text-[11px] font-bold w-6 h-6 flex items-center justify-center rounded-full transition-colors"
+              :class="cell.isToday ? 'bg-[var(--accent)] text-white shadow-md' : 'text-[var(--muted)]'"
             >
               {{ cell.date.getDate() }}
             </span>
           </div>
-          <div class="flex-1 overflow-y-auto custom-scrollbar space-y-1">
+          <div class="flex-1 overflow-y-auto custom-scrollbar space-y-0.5">
             <button
               v-for="occ in cell.occurrences"
               :key="occ.key"
               @click.stop="onEventClick(occ)"
-              class="w-full text-left rounded-md px-1.5 py-1 text-[11px] leading-tight truncate transition-opacity flex items-center gap-1 text-white"
-              :class="[groupColor(occ.task), occ.task.completedAt ? 'opacity-40 line-through' : 'hover:opacity-80']"
+              class="w-full text-left rounded-md pl-2 pr-1 py-0.5 text-[10px] leading-tight text-white transition-all border-l-2 overflow-hidden"
+              :class="[occ.task.completedAt ? 'opacity-35 line-through' : 'hover:brightness-110']"
+              :style="eventMonthStyle(occ.task)"
               :title="occ.task.description"
             >
-              <img v-if="groupIconInfo(occ.task).img" :src="groupIconInfo(occ.task).img" class="w-3 h-3 rounded-full object-cover shrink-0" />
-              <component v-else :is="groupIconInfo(occ.task).comp" class="w-3 h-3 shrink-0" />
-              <span class="truncate">{{ timeLabel(occ.date) }}{{ occ.task.description }}</span>
-              <ArrowPathIcon v-if="occ.task.recurrence" class="w-3 h-3 shrink-0 opacity-70" />
-              <FlagIconSolid v-if="occ.task.priority && occ.task.priority !== 'low'" class="w-3 h-3 shrink-0" :class="getPriorityTextColor(occ.task.priority)" />
+              <span class="flex items-center gap-1 min-w-0">
+                <img v-if="occ.isMoneyApp" src="/moneyapp-logo.png" class="w-3 h-3 rounded-full shrink-0" alt="" />
+                <span class="truncate font-medium">{{ timeLabel(occ.date) }}{{ occ.task.description }}</span>
+              </span>
             </button>
           </div>
         </div>
@@ -125,11 +125,11 @@
                 :class="cell ? (cell.isToday ? 'bg-[#ff3b30] text-white font-bold' : 'text-[var(--text)] hover:bg-[var(--bg-hover)]') : ''"
               >
                 <template v-if="cell">
-                  {{ cell.date.getDate() }}
+                  {{ formatDateCell(cell.date) }}
                   <span
-                    v-if="cell.eventColor && !cell.isToday"
+                    v-if="cell.eventStyle && !cell.isToday"
                     class="absolute bottom-0.5 w-1 h-1 rounded-full"
-                    :class="cell.eventColor"
+                    :style="{ backgroundColor: cell.eventStyle.backgroundColor }"
                   ></span>
                 </template>
               </button>
@@ -154,28 +154,29 @@
             :class="{ 'weekend-cell': isWeekend(day.date) }"
             @click="cursor = new Date(day.date); viewType = 'day'"
           >
-            <p class="text-[11px] font-bold uppercase tracking-wide" :class="day.isToday ? 'text-[var(--accent)]' : (isWeekend(day.date) ? 'text-[#ff453a]/80' : 'text-[var(--muted)]')">
+            <p class="text-[10px] font-bold uppercase tracking-widest mb-0.5" :class="day.isToday ? 'text-[var(--accent)]' : (isWeekend(day.date) ? 'text-[#ff453a]/80' : 'text-[var(--muted)]')">
               {{ weekdays[day.date.getDay()] }}
             </p>
-            <p
-              class="text-[20px] font-semibold w-9 h-9 mx-auto flex items-center justify-center rounded-full"
-              :class="day.isToday ? 'bg-[var(--accent)] text-white' : 'text-[var(--text)]'"
+            <span
+              class="text-[17px] font-bold w-9 h-9 flex items-center justify-center rounded-full mx-auto transition-all"
+              :class="day.isToday ? 'bg-[var(--accent)] text-white shadow-lg shadow-[var(--accent)]/40' : 'text-[var(--text)] hover:bg-[var(--bg-hover)]'"
             >
               {{ day.date.getDate() }}
-            </p>
-            <div class="space-y-0.5 mt-1">
+            </span>
+            <div class="space-y-0.5 mt-1.5">
               <button
                 v-for="occ in day.allDay"
                 :key="occ.key"
                 @click.stop="onEventClick(occ)"
-                class="w-full text-left rounded px-1.5 py-0.5 text-[11px] truncate text-white transition-colors"
-                :class="[groupColor(occ.task), occ.task.completedAt ? 'opacity-40 line-through' : 'hover:opacity-80']"
+                class="w-full text-left rounded-md px-1.5 py-0.5 text-[10px] font-semibold text-white transition-all border-l-2 overflow-hidden"
+                :class="[occ.task.completedAt ? 'opacity-40 line-through' : 'hover:brightness-110']"
+                :style="eventMonthStyle(occ.task)"
                 :title="occ.task.description"
               >
-                <div class="flex items-center gap-1 overflow-hidden">
-                  <span class="truncate flex-1">{{ occ.task.description }}</span>
-                  <FlagIconSolid v-if="occ.task.priority && occ.task.priority !== 'low'" class="w-3 h-3 shrink-0" :class="getPriorityTextColor(occ.task.priority)" />
-                </div>
+                <span class="flex items-center gap-1 min-w-0">
+                  <img v-if="occ.isMoneyApp" src="/moneyapp-logo.png" class="w-3 h-3 rounded-full shrink-0" alt="" />
+                  <span class="truncate">{{ occ.task.description }}</span>
+                </span>
               </button>
             </div>
           </div>
@@ -229,19 +230,20 @@
                 :key="occ.key"
                 @click.stop="onEventClick(occ)"
                 @mousemove.stop="hoverSlot = null"
-                class="absolute rounded-lg px-2 py-1 text-left text-[11px] leading-tight text-white overflow-hidden border border-black/30 transition-opacity"
-                :class="[groupColor(occ.task), occ.task.completedAt ? 'opacity-40 line-through' : 'hover:opacity-85']"
-                :style="occ.style"
+                class="absolute text-left text-[11px] leading-tight text-white overflow-hidden transition-all rounded-md"
+                :class="[occ.task.completedAt ? 'opacity-35 line-through' : 'hover:brightness-110 hover:shadow-lg']"
+                :style="[occ.style, eventTimedStyle(occ.task)]"
                 :title="occ.task.description"
               >
-                <span class="font-semibold flex items-center gap-1 min-w-0">
-                  <img v-if="groupIconInfo(occ.task).img" :src="groupIconInfo(occ.task).img" class="w-3 h-3 rounded-full object-cover shrink-0" />
-                  <component v-else :is="groupIconInfo(occ.task).comp" class="w-3 h-3 shrink-0" />
-                  <span class="truncate">{{ occ.task.description }}</span>
-                  <ArrowPathIcon v-if="occ.task.recurrence" class="w-3 h-3 shrink-0" />
-                  <FlagIconSolid v-if="occ.task.priority && occ.task.priority !== 'low'" class="w-3 h-3 shrink-0 drop-shadow-md" :class="getPriorityTextColor(occ.task.priority)" />
-                </span>
-                <span class="opacity-80">{{ timedRangeLabel(occ) }}</span>
+                <!-- left accent bar -->
+                <span class="absolute left-0 top-0 bottom-0 w-[3px] rounded-l-md" :style="{ backgroundColor: priorityAccentColor(occ.task) }"></span>
+                <div class="pl-2 pr-1 py-1 flex flex-col h-full justify-start">
+                  <span class="font-semibold truncate text-[11px] leading-none mb-0.5 flex items-center gap-1">
+                    <img v-if="occ.isMoneyApp" src="/moneyapp-logo.png" class="w-3 h-3 rounded-full shrink-0" alt="" />
+                    <span class="truncate">{{ occ.task.description }}</span>
+                  </span>
+                  <span class="text-[9.5px] opacity-75 font-medium">{{ timedRangeLabel(occ) }}</span>
+                </div>
               </button>
 
               <!-- current time indicator -->
@@ -250,8 +252,8 @@
                 class="absolute left-0 right-0 pointer-events-none z-10"
                 :style="{ top: nowOffsetPx + 'px' }"
               >
-                <div class="relative border-t-2 border-[#ff3b30]">
-                  <span class="absolute -left-1 -top-[5px] w-2.5 h-2.5 rounded-full bg-[#ff3b30]"></span>
+                <div class="relative border-t-[1.5px] border-[#ff3b30]">
+                  <span class="absolute -left-1 -top-[5px] w-2.5 h-2.5 rounded-full bg-[#ff3b30] time-pulse"></span>
                 </div>
               </div>
             </div>
@@ -262,7 +264,7 @@
     </template>
   </div>
 
-  <TaskCreateModal
+  <TaskDetailsPanel
     v-if="isCreateOpen"
     :initial-date="createDate"
     @close="isCreateOpen = false"
@@ -440,10 +442,10 @@ import {
   ShoppingCartIcon,
   StarIcon
 } from '@heroicons/vue/24/outline';
-import { FlagIcon as FlagIconSolid } from '@heroicons/vue/24/solid';
-import type { TaskDto } from '@todoapp/models';
+import { CalendarIcon } from '@heroicons/vue/24/solid';
+import type { TaskDto, Occurrence } from '@todoapp/models';
 import { useTasksStore } from '@/stores/tasks';
-import TaskCreateModal from './TaskCreateModal.vue';
+import TaskDetailsPanel from './TaskDetailsPanel.vue';
 
 const props = defineProps<{ tasks: TaskDto[] }>();
 const emit = defineEmits<{ (e: 'task-click', task: TaskDto): void }>();
@@ -519,6 +521,14 @@ function onKeydown(e: KeyboardEvent) {
     }
   }
 
+  if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'n') {
+    e.preventDefault();
+    if (!isCreateOpen.value && !conflictPrompt.value && !moneyDetail.value && !moneyList.value && !receiptView.value) {
+      openCreate(null);
+    }
+    return;
+  }
+
   if (e.metaKey || e.ctrlKey || e.altKey) return;
   const target = e.target as HTMLElement | null;
   if (target && ['INPUT', 'SELECT', 'TEXTAREA'].includes(target.tagName)) return;
@@ -561,6 +571,12 @@ function startOfWeek(d: Date) {
   return new Date(d.getFullYear(), d.getMonth(), d.getDate() - offset);
 }
 
+function formatDateCell(date: Date) {
+  const d = String(date.getDate()).padStart(2, '0');
+  const m = String(date.getMonth() + 1).padStart(2, '0');
+  return `${d}/${m}`;
+}
+
 // ── recurrence expansion (estilo Google Calendar) ──────────────────────────
 // `scheduledAt` é a primeira ocorrência; a regra gera as seguintes.
 
@@ -593,18 +609,48 @@ function nextOccurrence(d: Date, rule: string, base: Date): Date {
   return addDays(d, 1);
 }
 
-interface Occurrence {
-  task: any;
-  date: Date;
-  key: string;
-  style?: Record<string, string>;
-  isMoneyApp?: boolean;
-  money?: any;        // evento único do MoneyAPP (payload cru do /api/calendar)
-  moneyGroup?: any[]; // vários lançamentos no mesmo dia, agrupados num chip só
-}
+
 
 const moneyAppEvents = ref<any[]>([]);
 const isMoneyAppVisible = ref(true);
+const moneyAppColor = ref('#30d158');
+const isTasksVisible = ref(true);
+
+const holidays = ref<any[]>([]);
+const isHolidaysVisible = ref(true);
+const holidayColor = ref('#6b7280');
+const fetchedHolidaysYears = new Set<number>();
+
+async function fetchHolidays(year: number) {
+  if (!isHolidaysVisible.value || fetchedHolidaysYears.has(year)) return;
+  try {
+    fetchedHolidaysYears.add(year);
+    const res = await fetch(`https://brasilapi.com.br/api/feriados/v1/${year}`);
+    if (res.ok) {
+      const data = await res.json();
+      const newHolidays = data.map((h: any) => ({
+        id: `holiday-${h.date}`,
+        date: new Date(h.date + 'T12:00:00Z'),
+        name: h.name,
+      }));
+      holidays.value.push(...newHolidays);
+    }
+  } catch (err) {
+    console.error('Failed to fetch holidays:', err);
+  }
+}
+
+watch(() => cursor.value.getFullYear(), (y) => {
+  if (isHolidaysVisible.value) {
+    fetchHolidays(y - 1);
+    fetchHolidays(y);
+    fetchHolidays(y + 1);
+  }
+});
+
+function toggleTasksVisibility() {
+  isTasksVisible.value = !isTasksVisible.value;
+}
 
 async function fetchMoneyAppEvents() {
   try {
@@ -616,7 +662,14 @@ async function fetchMoneyAppEvents() {
     const endStr = end.toISOString().split('T')[0];
     
     const res = await api.get<any[]>(`/integrations/moneyapp/calendar?start=${startStr}&end=${endStr}`);
-    moneyAppEvents.value = res || [];
+    moneyAppEvents.value = (res || []).map(ev => {
+      let dStr = ev.date;
+      if (dStr && typeof dStr === 'string') {
+        // Parse date correctly in local time (midnight) instead of UTC to avoid day shifts
+        dStr = dStr.substring(0, 10) + 'T00:00:00';
+      }
+      return { ...ev, date: dStr };
+    });
   } catch (err) {
     console.error('Failed to fetch moneyapp events:', err);
   }
@@ -624,10 +677,19 @@ async function fetchMoneyAppEvents() {
 
 onMounted(async () => {
   try {
-    const prefs = await api.get<{ showMoneyAppEvents: boolean }>('/prefs');
+    const prefs = await api.get<{ showMoneyAppEvents: boolean; showHolidays?: boolean; moneyAppColor?: string; holidayColor?: string }>('/prefs');
     isMoneyAppVisible.value = prefs.showMoneyAppEvents;
+    isHolidaysVisible.value = prefs.showHolidays ?? true;
+    if (prefs.moneyAppColor) moneyAppColor.value = prefs.moneyAppColor;
+    if (prefs.holidayColor) holidayColor.value = prefs.holidayColor;
     if (isMoneyAppVisible.value) {
       await fetchMoneyAppEvents();
+    }
+    if (isHolidaysVisible.value) {
+      const y = cursor.value.getFullYear();
+      fetchHolidays(y - 1);
+      fetchHolidays(y);
+      fetchHolidays(y + 1);
     }
   } catch (err) {
     console.error('Failed to load prefs:', err);
@@ -646,17 +708,10 @@ async function toggleMoneyAppVisibility() {
   }
 }
 
-const isTodoAppVisible = ref(localStorage.getItem('showTodoAppEvents_TodoApp') !== 'false');
-
-function toggleTodoAppVisibility() {
-  isTodoAppVisible.value = !isTodoAppVisible.value;
-  localStorage.setItem('showTodoAppEvents_TodoApp', String(isTodoAppVisible.value));
-}
-
 function occurrencesInRange(rangeStart: Date, rangeEnd: Date): Occurrence[] {
   const out: Occurrence[] = [];
   
-  if (isTodoAppVisible.value) {
+  if (isTasksVisible.value) {
     for (const task of props.tasks) {
       if (!task.scheduledAt) continue;
       const base = new Date(task.scheduledAt);
@@ -729,6 +784,25 @@ function occurrencesInRange(rangeStart: Date, rangeEnd: Date): Occurrence[] {
     }
   }
 
+  // Feriados Nacionais (BR)
+  if (isHolidaysVisible.value) {
+    for (const h of holidays.value) {
+      if (h.date >= rangeStart && h.date < rangeEnd) {
+        out.push({
+          isHoliday: true,
+          task: {
+            id: h.id,
+            description: `🏖️ ${h.name}`,
+            completedAt: null,
+            type: 'holiday'
+          },
+          date: h.date,
+          key: h.id
+        });
+      }
+    }
+  }
+
   return out.sort((a, b) => a.date.getTime() - b.date.getTime());
 }
 
@@ -769,10 +843,10 @@ const monthCells = computed(() => {
 const yearMonths = computed(() => {
   const year = cursor.value.getFullYear();
   // Um passe só pelo ano inteiro: dia → cor da lista do primeiro evento.
-  const eventDays = new Map<string, string>();
+  const eventDays = new Map<string, any>();
   for (const occ of occurrencesInRange(new Date(year, 0, 1), new Date(year + 1, 0, 1))) {
     const key = dayKey(occ.date);
-    if (!eventDays.has(key)) eventDays.set(key, groupColor(occ.task));
+    if (!eventDays.has(key)) eventDays.set(key, groupStyle(occ.task));
   }
   const todayKey = dayKey(now.value);
 
@@ -780,12 +854,12 @@ const yearMonths = computed(() => {
     const first = new Date(year, index, 1);
     const daysInMonth = new Date(year, index + 1, 0).getDate();
     const leading = (first.getDay() + 6) % 7; // colunas vazias até a segunda
-    const cells: Array<{ date: Date; isToday: boolean; eventColor?: string } | null> = [];
+    const cells: Array<{ date: Date; isToday: boolean; eventStyle?: any } | null> = [];
     for (let i = 0; i < leading; i++) cells.push(null);
     for (let d = 1; d <= daysInMonth; d++) {
       const date = new Date(year, index, d);
       const key = dayKey(date);
-      cells.push({ date, isToday: key === todayKey, eventColor: eventDays.get(key) });
+      cells.push({ date, isToday: key === todayKey, eventStyle: eventDays.get(key) });
     }
     return {
       index,
@@ -914,7 +988,9 @@ const title = computed(() => {
     return String(c.getFullYear());
   }
   if (viewType.value === 'month') {
-    return c.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
+    const monthName = c.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
+    const num = `${String(c.getMonth() + 1).padStart(2, '0')}/${c.getFullYear()}`;
+    return `${num} - ${monthName}`;
   }
   if (viewType.value === 'week') {
     const start = startOfWeek(c);
@@ -922,7 +998,10 @@ const title = computed(() => {
     const fmt = (d: Date) => d.toLocaleDateString('pt-BR', { day: 'numeric', month: 'short' });
     return `${fmt(start)} – ${fmt(end)} ${end.getFullYear()}`;
   }
-  return c.toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+  
+  const dayName = c.toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+  const num = `${String(c.getDate()).padStart(2, '0')}/${String(c.getMonth() + 1).padStart(2, '0')}/${c.getFullYear()}`;
+  return `${num} - ${dayName}`;
 });
 
 // ── create ──────────────────────────────────────────────────────────────────
@@ -1088,26 +1167,66 @@ function timedRangeLabel(occ: Occurrence) {
 }
 
 const fallbackColors = ['bg-[var(--accent)]', 'bg-[#30d158]', 'bg-[#ff3b30]', 'bg-[#ff9500]', 'bg-[#ff2d55]', 'bg-[#bf5af2]'];
+
+function priorityAccentColor(task: any): string {
+  if (task.categoryColor) return '#30d158';
+  if (task.type === 'holiday') return '#6b7280';
+  if (task.priority === 'high')   return '#ff3b30';
+  if (task.priority === 'medium') return '#ff9500';
+  if (task.priority === 'low')    return '#34c759';
+  return 'var(--accent)';
+}
+
+function priorityBgColor(task: any): string {
+  if (task.categoryColor) return moneyAppColor.value;
+  if (task.type === 'holiday') return holidayColor.value;
+  if (task.priority === 'high')   return '#ff3b3022';
+  if (task.priority === 'medium') return '#ff950018';
+  if (task.priority === 'low')    return '#34c75918';
+  return 'color-mix(in srgb, var(--accent) 14%, transparent)';
+}
+
+/** Estilo do card de grade (semana/dia) — fundo sutil + borda colorida */
+function eventTimedStyle(task: any): Record<string, string> {
+  const accent = priorityAccentColor(task);
+  return {
+    backgroundColor: priorityBgColor(task),
+    borderLeft: `3px solid ${accent}`,
+    borderTop: '1px solid rgba(255,255,255,0.06)',
+    borderRight: '1px solid rgba(255,255,255,0.06)',
+    borderBottom: '1px solid rgba(255,255,255,0.06)',
+    backdropFilter: 'blur(4px)',
+  };
+}
+
+/** Estilo pill para visão de mês e eventos all-day */
+function eventMonthStyle(task: any): Record<string, string> {
+  const accent = priorityAccentColor(task);
+  return {
+    backgroundColor: priorityBgColor(task),
+    borderLeftColor: accent,
+    borderLeftWidth: '2px',
+    borderLeftStyle: 'solid',
+    color: '#fff',
+  };
+}
+
 function groupColor(task: any) {
-  if (task.categoryColor) {
-    // If it's a MoneyApp event with a hex color, we return a style object later, but for now we inject it if possible.
-    // Actually, Vue classes accept strings. We can use style for custom hex.
-    // To keep it simple, we just return a default green for income and red for expense if no categoryColor matches standard classes.
-    if (task.type === 'income') return 'bg-[#30d158]';
-    if (task.type === 'expense') return 'bg-[#ff3b30]';
-    if (task.type === 'group') return 'bg-[#30d158]';
-    return 'bg-[#ff9500]';
-  }
-  if (!task.groupId) return 'bg-[var(--accent)]';
-  const idx = tasksStore.groups.findIndex((g: any) => g.id === task.groupId);
-  if (idx === -1) return 'bg-[var(--accent)]';
-  return tasksStore.groups[idx]?.color || fallbackColors[idx % fallbackColors.length];
+  if (task.type === 'holiday') return '';
+  if (task.categoryColor) return '';
+  return 'bg-[var(--accent)]';
+}
+
+function groupStyle(task: any) {
+  if (task.type === 'holiday') return { backgroundColor: holidayColor.value, color: '#ffffff' };
+  if (task.categoryColor) return { backgroundColor: moneyAppColor.value, color: '#ffffff' };
+  return {};
 }
 
 function getPriorityTextColor(p: string) {
-  if (p === 'high') return 'text-[#ff3b30] bg-white rounded-sm';
-  if (p === 'medium') return 'text-[#ffcc00] bg-black/20 rounded-sm';
-  return 'text-white/70';
+  if (p === 'high') return 'text-[#ff3b30] drop-shadow-sm';
+  if (p === 'medium') return 'text-[#ffcc00] drop-shadow-sm';
+  return 'text-[#34c759] drop-shadow-sm';
 }
 
 // Mesmo mapa de ícones da sidebar de listas do todo.
@@ -1139,5 +1258,14 @@ function groupIconInfo(task: any): { img?: string; comp?: any } {
 }
 .weekend-cell:hover {
   background: color-mix(in srgb, #ff453a 10%, var(--bg-hover)) !important;
+}
+
+/* Pulsação suave no indicador da hora atual */
+@keyframes time-pulse-anim {
+  0%, 100% { transform: scale(1); opacity: 1; box-shadow: 0 0 0 0 rgba(255, 59, 48, 0.5); }
+  50% { transform: scale(1.2); opacity: 0.9; box-shadow: 0 0 0 4px rgba(255, 59, 48, 0); }
+}
+.time-pulse {
+  animation: time-pulse-anim 2s ease-in-out infinite;
 }
 </style>

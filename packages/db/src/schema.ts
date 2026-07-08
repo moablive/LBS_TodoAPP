@@ -90,6 +90,22 @@ export const reminderSettings = pgTable("reminder_settings", {
   notifyTelegram: boolean("notify_telegram").default(true).notNull(),
   // Como o bot chama o usuário nas mensagens (null = "Patrão")
   displayName: varchar("display_name", { length: 60 }),
+  
+  // Resumos diários
+  morningDigestEnabled: boolean("morning_digest_enabled").default(true).notNull(),
+  morningDigestTime: varchar("morning_digest_time", { length: 5 }).default("08:00").notNull(),
+  afternoonDigestEnabled: boolean("afternoon_digest_enabled").default(true).notNull(),
+  afternoonDigestTime: varchar("afternoon_digest_time", { length: 5 }).default("13:00").notNull(),
+  nightDigestEnabled: boolean("night_digest_enabled").default(false).notNull(),
+  nightDigestTime: varchar("night_digest_time", { length: 5 }).default("20:00").notNull(),
+
+  // Filtros de notificação
+  notificationStyle: varchar("notification_style", { length: 20 }).default("all").notNull(), // 'all' | 'category' | 'priority'
+  notifiedCategories: jsonb("notified_categories").$type<string[]>().default([]).notNull(),
+  notifiedPriorities: jsonb("notified_priorities").$type<string[]>().default([]).notNull(),
+  notificationPeriod: varchar("notification_period", { length: 10 }).default("all").notNull(), // 'today' | 'all'
+  digestTodayOnly: boolean("digest_today_only").default(false).notNull(),
+
   updatedAt: timestamp("updated_at", { withTimezone: true })
     .defaultNow()
     .notNull(),
@@ -102,6 +118,9 @@ export const userPrefs = pgTable("user_prefs", {
   // ids das listas visíveis no kanban ('none' = coluna Sem Lista)
   kanbanLists: jsonb("kanban_lists").$type<string[]>().default([]).notNull(),
   showMoneyAppEvents: boolean("show_moneyapp_events").default(true).notNull(),
+  moneyAppColor: text("moneyapp_color").default('#30d158'),
+  showHolidays: boolean("show_holidays").default(true).notNull(),
+  holidayColor: text("holiday_color").default('#6b7280'),
   updatedAt: timestamp("updated_at", { withTimezone: true })
     .defaultNow()
     .notNull(),

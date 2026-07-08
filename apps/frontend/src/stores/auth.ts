@@ -32,6 +32,45 @@ export const useAuthStore = defineStore('auth', {
       this.requirePasswordChange = false;
       localStorage.setItem('requirePasswordChange', 'false');
     },
+    async refreshToken(): Promise<boolean> {
+      if (!this.token) {
+        this.logout();
+        return false;
+      }
+      if (refreshPromise) return refreshPromise;
+
+      refreshPromise = (async () => {
+        try {
+          const loginhubApi = import.meta.env.VITE_LOGINHUB_API_URL || 'https://api-auth.astralwavelabel.com/api';
+          const res = await fetch(`${loginhubApi}/auth/refresh`, {
+            method: 'POST',
+            headers: { Authorization: `Bearer ${this.token}` },
+          });
+
+          if (!res.ok) {
+            this.logout();
+            return false;
+          }
+
+          const data = await res.json();
+          if (data.token) {
+            this.token = data.token;
+            localStorage.setItem('token', data.token);
+            setApiToken(data.token);
+            return true;
+          }
+          this.logout();
+          return false;
+        } catch (err) {
+          this.logout();
+          return false;
+        } finally {
+          refreshPromise = null;
+        }
+      })();
+
+      return refreshPromise;
+    },
     logout() {
       this.token = null;
       this.requirePasswordChange = false;
@@ -42,6 +81,8 @@ export const useAuthStore = defineStore('auth', {
     }
   }
 });
+
+let refreshPromise: Promise<boolean> | null = null;
 
 if (localStorage.getItem('token')) {
   setApiToken(localStorage.getItem('token')!);

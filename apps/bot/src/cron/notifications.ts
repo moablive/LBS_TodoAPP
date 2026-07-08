@@ -10,15 +10,7 @@ import { sendPushToUser } from '../utils/push.js';
 const escHtml = (s: string) =>
   s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 
-// Nome customizado nas configurações de lembretes (fallback "Patrão").
-async function greetingName(userId: string): Promise<string> {
-  try {
-    const settings = await botApi.getReminderSettings(userId);
-    const name = settings.displayName?.trim();
-    if (name) return escHtml(name);
-  } catch { /* usa fallback */ }
-  return 'Patrão';
-}
+
 
 function buildSection(title: string, taskList: any[], icon: string): string {
   let s = `${icon} <b>${title}</b>\n`;
@@ -42,86 +34,112 @@ function buildSection(title: string, taskList: any[], icon: string): string {
 
 // ── 08:00 — Bom dia + somente prioritárias (alto) ─────────────────────────
 
-export const sendMorningGreeting = async (bot: Telegraf<BotContext>) => {
+// Helper para verificar se a tarefa ocorre no dia alvo
+function occursToday(base: Date, recurrence: string | null | undefined, today: Date): boolean {
+  if (!recurrence) {
+    return base.getFullYear() === today.getFullYear() &&
+           base.getMonth() === today.getMonth() &&
+           base.getDate() === today.getDate();
+  }
+  
+  const baseDay = new Date(base.getFullYear(), base.getMonth(), base.getDate());
+  const targetDay = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+  if (targetDay.getTime() < baseDay.getTime()) return false;
+
+  switch (recurrence) {
+    case 'daily':   return true;
+    case 'weekdays': return today.getDay() >= 1 && today.getDay() <= 5;
+    case 'weekly':  return base.getDay() === today.getDay();
+    case 'monthly': return base.getDate() === today.getDate();
+    case 'yearly':  return base.getDate() === today.getDate() && base.getMonth() === today.getMonth();
+    default:        return baseDay.getTime() === targetDay.getTime();
+  }
+}
+
+export const sendUserMorningGreeting = async (bot: Telegraf<BotContext>, user: any, tasks: any[], settings: any) => {
+  if (!isNotificationEnabled(String(user.telegramId))) return;
+
   try {
-    const users = await botApi.getAllBotUsers();
-    if (!users || users.length === 0) return;
+    const now = new Date();
+    const todayTasks = tasks.filter(t => {
+      if (!t.scheduledAt) return false;
+      return occursToday(new Date(t.scheduledAt), t.recurrence, now);
+    });
 
-    for (const user of users) {
-      if (!user.telegramId) continue;
-      if (!isNotificationEnabled(String(user.telegramId))) continue;
+    const todayStr = now.toLocaleDateString('pt-BR', {
+      weekday: 'long', day: '2-digit', month: 'long'
+    });
+    const todayNum = now.toLocaleDateString('pt-BR');
+    const today = `${todayNum} - ${todayStr}`;
+    
+    const name = settings.displayName?.trim() ? escHtml(settings.displayName.trim()) : 'Patrão';
+    let msg = `☀️ <b>Bom dia, ${name}!</b>\n`;
+    msg += `📅 ${today}\n\n`;
 
-      try {
-        const tasks = await botApi.listTasks(user.id);
-        const priorityTasks = tasks.filter(t => t.priority === 'high');
-
-        const today = new Date().toLocaleDateString('pt-BR', {
-          weekday: 'long', day: '2-digit', month: 'long'
-        });
-
-        let msg = `☀️ <b>Bom dia, ${await greetingName(user.id)}!</b>\n`;
-        msg += `📅 ${today}\n\n`;
-
-        if (priorityTasks.length === 0) {
-          msg += `✅ Nenhuma tarefa prioritária hoje. Aproveite o dia! 🎉`;
-        } else {
-          msg += `🔴 <b>Tarefas Prioritárias do Dia (${priorityTasks.length})</b>\n`;
-          for (const t of priorityTasks) {
-            msg += `▫️ ${t.description}`;
-            if (t.scheduledAt) {
-              msg += ` (⏰ ${new Date(t.scheduledAt).toLocaleString('pt-BR')})`;
-            }
-            if (t.groupName) msg += ` <i>[${t.groupName}]</i>`;
-            msg += '\n';
-          }
+    if (todayTasks.length === 0) {
+      msg += `✅ Nenhuma tarefa agendada para hoje. Aproveite o dia! 🎉`;
+    } else {
+      msg += `🔴 <b>Tarefas do Dia (${todayTasks.length})</b>\n`;
+      for (const t of todayTasks) {
+        msg += `▫️ ${t.description}`;
+        if (t.scheduledAt) {
+           const occ = new Date(t.scheduledAt);
+           occ.setFullYear(now.getFullYear(), now.getMonth(), now.getDate());
+           msg += ` (⏰ ${occ.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })})`;
+           if (t.recurrence) msg += ' 🔁';
         }
-
-        await bot.telegram.sendMessage(user.telegramId, msg, { parse_mode: 'HTML' });
-        console.log(`☀️ Bom dia enviado para ${user.telegramId}`);
-      } catch (uErr) {
-        console.error(`Erro ao enviar bom dia para ${user.id}:`, uErr);
+        if (t.groupName) msg += ` <i>[${t.groupName}]</i>`;
+        msg += '\n';
       }
     }
+
+    if (settings.notifyTelegram) {
+      await bot.telegram.sendMessage(user.telegramId, msg, { parse_mode: 'HTML' });
+      console.log(`☀️ Bom dia enviado para ${user.telegramId}`);
+    }
   } catch (err) {
-    console.error('Erro no bom dia:', err);
+    console.error(`Erro ao enviar bom dia para ${user.id}:`, err);
   }
 };
 
-// ── 09:00 e 13:00 — Resumo completo (todas as tarefas) ────────────────────
+// ── Resumos da tarde e noite ───────────────────────────────────────────────────
 
-export const sendDailySummary = async (bot: Telegraf<BotContext>, label: string) => {
+export const sendUserDailySummary = async (bot: Telegraf<BotContext>, user: any, tasks: any[], settings: any, label: string) => {
+  if (!isNotificationEnabled(String(user.telegramId))) return;
+
   try {
-    const users = await botApi.getAllBotUsers();
-    if (!users || users.length === 0) return;
+    // Se "Somente tarefas do dia" estiver ligado, filtra apenas as de hoje
+    let filteredTasks = tasks;
+    if (settings.digestTodayOnly) {
+      const now = new Date();
+      filteredTasks = tasks.filter(t => {
+        if (!t.scheduledAt) return false;
+        return occursToday(new Date(t.scheduledAt), t.recurrence, now);
+      });
+    }
 
-    for (const user of users) {
-      if (!user.telegramId) continue;
-      if (!isNotificationEnabled(String(user.telegramId))) continue;
+    if (filteredTasks.length === 0) return;
 
-      try {
-        const tasks = await botApi.listTasks(user.id);
-        if (tasks.length === 0) continue;
+    const highTasks   = filteredTasks.filter(t => t.priority === 'high');
+    const mediumTasks = filteredTasks.filter(t => t.priority === 'medium');
+    const lowTasks    = filteredTasks.filter(t => t.priority === 'low' || !t.priority);
 
-        const highTasks   = tasks.filter(t => t.priority === 'high');
-        const mediumTasks = tasks.filter(t => t.priority === 'medium');
-        const lowTasks    = tasks.filter(t => t.priority === 'low');
+    const periodLabel = settings.digestTodayOnly ? ' (apenas hoje)' : '';
+    let msg = `📋 <b>${label}</b>${periodLabel}\n`;
+    msg += `Total de tarefas pendentes: <b>${filteredTasks.length}</b>\n\n`;
+    msg += buildSection('Prioridade Alta', highTasks, '🔴');
+    msg += buildSection('Prioridade Média', mediumTasks, '🟡');
+    msg += buildSection('Prioridade Baixa', lowTasks, '🟢');
 
-        let msg = `📋 <b>${label}</b>\n`;
-        msg += `Total de tarefas pendentes: <b>${tasks.length}</b>\n\n`;
-        msg += buildSection('Prioridade Alta', highTasks, '🔴');
-        msg += buildSection('Prioridade Média', mediumTasks, '🟡');
-        msg += buildSection('Prioridade Baixa', lowTasks, '🟢');
-
-        await bot.telegram.sendMessage(user.telegramId, msg, { parse_mode: 'HTML' });
-        console.log(`📋 Resumo "${label}" enviado para ${user.telegramId}`);
-      } catch (uErr) {
-        console.error(`Erro ao enviar resumo para ${user.id}:`, uErr);
-      }
+    if (settings.notifyTelegram) {
+      await bot.telegram.sendMessage(user.telegramId, msg, { parse_mode: 'HTML' });
+      console.log(`📋 Resumo "${label}" enviado para ${user.telegramId}`);
     }
   } catch (err) {
-    console.error('Erro no resumo:', err);
+    console.error(`Erro ao enviar resumo para ${user.id}:`, err);
   }
 };
+
 
 // ── Cron jobs ──────────────────────────────────────────────────────────────
 
@@ -167,7 +185,43 @@ export function startNotificationsCron(bot: Telegraf<BotContext>) {
 
         try {
           const settings = await botApi.getReminderSettings(user.id);
-          const tasks = await botApi.listTasks(user.id);
+          let tasks = await botApi.listTasks(user.id);
+
+          // Filtrar por período (somente do dia)
+          if (settings.notificationPeriod === 'today') {
+            const todayStart = new Date(now);
+            todayStart.setHours(0, 0, 0, 0);
+            const todayEnd = new Date(now);
+            todayEnd.setHours(23, 59, 59, 999);
+            tasks = tasks.filter(t => {
+              if (!t.scheduledAt) return false;
+              const d = new Date(t.scheduledAt);
+              return d >= todayStart && d <= todayEnd;
+            });
+          }
+
+          // Filtrar por categoria
+          if (settings.notificationStyle === 'category' && settings.notifiedCategories?.length) {
+            tasks = tasks.filter(t => t.groupId && settings.notifiedCategories.includes(t.groupId));
+          }
+
+          // Filtrar por prioridade
+          if (settings.notificationStyle === 'priority' && settings.notifiedPriorities?.length) {
+            tasks = tasks.filter(t => t.priority && settings.notifiedPriorities.includes(t.priority as any));
+          }
+
+          // Resumos diários (verifica apenas o horário local no formato HH:MM)
+          const nowStr = now.toLocaleTimeString('pt-BR', { timeZone: 'America/Sao_Paulo', hour: '2-digit', minute: '2-digit' });
+          
+          if (settings.morningDigestEnabled && settings.morningDigestTime === nowStr) {
+             await sendUserMorningGreeting(bot, user, tasks, settings);
+          }
+          if (settings.afternoonDigestEnabled && settings.afternoonDigestTime === nowStr) {
+             await sendUserDailySummary(bot, user, tasks, settings, 'Resumo da Tarde ☀️');
+          }
+          if (settings.nightDigestEnabled && settings.nightDigestTime === nowStr) {
+             await sendUserDailySummary(bot, user, tasks, settings, 'Resumo da Noite 🌙');
+          }
 
           const dueNow: typeof tasks = [];
           const dueSoon: typeof tasks = [];
@@ -184,7 +238,8 @@ export function startNotificationsCron(bot: Telegraf<BotContext>) {
 
             if (settings.remindAtTime && occursAt(s, t.recurrence, now)) dueNow.push(t);
             if (settings.remindBeforeEnabled && occursAt(s, t.recurrence, beforeTarget)) dueSoon.push(t);
-            if (settings.remindDaysEnabled && occursAt(s, t.recurrence, daysTarget)) dueInDays.push(t);
+            const skipDaysReminder = t.recurrence === 'daily' || t.recurrence === 'weekdays' || t.recurrence === 'weekly';
+            if (settings.remindDaysEnabled && !skipDaysReminder && occursAt(s, t.recurrence, daysTarget)) dueInDays.push(t);
           }
 
           if (dueNow.length === 0 && dueSoon.length === 0 && dueInDays.length === 0) continue;
@@ -235,20 +290,5 @@ export function startNotificationsCron(bot: Telegraf<BotContext>) {
     }
   });
 
-  // 08:00 — Bom dia + somente prioritárias
-  cron.schedule('0 8 * * *', async () => {
-    await sendMorningGreeting(bot);
-  }, { timezone: 'America/Sao_Paulo' });
-
-  // 09:00 — Resumo completo matinal
-  cron.schedule('0 9 * * *', async () => {
-    await sendDailySummary(bot, 'Resumo Matinal de Tarefas 🌅');
-  }, { timezone: 'America/Sao_Paulo' });
-
-  // 13:00 — Resumo da tarde
-  cron.schedule('0 13 * * *', async () => {
-    await sendDailySummary(bot, 'Resumo da Tarde ☀️');
-  }, { timezone: 'America/Sao_Paulo' });
-
-  console.log('✅ Crons: 08h (bom dia + prioridades), 09h (resumo completo), 13h (tarde), lembretes por minuto (horário / antes / dias antes) via Telegram + Push.');
+  console.log('✅ Cron: lembretes por minuto (horário / antes / dias antes) via Telegram + Push, além dos resumos diários configurados pelo usuário.');
 }

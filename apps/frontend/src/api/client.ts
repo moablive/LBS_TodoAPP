@@ -9,6 +9,7 @@ setupApi({
     _token = null;
     localStorage.removeItem('token');
     window.location.href = '/login';
+    return false;
   },
 });
 

@@ -7,13 +7,13 @@ export class ApiError extends Error {
 export interface ApiOptions {
   baseUrl: string;
   getToken: () => string | null;
-  onUnauthorized: () => void;
+  onUnauthorized: () => boolean | Promise<boolean>;
 }
 
 export const apiOptions: ApiOptions = {
   baseUrl: '/api',
   getToken: () => null,
-  onUnauthorized: () => {},
+  onUnauthorized: () => false,
 };
 
 export function setupApi(options: Partial<ApiOptions>) {
@@ -34,7 +34,19 @@ async function request<T>(method: string, path: string, body?: unknown): Promise
   });
 
   if (res.status === 401) {
-    apiOptions.onUnauthorized();
+    const refreshed = await apiOptions.onUnauthorized();
+    if (refreshed) {
+      const newToken = apiOptions.getToken();
+      if (newToken) headers.Authorization = `Bearer ${newToken}`;
+      const retryRes = await fetch(`${apiOptions.baseUrl}${path}`, {
+        method,
+        headers,
+        body: body === undefined ? undefined : JSON.stringify(body),
+      });
+      if (!retryRes.ok) throw new ApiError(retryRes.status, await safeJson(retryRes));
+      if (retryRes.status === 204) return undefined as T;
+      return (await retryRes.json()) as T;
+    }
     throw new ApiError(401, await safeJson(res));
   }
   if (!res.ok) throw new ApiError(res.status, await safeJson(res));
@@ -58,7 +70,14 @@ async function requestBlob(path: string): Promise<Blob> {
   const res = await fetch(`${apiOptions.baseUrl}${path}`, { headers });
 
   if (res.status === 401) {
-    apiOptions.onUnauthorized();
+    const refreshed = await apiOptions.onUnauthorized();
+    if (refreshed) {
+      const newToken = apiOptions.getToken();
+      if (newToken) headers.Authorization = `Bearer ${newToken}`;
+      const retryRes = await fetch(`${apiOptions.baseUrl}${path}`, { headers });
+      if (!retryRes.ok) throw new ApiError(retryRes.status, await safeJson(retryRes));
+      return retryRes.blob();
+    }
     throw new ApiError(401, await safeJson(res));
   }
   if (!res.ok) throw new ApiError(res.status, await safeJson(res));

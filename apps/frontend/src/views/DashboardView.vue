@@ -66,11 +66,8 @@
           <PlusCircleIcon class="w-5 h-5" /> Add List
         </button>
         <div class="flex items-center gap-3">
-          <button class="flex items-center text-[var(--muted)] hover:text-[var(--accent)] transition-colors" @click="isReminderSettingsOpen = true" title="Lembretes">
-            <BellAlertIcon class="w-5 h-5" />
-          </button>
-          <button class="flex items-center text-[var(--muted)] hover:text-[var(--accent)] transition-colors" @click="isThemeSettingsOpen = true" title="Aparência (tema e cor)">
-            <SwatchIcon class="w-5 h-5" />
+          <button class="flex items-center text-[var(--muted)] hover:text-[var(--accent)] transition-colors" @click="isSettingsOpen = true" title="Configurações">
+            <Cog6ToothIcon class="w-5 h-5" />
           </button>
           <button class="flex items-center text-[var(--muted)] hover:text-[#ff3b30] transition-colors" @click="logout" title="Logout">
             <ArrowRightOnRectangleIcon class="w-5 h-5" />
@@ -147,31 +144,40 @@
           @dragleave="onTaskDragLeave(idx, $event)"
           @drop="onTaskDrop(idx, $event)"
           @dragend="onTaskDragEnd"
-          class="group flex items-start gap-3 py-3 px-2 -mx-2 border-b border-[var(--border-soft)] last:border-0 relative transition-all duration-150 rounded-lg hover:bg-[var(--bg-hover)] hover:shadow-sm hover:translate-x-0.5 cursor-default"
+          @click="editingTaskId !== task.id && openDetailsModal(task)"
+          class="group flex items-start gap-3 py-3 px-3 -mx-2 border-b border-[var(--border-soft)] last:border-0 relative transition-all duration-150 rounded-xl cursor-pointer select-none"
           :class="[
+            'hover:bg-[var(--bg-hover)] hover:shadow-md hover:-translate-y-px',
             draggedOverTaskIndex === idx ? 'bg-[var(--bg-hover)] ring-1 ring-[var(--accent)]' : '',
             draggedTaskIndex === idx ? 'opacity-50 scale-95' : ''
           ]"
         >
+          <!-- priority accent left bar -->
+          <span
+            class="absolute left-0 top-2 bottom-2 w-[3px] rounded-full transition-opacity"
+            :class="task.completedAt ? 'opacity-0' : 'opacity-80'"
+            :style="{ backgroundColor: task.priority === 'high' ? '#ff3b30' : task.priority === 'medium' ? '#ff9500' : '#34c759' }"
+          ></span>
+
           <button 
-            @click="tasksStore.toggleComplete(task)"
-            class="w-5 h-5 mt-0.5 rounded-full border-[1.5px] border-[var(--muted)] flex items-center justify-center hover:border-[var(--accent)] transition-colors shrink-0"
+            @click.stop="tasksStore.toggleComplete(task)"
+            class="w-5 h-5 mt-0.5 rounded-full border-[1.5px] border-[var(--muted)] flex items-center justify-center hover:border-[var(--accent)] transition-colors shrink-0 z-10"
             :class="{ 'bg-[var(--accent)] border-[var(--accent)]': task.completedAt }"
           >
             <CheckIcon v-if="task.completedAt" class="w-3.5 h-3.5 text-white" />
           </button>
           
-          <div class="flex-1 flex flex-col">
+          <div class="flex-1 flex flex-col min-w-0">
             <div v-if="editingTaskId !== task.id"
                  class="text-[14px] truncate w-full flex items-center gap-2"
                  :class="{ 'text-[var(--muted)] line-through': task.completedAt }">
               <template v-if="task.description.startsWith('http')">
                 <a :href="task.description" target="_blank" class="text-blue-400 hover:underline truncate max-w-[200px] sm:max-w-xs" @click.stop>🔗 {{ getDomain(task.description) }}</a>
-                <span class="text-xs text-[var(--muted2)] hover:text-[var(--text)] cursor-pointer ml-1" @click="editingTaskId = task.id">✎</span>
               </template>
               <template v-else>
-                <span class="cursor-text truncate w-full" @click="editingTaskId = task.id">{{ task.description }}</span>
+                <span class="truncate font-medium">{{ task.description }}</span>
               </template>
+              <ArrowPathIcon v-if="task.recurrence" class="w-3.5 h-3.5 text-[var(--accent)] shrink-0 opacity-80" title="Tarefa Recorrente" />
             </div>
             <input 
               v-else
@@ -179,27 +185,24 @@
               v-model="task.description"
               class="bg-transparent outline-none text-[14px] w-full"
               :class="{ 'text-[var(--muted)] line-through': task.completedAt }"
+              @click.stop
               @blur="editingTaskId = null; updateTask(task)"
               @keydown.enter="($event.target as HTMLElement).blur()"
             />
             <div class="flex items-center gap-2 mt-1" v-if="task.scheduledAt || tasksStore.searchQuery.trim()">
-              <span v-if="task.scheduledAt" class="text-[12px] text-[var(--muted)]">{{ new Date(task.scheduledAt).toLocaleDateString() }}</span>
+              <span v-if="task.scheduledAt" class="text-[11px] text-[var(--muted)] flex items-center gap-1">
+                <CalendarDaysIcon class="w-3 h-3" />
+                {{ new Date(task.scheduledAt).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' }) }}
+              </span>
               <span v-if="tasksStore.searchQuery.trim()" class="text-[10px] bg-[var(--bg-card)] text-[var(--muted)] px-1.5 py-0.5 rounded font-medium">
                 {{ getTaskGroupName(task.groupId) }}
               </span>
             </div>
           </div>
 
-          <div class="flex items-center gap-3 transition-opacity">
-            <button @click="openDetailsModal(task)" class="text-[var(--muted2)] hover:text-[var(--accent)] transition-colors flex items-center justify-center p-1" title="Edit Details">
-              <DocumentTextIcon class="w-5 h-5" :class="{'text-[var(--accent)]': task.details}" />
-            </button>
-            <button @click="openPriorityModal(task)" class="text-[var(--muted2)] hover:text-[var(--text)] transition-colors flex items-center justify-center p-1" title="Set Priority">
-              <FlagIcon class="w-5 h-5" :class="getPriorityTextColor(task.priority)" />
-            </button>
-            <button @click="openDatePickerModal(task)" class="text-[var(--muted2)] hover:text-[var(--accent)] transition-colors flex items-center justify-center p-1" title="Set Reminder">
-              <ClockIcon class="w-5 h-5" :class="{'text-[var(--accent)]': task.scheduledAt}" />
-            </button>
+          <!-- details icon — visible on hover -->
+          <div class="flex items-center opacity-0 group-hover:opacity-100 transition-opacity">
+            <ChevronRightIcon class="w-4 h-4 text-[var(--muted)]" />
           </div>
         </div>
 
@@ -240,10 +243,15 @@
 
         <div>
           <label class="block text-xs font-semibold text-[var(--muted)] uppercase tracking-wider mb-2">Icon</label>
-          <div class="flex gap-2 mb-3">
+          <div class="flex gap-2 mb-3 items-center">
             <button v-for="(iconComp, iconName) in iconMap" :key="iconName" @click="newGroupData.icon = iconName" :class="['w-8 h-8 rounded-full flex items-center justify-center transition-all border border-transparent flex-shrink-0', newGroupData.icon === iconName ? 'bg-[var(--bg-hover)] border-[var(--text)]/50 text-[var(--text)]' : 'text-[var(--muted)] hover:bg-[var(--bg-hover)] hover:text-[var(--text)]']">
               <component :is="iconComp" class="w-5 h-5" />
             </button>
+            <button @click="fileInput?.click()" class="w-8 h-8 rounded-full flex items-center justify-center transition-all border border-transparent flex-shrink-0 text-[var(--muted)] hover:bg-[var(--bg-hover)] hover:text-[var(--text)]" title="Upload custom image">
+              <PhotoIcon class="w-5 h-5" />
+            </button>
+            <input type="file" accept="image/*" class="hidden" ref="fileInput" @change="handleIconUpload" />
+
             <div v-if="newGroupData.icon && (newGroupData.icon.startsWith('http') || newGroupData.icon.startsWith('data:'))" class="w-8 h-8 rounded-full overflow-hidden border-2 border-white flex-shrink-0 ml-auto bg-black/20">
               <img :src="newGroupData.icon" class="w-full h-full object-cover" />
             </div>
@@ -385,18 +393,15 @@
     </div>
   </div>
   <!-- Details / Edit Modal -->
-  <TaskCreateModal
-    v-if="isDetailsModalOpen"
+  <TaskDetailsPanel
+    v-if="isTaskDetailsPanelOpen"
     :initial-task="editingTaskForDetails"
-    @close="isDetailsModalOpen = false; editingTaskForDetails = null"
+    @close="isTaskDetailsPanelOpen = false; editingTaskForDetails = null"
     @updated="tasksStore.fetchAll()"
   />
 
-  <!-- Reminder Settings Modal -->
-  <ReminderSettingsModal v-if="isReminderSettingsOpen" @close="isReminderSettingsOpen = false" />
-
-  <!-- Theme Settings Modal -->
-  <ThemeSettingsModal v-if="isThemeSettingsOpen" @close="isThemeSettingsOpen = false" />
+  <!-- Settings Modal -->
+  <SettingsModal v-if="isSettingsOpen" @close="isSettingsOpen = false" />
 
   <!-- Delete Group Modal -->
   <div v-if="isDeleteGroupModalOpen" class="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[60] p-4">
@@ -447,13 +452,15 @@ import {
   ArrowPathIcon,
   Bars3Icon,
   SwatchIcon,
-  DocumentTextIcon
+  DocumentTextIcon,
+  Cog6ToothIcon,
+  PhotoIcon,
+  ChevronRightIcon,
 } from '@heroicons/vue/24/outline';
 import CalendarView from '@/components/CalendarView.vue';
-import TaskCreateModal from '@/components/TaskCreateModal.vue';
+import TaskDetailsPanel from '@/components/TaskDetailsPanel.vue';
 
-import ReminderSettingsModal from '@/components/ReminderSettingsModal.vue';
-import ThemeSettingsModal from '@/components/ThemeSettingsModal.vue';
+import SettingsModal from '@/components/SettingsModal.vue';
 import '@/composables/useTheme'; // aplica o tema salvo já no carregamento
 
 const tasksStore = useTasksStore();
@@ -466,8 +473,53 @@ const viewModes: { id: ViewMode; label: string; icon: any }[] = [
   { id: 'calendar', label: 'Calendário (⌘⌃2)', icon: CalendarDaysIcon },
 ];
 
-const isReminderSettingsOpen = ref(false);
-const isThemeSettingsOpen = ref(false);
+const isTaskDetailsPanelOpen = ref(false);
+const isSettingsModalOpen = ref(false);
+
+const fileInput = ref<HTMLInputElement | null>(null);
+
+const handleIconUpload = (event: Event) => {
+  const target = event.target as HTMLInputElement;
+  const file = target.files?.[0];
+  if (!file) return;
+
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    if (e.target?.result) {
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        const MAX_SIZE = 128;
+        let width = img.width;
+        let height = img.height;
+
+        if (width > height) {
+          if (width > MAX_SIZE) {
+            height *= MAX_SIZE / width;
+            width = MAX_SIZE;
+          }
+        } else {
+          if (height > MAX_SIZE) {
+            width *= MAX_SIZE / height;
+            height = MAX_SIZE;
+          }
+        }
+        
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        if (ctx) {
+          ctx.drawImage(img, 0, 0, width, height);
+          newGroupData.value.icon = canvas.toDataURL('image/jpeg', 0.8);
+        }
+      };
+      img.src = e.target.result as string;
+    }
+  };
+  reader.readAsDataURL(file);
+};
+
+const isSettingsOpen = ref(false);
 const isSidebarOpen = ref(false);
 
 function getDomain(urlStr: string) {
@@ -490,7 +542,7 @@ const editingTaskForDate = ref<any>(null);
 const isPriorityModalOpen = ref(false);
 const editingTaskForPriority = ref<any>(null);
 
-const isDetailsModalOpen = ref(false);
+
 const editingTaskForDetails = ref<any>(null);
 
 const newGroupData = ref({
@@ -609,6 +661,15 @@ function onTaskDragEnd() {
 
 // Atalhos de visualização: ⌘+Ctrl+1 Lista, ⌘+Ctrl+2 Calendário.
 function onViewShortcut(e: KeyboardEvent) {
+  if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'n') {
+    e.preventDefault();
+    if (!isTaskDetailsPanelOpen.value) {
+      editingTaskForDetails.value = null;
+      isTaskDetailsPanelOpen.value = true;
+    }
+    return;
+  }
+
   if (!(e.metaKey && e.ctrlKey) || e.altKey || e.shiftKey) return;
   const map: Record<string, ViewMode> = { Digit1: 'list', Digit2: 'calendar' };
   const mode = map[e.code];
@@ -689,6 +750,16 @@ const headerColor = computed(() => {
     }
   }
 });
+
+function getTaskTextColor(task: any) {
+  if (task.groupId) {
+    const group = groups.value.find((g: any) => g.id === task.groupId);
+    if (group && group.color) {
+      return textColorMap[group.color] || 'text-[#30d158]';
+    }
+  }
+  return 'text-[var(--accent)]';
+}
 
 function setFilter(f: string) {
   tasksStore.setFilter(f);
@@ -813,7 +884,7 @@ function logout() {
 
 function openPriorityModal(task: any) {
   editingTaskForPriority.value = task;
-  isPriorityModalOpen.value = true;
+  isTaskDetailsPanelOpen.value = true;
 }
 
 function getPriorityTextColor(p: string) {
@@ -833,6 +904,6 @@ function setPriorityAndClose(priority: string) {
 
 function openDetailsModal(task: any) {
   editingTaskForDetails.value = { ...task }; // Clone to avoid saving before confirm
-  isDetailsModalOpen.value = true;
+  isTaskDetailsPanelOpen.value = true;
 }
 </script>

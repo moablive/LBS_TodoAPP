@@ -15,7 +15,7 @@ app.use(pinia).use(router).mount('#app');
 setupApi({
   baseUrl: import.meta.env.VITE_API_BASE_URL as string,
   getToken: () => useAuthStore().token,
-  onUnauthorized: () => useAuthStore().logout(),
+  onUnauthorized: () => useAuthStore().refreshToken(),
 });
 
 

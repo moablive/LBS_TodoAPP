@@ -134,7 +134,9 @@ export const botApi = {
   getReminderSettings: async (userId: string): Promise<ReminderSettings> => {
     const result = await pool.query(
       `SELECT remind_at_time, remind_before_enabled, remind_before_minutes,
-              remind_days_enabled, remind_days_before, notify_push, notify_telegram, display_name
+              remind_days_enabled, remind_days_before, notify_push, notify_telegram, display_name,
+              morning_digest_enabled, morning_digest_time, afternoon_digest_enabled, afternoon_digest_time,
+              night_digest_enabled, night_digest_time, notification_style, notified_categories
        FROM reminder_settings WHERE user_id = $1`,
       [userId]
     );
@@ -149,6 +151,17 @@ export const botApi = {
       notifyPush: row.notify_push,
       notifyTelegram: row.notify_telegram,
       displayName: row.display_name ?? null,
+      morningDigestEnabled: row.morning_digest_enabled ?? true,
+      morningDigestTime: row.morning_digest_time ?? "08:00",
+      afternoonDigestEnabled: row.afternoon_digest_enabled ?? true,
+      afternoonDigestTime: row.afternoon_digest_time ?? "13:00",
+      nightDigestEnabled: row.night_digest_enabled ?? false,
+      nightDigestTime: row.night_digest_time ?? "20:00",
+      notificationStyle: row.notification_style ?? "all",
+      notifiedCategories: row.notified_categories ?? [],
+      notifiedPriorities: row.notified_priorities ?? [],
+      notificationPeriod: row.notification_period ?? "all",
+      digestTodayOnly: row.digest_today_only ?? false,
     };
   },
 
@@ -174,6 +187,17 @@ export interface ReminderSettings {
   notifyPush: boolean;
   notifyTelegram: boolean;
   displayName: string | null;
+  morningDigestEnabled: boolean;
+  morningDigestTime: string;
+  afternoonDigestEnabled: boolean;
+  afternoonDigestTime: string;
+  nightDigestEnabled: boolean;
+  nightDigestTime: string;
+  notificationStyle: 'all' | 'category' | 'priority';
+  notifiedCategories: string[];
+  notifiedPriorities: ('low' | 'medium' | 'high')[];
+  notificationPeriod: 'today' | 'all';
+  digestTodayOnly: boolean;
 }
 
 export interface PushSubscriptionRow {
@@ -191,4 +215,15 @@ export const defaultReminderSettings: ReminderSettings = {
   notifyPush: true,
   notifyTelegram: true,
   displayName: null,
+  morningDigestEnabled: true,
+  morningDigestTime: "08:00",
+  afternoonDigestEnabled: true,
+  afternoonDigestTime: "13:00",
+  nightDigestEnabled: false,
+  nightDigestTime: "20:00",
+  notificationStyle: 'all',
+  notifiedCategories: [],
+  notifiedPriorities: [],
+  notificationPeriod: 'all',
+  digestTodayOnly: false,
 };

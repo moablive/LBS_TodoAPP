@@ -1,7 +1,7 @@
 <template>
-  <div class="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4" @click.self="$emit('close')">
-    <div class="bg-[var(--bg-card)] rounded-2xl shadow-2xl w-full max-w-sm border border-white/10">
-      <div class="px-5 pt-5 pb-2">
+  <div class="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4" @click.self="$emit('close')">
+    <div class="w-full md:w-[500px] max-h-[90vh] bg-[var(--bg-card)] rounded-2xl shadow-2xl border border-white/10 flex flex-col overflow-hidden">
+      <div class="flex-1 px-5 pt-6 pb-4 overflow-y-auto custom-scrollbar">
         <!-- Título -->
         <input
           ref="titleEl"
@@ -45,6 +45,7 @@
             class="flex-1 min-w-0 bg-[var(--bg)] text-[var(--text)] text-[14px] rounded-lg px-3 py-2 border border-transparent focus:border-[var(--accent)] outline-none transition-colors appearance-none cursor-pointer"
           >
             <option :value="null">Não se repete</option>
+
             <option value="daily">Todos os dias</option>
             <option value="weekdays">Dias úteis (seg a sex)</option>
             <option value="weekly">Semanal{{ weekdayHint }}</option>
@@ -88,17 +89,19 @@
               <path stroke-linecap="round" stroke-linejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25H12" />
             </svg>
           </div>
-          <textarea
-            v-model="form.details"
-            placeholder="Adicionar detalhes..."
-            rows="3"
-            class="flex-1 w-full bg-[var(--bg-hover)] text-[var(--text)] text-[13px] rounded-lg px-3 py-2 border border-transparent focus:border-[var(--accent)] outline-none transition-colors resize-none"
-          ></textarea>
+          <div
+            ref="detailsEl"
+            contenteditable="true"
+            @input="updateDetails"
+            @paste="handlePaste"
+            data-placeholder="Adicionar detalhes (com suporte a imagem)..."
+            class="flex-1 w-full bg-[var(--bg-hover)] text-[var(--text)] text-[13px] rounded-lg px-3 py-2 border border-transparent focus:border-[var(--accent)] outline-none transition-colors min-h-[100px] whitespace-pre-wrap break-words"
+          ></div>
         </div>
       </div>
 
       <!-- Ações -->
-      <div class="flex justify-between items-center px-5 py-4">
+      <div class="flex justify-between items-center px-5 py-4 border-t border-[var(--border)] bg-[var(--bg-card)] shrink-0">
         <div>
           <button
             v-if="initialTask"
@@ -130,7 +133,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue';
+import { computed, onMounted, onUnmounted, ref } from 'vue';
 import { ClockIcon, ArrowPathIcon, FolderIcon, FlagIcon } from '@heroicons/vue/24/outline';
 import { useTasksStore } from '@/stores/tasks';
 import type { TaskDto } from '@todoapp/models';
@@ -141,7 +144,78 @@ const emit = defineEmits<{ (e: 'close'): void; (e: 'created'): void; (e: 'update
 const tasksStore = useTasksStore();
 const isSaving = ref(false);
 const titleEl = ref<HTMLInputElement | null>(null);
-onMounted(() => titleEl.value?.focus());
+const detailsEl = ref<HTMLDivElement | null>(null);
+
+const handleEsc = (e: KeyboardEvent) => {
+  if (e.key === 'Escape') emit('close');
+};
+
+const updateDetails = (e: Event) => {
+  const target = e.target as HTMLDivElement;
+  form.value.details = target.innerHTML;
+};
+
+const handlePaste = (e: ClipboardEvent) => {
+  const items = e.clipboardData?.items;
+  if (!items) return;
+
+  for (let i = 0; i < items.length; i++) {
+    const item = items[i];
+    if (item && item.type.indexOf('image') !== -1) {
+      const blob = item.getAsFile();
+      if (blob) {
+        e.preventDefault();
+        const reader = new FileReader();
+        reader.onload = (event) => {
+          if (event.target?.result) {
+            const img = new Image();
+            img.onload = () => {
+              const canvas = document.createElement('canvas');
+              const MAX_WIDTH = 800;
+              let width = img.width;
+              let height = img.height;
+
+              if (width > MAX_WIDTH) {
+                height *= MAX_WIDTH / width;
+                width = MAX_WIDTH;
+              }
+
+              canvas.width = width;
+              canvas.height = height;
+              const ctx = canvas.getContext('2d');
+              if (ctx) {
+                ctx.drawImage(img, 0, 0, width, height);
+                const dataUrl = canvas.toDataURL('image/jpeg', 0.8);
+                document.execCommand('insertImage', false, dataUrl);
+                if (detailsEl.value) {
+                  form.value.details = detailsEl.value.innerHTML;
+                }
+              }
+            };
+            img.src = event.target.result as string;
+          }
+        };
+        reader.readAsDataURL(blob);
+      }
+    }
+  }
+};
+
+onMounted(() => {
+  document.addEventListener('keydown', handleEsc);
+  if (titleEl.value) {
+    setTimeout(() => {
+      titleEl.value?.focus();
+    }, 100);
+  }
+  if (detailsEl.value && form.value.details) {
+    detailsEl.value.innerHTML = form.value.details;
+  }
+});
+
+onUnmounted(() => {
+  document.removeEventListener('keydown', handleEsc);
+});
 
 function pad(n: number) {
   return String(n).padStart(2, '0');
@@ -266,3 +340,28 @@ async function deleteTask() {
   }
 }
 </script>
+
+<style scoped>
+.custom-scrollbar::-webkit-scrollbar {
+  width: 6px;
+}
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background-color: var(--border);
+  border-radius: 10px;
+}
+[contenteditable="true"]:empty:before {
+  content: attr(data-placeholder);
+  color: var(--muted);
+  pointer-events: none;
+  display: block; /* For Firefox */
+}
+[contenteditable="true"] img {
+  max-width: 100%;
+  border-radius: 8px;
+  margin-top: 8px;
+  margin-bottom: 8px;
+}
+</style>
