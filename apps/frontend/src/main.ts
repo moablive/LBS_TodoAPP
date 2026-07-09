@@ -10,13 +10,23 @@ import { useAuthStore } from './stores/auth';
 const pinia = createPinia();
 const app = createApp(App);
 
-app.use(pinia).use(router).mount('#app');
+app.use(pinia);
 
 setupApi({
-  baseUrl: import.meta.env.VITE_API_BASE_URL as string,
+  baseUrl: (import.meta.env.VITE_API_BASE_URL as string) || '/api',
   getToken: () => useAuthStore().token,
-  onUnauthorized: () => useAuthStore().refreshToken(),
+  // Em 401, tenta renovar o JWT via LoginHub /auth/refresh (grace de 7 dias)
+  // antes de derrubar a sessão. Se renovar com sucesso, a request original
+  // é retried transparentemente.
+  tryRefresh: () => useAuthStore().refreshToken(),
+  // Sem token não há sessão a derrubar (ex.: 401 de credencial errada no
+  // login) — deixa o erro propagar para a tela em vez de redirecionar.
+  onUnauthorized: () => {
+    if (useAuthStore().token) useAuthStore().logout();
+  },
 });
+
+app.use(router).mount('#app');
 
 
 if ('serviceWorker' in navigator) {

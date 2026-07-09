@@ -7,23 +7,46 @@ export class ApiError extends Error {
 export interface ApiOptions {
   baseUrl: string;
   getToken: () => string | null;
-  onUnauthorized: () => boolean | Promise<boolean>;
+  onUnauthorized: () => void;
+  /**
+   * Optional. Called on 401 before triggering `onUnauthorized`. Should attempt
+   * to refresh the auth token (typically via LoginHub `/auth/refresh`) and
+   * return `true` when a new token was acquired — the failed request will be
+   * retried transparently. Return `false` to give up and let `onUnauthorized`
+   * run.
+   *
+   * Concurrent 401s are coordinated: only one refresh fires at a time and all
+   * waiting requests share its result.
+   */
+  tryRefresh?: () => Promise<boolean>;
 }
 
 export const apiOptions: ApiOptions = {
   baseUrl: '/api',
   getToken: () => null,
-  onUnauthorized: () => false,
+  onUnauthorized: () => {},
 };
 
 export function setupApi(options: Partial<ApiOptions>) {
   Object.assign(apiOptions, options);
 }
 
-async function request<T>(method: string, path: string, body?: unknown): Promise<T> {
+// Single-flight coordination: when multiple requests get 401 simultaneously,
+// only ONE refresh is triggered — the others wait for its outcome.
+let refreshInFlight: Promise<boolean> | null = null;
+
+async function attemptRefresh(): Promise<boolean> {
+  if (!apiOptions.tryRefresh) return false;
+  if (!refreshInFlight) {
+    refreshInFlight = apiOptions.tryRefresh().finally(() => { refreshInFlight = null; });
+  }
+  return refreshInFlight;
+}
+
+async function request<T>(method: string, path: string, body?: unknown, isRetry = false): Promise<T> {
   const headers: Record<string, string> = {};
   if (body !== undefined) headers['Content-Type'] = 'application/json';
-  
+
   const token = apiOptions.getToken();
   if (token) headers.Authorization = `Bearer ${token}`;
 
@@ -33,25 +56,37 @@ async function request<T>(method: string, path: string, body?: unknown): Promise
     body: body === undefined ? undefined : JSON.stringify(body),
   });
 
+  if (res.status === 401 && !isRetry && (await attemptRefresh())) {
+    // Token foi renovado — reexecuta a chamada original com o token novo.
+    return request<T>(method, path, body, true);
+  }
+
   if (res.status === 401) {
-    const refreshed = await apiOptions.onUnauthorized();
-    if (refreshed) {
-      const newToken = apiOptions.getToken();
-      if (newToken) headers.Authorization = `Bearer ${newToken}`;
-      const retryRes = await fetch(`${apiOptions.baseUrl}${path}`, {
-        method,
-        headers,
-        body: body === undefined ? undefined : JSON.stringify(body),
-      });
-      if (!retryRes.ok) throw new ApiError(retryRes.status, await safeJson(retryRes));
-      if (retryRes.status === 204) return undefined as T;
-      return (await retryRes.json()) as T;
-    }
+    apiOptions.onUnauthorized();
     throw new ApiError(401, await safeJson(res));
   }
   if (!res.ok) throw new ApiError(res.status, await safeJson(res));
   if (res.status === 204) return undefined as T;
   return (await res.json()) as T;
+}
+
+async function requestBlob(path: string, isRetry = false): Promise<Blob> {
+  const headers: Record<string, string> = {};
+  const token = apiOptions.getToken();
+  if (token) headers.Authorization = `Bearer ${token}`;
+
+  const res = await fetch(`${apiOptions.baseUrl}${path}`, { headers });
+
+  if (res.status === 401 && !isRetry && (await attemptRefresh())) {
+    return requestBlob(path, true);
+  }
+
+  if (res.status === 401) {
+    apiOptions.onUnauthorized();
+    throw new ApiError(401, await safeJson(res));
+  }
+  if (!res.ok) throw new ApiError(res.status, await safeJson(res));
+  return res.blob();
 }
 
 async function safeJson(res: Response): Promise<unknown> {
@@ -60,28 +95,6 @@ async function safeJson(res: Response): Promise<unknown> {
   } catch {
     return null;
   }
-}
-
-async function requestBlob(path: string): Promise<Blob> {
-  const headers: Record<string, string> = {};
-  const token = apiOptions.getToken();
-  if (token) headers.Authorization = `Bearer ${token}`;
-
-  const res = await fetch(`${apiOptions.baseUrl}${path}`, { headers });
-
-  if (res.status === 401) {
-    const refreshed = await apiOptions.onUnauthorized();
-    if (refreshed) {
-      const newToken = apiOptions.getToken();
-      if (newToken) headers.Authorization = `Bearer ${newToken}`;
-      const retryRes = await fetch(`${apiOptions.baseUrl}${path}`, { headers });
-      if (!retryRes.ok) throw new ApiError(retryRes.status, await safeJson(retryRes));
-      return retryRes.blob();
-    }
-    throw new ApiError(401, await safeJson(res));
-  }
-  if (!res.ok) throw new ApiError(res.status, await safeJson(res));
-  return res.blob();
 }
 
 export const api = {

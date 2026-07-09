@@ -1,20 +1,3 @@
-import { api as apiClient, setupApi, ApiError } from '@todoapp/api-client';
-
-let _token: string | null = localStorage.getItem('token');
-
-setupApi({
-  baseUrl: import.meta.env.VITE_API_BASE_URL || '/api',
-  getToken: () => _token,
-  onUnauthorized: () => {
-    _token = null;
-    localStorage.removeItem('token');
-    window.location.href = '/login';
-    return false;
-  },
-});
-
-export function setApiToken(token: string | null) {
-  _token = token;
-}
-
-export { apiClient as api, ApiError };
+// A configuração do client (baseUrl, token, refresh) vive em main.ts via
+// setupApi — única fonte de verdade. Este módulo só re-exporta.
+export { api, ApiError } from '@todoapp/api-client';
