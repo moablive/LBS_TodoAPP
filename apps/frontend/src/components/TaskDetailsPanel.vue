@@ -15,25 +15,13 @@
         <!-- Data e hora -->
         <div class="flex items-center gap-3 py-2">
           <ClockIcon class="w-5 h-5 text-[var(--muted)] shrink-0" />
-          <input
-            v-model="dateStr"
-            type="date"
-            class="flex-1 min-w-0 bg-[var(--bg)] text-[var(--text)] text-[14px] rounded-lg px-3 py-2 border border-transparent focus:border-[var(--accent)] outline-none transition-colors"
-          />
+          <DatePickerDropdown v-model="dateStr" />
         </div>
         <!-- Início – fim (duração) -->
         <div class="flex items-center gap-2 py-2 pl-8">
-          <input
-            v-model="timeStr"
-            type="time"
-            class="flex-1 min-w-0 bg-[var(--bg)] text-[var(--text)] text-[14px] rounded-lg px-3 py-2 border border-transparent focus:border-[var(--accent)] outline-none transition-colors"
-          />
+          <TimePickerDropdown v-model="timeStr" />
           <span class="text-[var(--muted)] text-[13px] shrink-0">até</span>
-          <input
-            v-model="endTimeStr"
-            type="time"
-            class="flex-1 min-w-0 bg-[var(--bg)] text-[var(--text)] text-[14px] rounded-lg px-3 py-2 border border-transparent focus:border-[var(--accent)] outline-none transition-colors"
-          />
+          <TimePickerDropdown v-model="endTimeStr" :start-time="timeStr" />
           <span v-if="durationLabel" class="text-[11px] font-semibold text-[var(--muted)] shrink-0 w-[42px] text-right">{{ durationLabel }}</span>
         </div>
 
@@ -102,7 +90,7 @@
 
       <!-- Ações -->
       <div class="flex justify-between items-center px-5 py-4 border-t border-[var(--border)] bg-[var(--bg-card)] shrink-0">
-        <div>
+        <div class="flex items-center gap-2">
           <button
             v-if="initialTask"
             @click="deleteTask"
@@ -110,6 +98,16 @@
             class="px-4 py-2 rounded-full text-[13px] font-semibold text-[#ff3b30] hover:bg-[#ff3b30]/10 disabled:opacity-40 transition-colors"
           >
             Deletar
+          </button>
+          <button
+            v-if="initialTask"
+            @click="toggleComplete"
+            :disabled="isSaving"
+            class="flex items-center gap-1.5 px-4 py-2 rounded-full text-[13px] font-semibold disabled:opacity-40 transition-colors"
+            :class="initialTask.completedAt ? 'text-[var(--muted)] hover:bg-[var(--bg-hover)]' : 'text-[#30d158] hover:bg-[#30d158]/10'"
+          >
+            <CheckCircleIcon class="w-4 h-4" />
+            {{ initialTask.completedAt ? 'Reabrir' : 'Concluir' }}
           </button>
         </div>
         <div class="flex gap-2">
@@ -134,9 +132,11 @@
 
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, ref } from 'vue';
-import { ClockIcon, ArrowPathIcon, FolderIcon, FlagIcon } from '@heroicons/vue/24/outline';
+import { ClockIcon, ArrowPathIcon, FolderIcon, FlagIcon, CheckCircleIcon } from '@heroicons/vue/24/outline';
 import { useTasksStore } from '@/stores/tasks';
 import type { TaskDto } from '@todoapp/models';
+import DatePickerDropdown from './DatePickerDropdown.vue';
+import TimePickerDropdown from './TimePickerDropdown.vue';
 
 const props = defineProps<{ initialDate?: Date | null; initialTask?: TaskDto | null }>();
 const emit = defineEmits<{ (e: 'close'): void; (e: 'created'): void; (e: 'updated'): void }>();
@@ -321,6 +321,22 @@ async function save() {
     emit('close');
   } catch (err) {
     console.error('Erro ao salvar evento:', err);
+  } finally {
+    isSaving.value = false;
+  }
+}
+
+async function toggleComplete() {
+  if (!props.initialTask || isSaving.value) return;
+  isSaving.value = true;
+  try {
+    await tasksStore.updateTaskFields(props.initialTask.id, {
+      completedAt: props.initialTask.completedAt ? null : new Date().toISOString(),
+    });
+    emit('updated');
+    emit('close');
+  } catch (err) {
+    console.error('Erro ao concluir evento:', err);
   } finally {
     isSaving.value = false;
   }

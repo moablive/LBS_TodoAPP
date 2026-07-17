@@ -10,22 +10,74 @@
     <!-- Sidebar (oculta no calendário; no mobile vira gaveta deslizante) -->
     <aside
       v-if="viewMode !== 'calendar'"
-      class="w-[300px] bg-[var(--bg-side)] flex flex-col border-r border-black/30 max-md:fixed max-md:inset-y-0 max-md:left-0 max-md:z-50 max-md:w-[290px] max-md:shadow-2xl max-md:transition-transform max-md:duration-200"
-      :class="isSidebarOpen ? 'max-md:translate-x-0' : 'max-md:-translate-x-full'"
+      class="bg-[var(--bg-side)] flex flex-col border-r border-black/30 max-md:fixed max-md:inset-y-0 max-md:left-0 max-md:z-50 max-md:w-[290px] max-md:shadow-2xl max-md:transition-transform max-md:duration-200 transition-[width] duration-300"
+      :class="[
+        isSidebarOpen ? 'max-md:translate-x-0' : 'max-md:-translate-x-full',
+        isSidebarMinimized ? 'w-[72px] items-center' : 'w-[300px]'
+      ]"
     >
-      <div class="p-4 flex-1 overflow-y-auto custom-scrollbar">
+      <div class="p-4 flex-1 overflow-y-auto custom-scrollbar" :class="isSidebarMinimized ? 'px-2' : ''">
 
-        
-
+        <!-- Visualizar tudo / Concluídos -->
+        <div class="mb-4 space-y-[2px]" :class="isSidebarMinimized ? 'w-full flex flex-col items-center' : ''">
+          <div
+            @click="setFilter('all')"
+            @mouseenter="showTooltip($event, 'Tudo', counts.all)"
+            @mouseleave="hideTooltip"
+            :class="[
+              'flex items-center py-2 rounded-lg cursor-pointer transition-all duration-150',
+              isSidebarMinimized ? 'justify-center px-0 w-10' : 'justify-between px-3',
+              filter === 'all' ? 'bg-[var(--accent)] text-white' : 'hover:bg-[var(--bg-hover)] text-[var(--text)]'
+            ]"
+          >
+            <div class="flex items-center gap-3">
+              <div class="relative">
+                <div class="w-[28px] h-[28px] rounded-full flex items-center justify-center text-white shadow-sm bg-[#8e8e93] shrink-0">
+                  <QueueListIcon class="w-4 h-4" />
+                </div>
+                <div v-if="isSidebarMinimized && counts.all > 0" class="absolute -top-1.5 -right-1.5 bg-[#ff453a] text-white text-[9px] font-bold min-w-[16px] h-[16px] px-1 rounded-full flex items-center justify-center shadow-sm border-[1.5px] border-[var(--bg-side)] z-10 leading-none">
+                  {{ counts.all }}
+                </div>
+              </div>
+              <span v-if="!isSidebarMinimized" class="text-[13px] font-medium">Tudo</span>
+            </div>
+            <span v-if="!isSidebarMinimized" class="text-[13px] font-medium" :class="filter === 'all' ? 'text-white' : 'text-[var(--muted)]'">{{ counts.all }}</span>
+          </div>
+          <div
+            @click="setFilter('completed')"
+            @mouseenter="showTooltip($event, 'Concluídos', counts.completed)"
+            @mouseleave="hideTooltip"
+            :class="[
+              'flex items-center py-2 rounded-lg cursor-pointer transition-all duration-150',
+              isSidebarMinimized ? 'justify-center px-0 w-10' : 'justify-between px-3',
+              filter === 'completed' ? 'bg-[var(--accent)] text-white' : 'hover:bg-[var(--bg-hover)] text-[var(--text)]'
+            ]"
+          >
+            <div class="flex items-center gap-3">
+              <div class="relative">
+                <div class="w-[28px] h-[28px] rounded-full flex items-center justify-center text-white shadow-sm bg-[#30d158] shrink-0">
+                  <CheckIcon class="w-4 h-4" />
+                </div>
+                <div v-if="isSidebarMinimized && counts.completed > 0" class="absolute -top-1.5 -right-1.5 bg-[#ff453a] text-white text-[9px] font-bold min-w-[16px] h-[16px] px-1 rounded-full flex items-center justify-center shadow-sm border-[1.5px] border-[var(--bg-side)] z-10 leading-none">
+                  {{ counts.completed }}
+                </div>
+              </div>
+              <span v-if="!isSidebarMinimized" class="text-[13px] font-medium">Concluídos</span>
+            </div>
+            <span v-if="!isSidebarMinimized" class="text-[13px] font-medium" :class="filter === 'completed' ? 'text-white' : 'text-[var(--muted)]'">{{ counts.completed }}</span>
+          </div>
+        </div>
 
         <!-- My Lists -->
-        <div>
-          <h3 class="text-[11px] font-bold text-[var(--muted)] mb-2 px-2 uppercase tracking-wide">My Lists</h3>
-          <div class="space-y-[2px]">
+        <div :class="isSidebarMinimized ? 'flex flex-col items-center w-full' : ''">
+          <h3 v-if="!isSidebarMinimized" class="text-[11px] font-bold text-[var(--muted)] mb-2 px-2 uppercase tracking-wide">My Lists</h3>
+          <div class="space-y-[2px]" :class="isSidebarMinimized ? 'flex flex-col items-center w-full' : ''">
             <div 
               v-for="(group, idx) in groups" 
               :key="group.id" 
               @click="setFilter(group.id)"
+              @mouseenter="showTooltip($event, group.name, counts.byGroup[group.id] || 0)"
+              @mouseleave="hideTooltip"
               draggable="true"
               @dragstart="onDragStart(idx, $event)"
               @dragover.prevent="onGroupDragOver(idx, $event)"
@@ -33,25 +85,31 @@
               @drop="onGroupDrop(idx, $event)"
               @dragend="onDragEnd"
               :class="[
-                'group flex items-center justify-between py-2 px-3 rounded-lg cursor-pointer transition-all duration-150',
+                'group flex items-center py-2 rounded-lg cursor-pointer transition-all duration-150',
+                isSidebarMinimized ? 'justify-center px-0 w-10' : 'justify-between px-3',
                 filter === group.id ? 'bg-[var(--accent)] text-white' : 'hover:bg-[var(--bg-hover)] text-[var(--text)]',
                 draggedOverIndex === idx ? 'ring-2 ring-[var(--accent)] bg-[var(--bg-hover)]' : '',
                 taskDropTargetGroupIdx === idx ? 'ring-2 ring-[#30d158] bg-[#30d158]/10 scale-[1.02]' : '',
                 draggedIndex === idx ? 'opacity-50' : ''
               ]"
             >
-              <div class="flex items-center gap-3">
-                <div class="w-[28px] h-[28px] rounded-full flex items-center justify-center text-white shadow-sm overflow-hidden" :class="group.color || getGroupColor(idx)">
-                  <template v-if="group.icon && (group.icon.startsWith('http') || group.icon.startsWith('data:'))">
-                    <img :src="group.icon" class="w-full h-full object-cover" />
-                  </template>
-                  <template v-else>
-                    <component :is="iconMap[group.icon || 'ListBulletIcon']" class="w-4 h-4" />
-                  </template>
+              <div class="flex items-center gap-3" :class="isSidebarMinimized ? 'w-full' : ''">
+                <div class="relative" :class="isSidebarMinimized ? 'mx-auto' : ''">
+                  <div class="w-[28px] h-[28px] rounded-full flex items-center justify-center text-white shadow-sm overflow-hidden shrink-0" :class="group.color || getGroupColor(idx)">
+                    <template v-if="group.icon && (group.icon.startsWith('http') || group.icon.startsWith('data:'))">
+                      <img :src="group.icon" class="w-full h-full object-cover" />
+                    </template>
+                    <template v-else>
+                      <component :is="iconMap[group.icon || 'ListBulletIcon']" class="w-4 h-4" />
+                    </template>
+                  </div>
+                  <div v-if="isSidebarMinimized && (counts.byGroup[group.id] || 0) > 0" class="absolute -top-1.5 -right-1.5 bg-[#ff453a] text-white text-[9px] font-bold min-w-[16px] h-[16px] px-1 rounded-full flex items-center justify-center shadow-sm border-[1.5px] border-[var(--bg-side)] z-10 leading-none">
+                    {{ counts.byGroup[group.id] || 0 }}
+                  </div>
                 </div>
-                <span class="text-[13px] font-medium">{{ group.name }}</span>
+                <span v-if="!isSidebarMinimized" class="text-[13px] font-medium truncate flex-1">{{ group.name }}</span>
               </div>
-              <div class="flex items-center gap-2">
+              <div v-if="!isSidebarMinimized" class="flex items-center gap-2 shrink-0">
                 <button @click.stop="openEditGroupModal(group)" class="max-md:opacity-100 opacity-0 group-hover:opacity-100 text-[var(--muted2)] hover:text-[var(--text)] transition-opacity">
                   <span class="text-[10px] uppercase font-bold">Edit</span>
                 </button>
@@ -61,11 +119,15 @@
           </div>
         </div>
       </div>
-      <div class="p-4 border-t border-black/30 flex justify-between items-center">
-        <button class="flex items-center gap-2 text-[var(--muted)] hover:text-[var(--text)] transition-colors text-[13px] font-medium" @click="openAddGroupModal">
-          <PlusCircleIcon class="w-5 h-5" /> Add List
+      <div class="p-4 border-t border-black/30 flex items-center" :class="isSidebarMinimized ? 'flex-col justify-center gap-6 px-2' : 'justify-between'">
+        <button class="flex items-center gap-2 text-[var(--muted)] hover:text-[var(--text)] transition-colors text-[13px] font-medium" @click="openAddGroupModal" :title="isSidebarMinimized ? 'Add List' : ''">
+          <PlusCircleIcon class="w-5 h-5 shrink-0" /> <span v-if="!isSidebarMinimized">Add List</span>
         </button>
-        <div class="flex items-center gap-3">
+        <div class="flex items-center" :class="isSidebarMinimized ? 'flex-col gap-4' : 'gap-3'">
+          <button class="flex items-center text-[var(--muted)] hover:text-[var(--text)] transition-colors hidden md:flex" @click="toggleSidebar" :title="isSidebarMinimized ? 'Expandir' : 'Minimizar'">
+            <svg v-if="isSidebarMinimized" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5"><path stroke-linecap="round" stroke-linejoin="round" d="M11.25 4.5l7.5 7.5-7.5 7.5m-6-15l7.5 7.5-7.5 7.5" /></svg>
+            <svg v-else xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5"><path stroke-linecap="round" stroke-linejoin="round" d="M18.75 19.5l-7.5-7.5 7.5-7.5m-6 15L5.25 12l7.5-7.5" /></svg>
+          </button>
           <button class="flex items-center text-[var(--muted)] hover:text-[var(--accent)] transition-colors" @click="isSettingsOpen = true" title="Configurações">
             <Cog6ToothIcon class="w-5 h-5" />
           </button>
@@ -133,8 +195,8 @@
 
 
 
-      <!-- List view -->
-      <div v-else class="flex-1 overflow-y-auto custom-scrollbar pr-2 -mx-2 px-2">
+      <!-- List view (clique em área vazia foca o campo de novo item) -->
+      <div v-else class="flex-1 overflow-y-auto custom-scrollbar pr-2 -mx-2 px-2" @click.self="focusNewTaskInput">
         <div
           v-for="(task, idx) in filteredTasks"
           :key="task.id"
@@ -159,14 +221,6 @@
             :style="{ backgroundColor: task.priority === 'high' ? '#ff3b30' : task.priority === 'medium' ? '#ff9500' : '#34c759' }"
           ></span>
 
-          <button 
-            @click.stop="tasksStore.toggleComplete(task)"
-            class="w-5 h-5 mt-0.5 rounded-full border-[1.5px] border-[var(--muted)] flex items-center justify-center hover:border-[var(--accent)] transition-colors shrink-0 z-10"
-            :class="{ 'bg-[var(--accent)] border-[var(--accent)]': task.completedAt }"
-          >
-            <CheckIcon v-if="task.completedAt" class="w-3.5 h-3.5 text-white" />
-          </button>
-          
           <div class="flex-1 flex flex-col min-w-0">
             <div v-if="editingTaskId !== task.id"
                  class="text-[14px] truncate w-full flex items-center gap-2"
@@ -200,16 +254,19 @@
             </div>
           </div>
 
-          <!-- details icon — visible on hover -->
-          <div class="flex items-center opacity-0 group-hover:opacity-100 transition-opacity">
-            <ChevronRightIcon class="w-4 h-4 text-[var(--muted)]" />
+          <!-- indicadores à direita (prioridade / lembrete / detalhes) — aparecem no hover; clique abre o gerenciar -->
+          <div class="flex items-center gap-3 shrink-0 max-md:opacity-100 opacity-0 group-hover:opacity-100 transition-opacity">
+            <DocumentTextIcon v-if="task.details" class="w-5 h-5 text-[var(--accent)]" title="Tem detalhes" />
+            <ClockIcon class="w-5 h-5" :class="task.scheduledAt ? 'text-[var(--accent)]' : 'text-[var(--muted2)]'" title="Lembrete" />
+            <FlagIcon class="w-5 h-5" :class="getPriorityTextColor(task.priority)" title="Prioridade" />
           </div>
         </div>
 
         <!-- Add New Task Row -->
-        <div class="flex items-start gap-3 py-3" v-if="filter !== 'completed'">
-          <div class="w-5 h-5 mt-0.5 rounded-full border-[1.5px] border-[var(--muted)] shrink-0"></div>
-          <input 
+        <div class="flex items-start gap-3 py-3 px-3 cursor-text" v-if="filter !== 'completed'" @click="focusNewTaskInput">
+          <PlusCircleIcon class="w-5 h-5 mt-0.5 text-[var(--muted)] shrink-0" />
+          <input
+            ref="newTaskInput"
             v-model="newTaskDescription"
             placeholder="New Reminder"
             class="bg-transparent outline-none text-[14px] flex-1 placeholder-[var(--muted2)]"
@@ -403,6 +460,18 @@
   <!-- Settings Modal -->
   <SettingsModal v-if="isSettingsOpen" @close="isSettingsOpen = false" />
 
+  <!-- Tooltip personalizado para sidebar minimizada -->
+  <Teleport to="body">
+    <div
+      v-if="hoverTooltip.visible"
+      class="fixed z-[100] px-3 py-1.5 bg-[#2c2c2e] border border-white/10 shadow-2xl rounded-lg pointer-events-none transform -translate-y-1/2 flex items-center gap-2 transition-opacity duration-150"
+      :style="{ left: hoverTooltip.x + 'px', top: hoverTooltip.y + 'px' }"
+    >
+      <span class="text-[13px] font-medium text-white">{{ hoverTooltip.text }}</span>
+      <span class="text-[13px] text-white/50 bg-white/10 px-1.5 py-0.5 rounded-md">{{ hoverTooltip.count }}</span>
+    </div>
+  </Teleport>
+
   <!-- Delete Group Modal -->
   <div v-if="isDeleteGroupModalOpen" class="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[60] p-4">
     <div class="bg-[var(--bg-card)] rounded-2xl shadow-2xl w-full max-w-sm overflow-hidden border border-white/10 transform transition-all">
@@ -455,7 +524,6 @@ import {
   DocumentTextIcon,
   Cog6ToothIcon,
   PhotoIcon,
-  ChevronRightIcon,
 } from '@heroicons/vue/24/outline';
 import CalendarView from '@/components/CalendarView.vue';
 import TaskDetailsPanel from '@/components/TaskDetailsPanel.vue';
@@ -521,6 +589,30 @@ const handleIconUpload = (event: Event) => {
 
 const isSettingsOpen = ref(false);
 const isSidebarOpen = ref(false);
+const isSidebarMinimized = ref(localStorage.getItem('todo_sidebar_minimized') === 'true');
+const toggleSidebar = () => {
+  isSidebarMinimized.value = !isSidebarMinimized.value;
+  localStorage.setItem('todo_sidebar_minimized', String(isSidebarMinimized.value));
+  hideTooltip();
+};
+
+const hoverTooltip = ref({ visible: false, text: '', count: 0, x: 0, y: 0 });
+
+const showTooltip = (e: MouseEvent, text: string, count: number) => {
+  if (!isSidebarMinimized.value) return;
+  const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+  hoverTooltip.value = {
+    visible: true,
+    text,
+    count,
+    x: rect.right + 12,
+    y: rect.top + (rect.height / 2)
+  };
+};
+
+const hideTooltip = () => {
+  hoverTooltip.value.visible = false;
+};
 
 function getDomain(urlStr: string) {
   try {
@@ -531,6 +623,12 @@ function getDomain(urlStr: string) {
 }
 const authStore = useAuthStore();
 const newTaskDescription = ref('');
+const newTaskInput = ref<HTMLInputElement | null>(null);
+
+function focusNewTaskInput() {
+  if (filter.value === 'completed') return;
+  newTaskInput.value?.focus();
+}
 
 const isAddGroupModalOpen = ref(false);
 const isDeleteGroupModalOpen = ref(false);
@@ -659,7 +757,9 @@ function onTaskDragEnd() {
   taskDropTargetGroupIdx.value = null;
 }
 
-// Atalhos de visualização: ⌘+Ctrl+1 Lista, ⌘+Ctrl+2 Calendário.
+// Atalhos de visualização: 
+// Mac: ⌘+Ctrl+1 Lista, ⌘+Ctrl+2 Calendário
+// Win: Ctrl+Shift+1 Lista, Ctrl+Shift+2 Calendário
 function onViewShortcut(e: KeyboardEvent) {
   if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'n') {
     e.preventDefault();
@@ -670,7 +770,11 @@ function onViewShortcut(e: KeyboardEvent) {
     return;
   }
 
-  if (!(e.metaKey && e.ctrlKey) || e.altKey || e.shiftKey) return;
+  const isMacShortcut = e.metaKey && e.ctrlKey && !e.shiftKey && !e.altKey;
+  const isWinShortcut = e.ctrlKey && e.shiftKey && !e.metaKey && !e.altKey;
+
+  if (!isMacShortcut && !isWinShortcut) return;
+
   const map: Record<string, ViewMode> = { Digit1: 'list', Digit2: 'calendar' };
   const mode = map[e.code];
   if (!mode) return;
@@ -723,9 +827,9 @@ const headerTitle = computed(() => {
   switch (filter.value) {
     case 'today': return 'Today';
     case 'scheduled': return 'Scheduled';
-    case 'all': return 'All';
+    case 'all': return 'Tudo';
     case 'flagged': return 'Flagged';
-    case 'completed': return 'Completed';
+    case 'completed': return 'Concluídos';
     case 'urgent': return 'Urgent';
     default: return groups.value.find((g: any) => g.id === filter.value)?.name || 'List';
   }

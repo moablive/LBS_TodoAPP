@@ -1180,10 +1180,9 @@ function priorityAccentColor(task: any): string {
 function priorityBgColor(task: any): string {
   if (task.categoryColor) return moneyAppColor.value;
   if (task.type === 'holiday') return holidayColor.value;
-  if (task.priority === 'high')   return '#ff3b3022';
-  if (task.priority === 'medium') return '#ff950018';
-  if (task.priority === 'low')    return '#34c75918';
-  return 'color-mix(in srgb, var(--accent) 14%, transparent)';
+  // Cor global do tema (Configurações → Cor de destaque) para TODOS os eventos;
+  // a prioridade aparece só na bandeirinha/barrinha lateral (priorityAccentColor).
+  return 'color-mix(in srgb, var(--accent) 16%, transparent)';
 }
 
 /** Estilo do card de grade (semana/dia) — fundo sutil + borda colorida */
