@@ -62,7 +62,7 @@ Organize suas tarefas em grupos personalizados (ex: Trabalho, Pessoal, Estudos).
 <td width="50%">
 
 ### 📅 Agendamento & Recorrência
-Agende tarefas com data, horário de início e **fim (duração)**, e **recorrência** (diária, **dias úteis seg–sex**, semanal, mensal, anual). No calendário o bloco do evento tem altura proporcional à duração. O filtro **Hoje** mostra apenas o que precisa ser feito no dia atual.
+Agende tarefas com data, horário de início e **fim (duração)**, e **recorrência** (diária, **dias úteis seg–sex**, semanal, mensal, anual). No calendário o bloco do evento tem altura proporcional à duração. O filtro **Hoje** mostra apenas o que precisa ser feito no dia atual. **Eventos que cruzam a meia-noite são divididos automaticamente**, renderizando os blocos em seus dias correspondentes.
 
 ### 🔐 Autenticação
 Autenticação centralizada via **LoginHUB** (IDP, `app_id 4`). JWT Bearer token com auth guard em todas as rotas protegidas. Inclui fluxo inteligente para troca obrigatória de senha no primeiro acesso (`requirePasswordChange`).
@@ -379,6 +379,9 @@ docker network inspect awl_network >/dev/null 2>&1 || docker network create awl_
 
 # Build e deploy
 docker compose --env-file .env up -d --build
+
+# Pós-Deploy: Limpar cache do Cloudflare
+/mnt/docker-services/documentacao/scripts/cleancachecloudflare.sh
 ```
 
 | Container | Base | Porta | Função |
@@ -428,6 +431,6 @@ Para expor o TodoAPP via Cloudflare Tunnel, adicione a seguinte entrada na confi
 ---
 
 <p align="center">
-  <sub>Feito com ☕ por <strong>Guilherme Bonato</strong></sub><br/>
+  <sub>Feito com ☕ por <strong>Moab</strong></sub><br/>
   <sub>Projeto privado — uso pessoal</sub>
 </p>
