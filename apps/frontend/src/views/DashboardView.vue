@@ -27,7 +27,7 @@
             :class="[
               'flex items-center py-2 rounded-lg cursor-pointer transition-all duration-150',
               isSidebarMinimized ? 'justify-center px-0 w-10' : 'justify-between px-3',
-              filter === 'all' ? 'bg-[var(--accent)] text-white' : 'hover:bg-[var(--bg-hover)] text-[var(--text)]'
+              filter === 'all' ? 'bg-[var(--bg-hover)] text-white' : 'hover:bg-[var(--bg-hover)] text-[var(--text)]'
             ]"
           >
             <div class="flex items-center gap-3">
@@ -50,7 +50,7 @@
             :class="[
               'flex items-center py-2 rounded-lg cursor-pointer transition-all duration-150',
               isSidebarMinimized ? 'justify-center px-0 w-10' : 'justify-between px-3',
-              filter === 'completed' ? 'bg-[var(--accent)] text-white' : 'hover:bg-[var(--bg-hover)] text-[var(--text)]'
+              filter === 'completed' ? 'bg-[var(--bg-hover)] text-white' : 'hover:bg-[var(--bg-hover)] text-[var(--text)]'
             ]"
           >
             <div class="flex items-center gap-3">
@@ -87,7 +87,7 @@
               :class="[
                 'group flex items-center py-2 rounded-lg cursor-pointer transition-all duration-150',
                 isSidebarMinimized ? 'justify-center px-0 w-10' : 'justify-between px-3',
-                filter === group.id ? 'bg-[var(--accent)] text-white' : 'hover:bg-[var(--bg-hover)] text-[var(--text)]',
+                filter === group.id ? 'bg-[var(--bg-hover)] text-white' : 'hover:bg-[var(--bg-hover)] text-[var(--text)]',
                 draggedOverIndex === idx ? 'ring-2 ring-[var(--accent)] bg-[var(--bg-hover)]' : '',
                 taskDropTargetGroupIdx === idx ? 'ring-2 ring-[#30d158] bg-[#30d158]/10 scale-[1.02]' : '',
                 draggedIndex === idx ? 'opacity-50' : ''
@@ -499,7 +499,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, onBeforeUnmount } from 'vue';
+import { ref, computed, onMounted, onBeforeUnmount, watch } from 'vue';
 import { useTasksStore } from '@/stores/tasks';
 import { useAuthStore } from '@/stores/auth';
 import { api } from '@/api/client';
@@ -530,6 +530,7 @@ import TaskDetailsPanel from '@/components/TaskDetailsPanel.vue';
 
 import SettingsModal from '@/components/SettingsModal.vue';
 import '@/composables/useTheme'; // aplica o tema salvo já no carregamento
+import { setAppBadge } from '@/composables/useAppBadge';
 
 const tasksStore = useTasksStore();
 const editingTaskId = ref<string | null>(null);
@@ -782,13 +783,39 @@ function onViewShortcut(e: KeyboardEvent) {
   viewMode.value = mode;
 }
 
+// ── Atualização automática (estilo MailAPP) ─────────────────────────
+function onSwMessage(e: MessageEvent) {
+  if (e.data?.type === 'new-task') tasksStore.fetchAll();
+}
+function onVisible() {
+  if (document.visibilityState === 'visible') tasksStore.fetchAll();
+}
+let pollId: number | undefined;
+
 onMounted(() => {
   tasksStore.fetchAll();
   window.addEventListener('keydown', onViewShortcut);
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.addEventListener('message', onSwMessage);
+  }
+  document.addEventListener('visibilitychange', onVisible);
+  pollId = window.setInterval(() => {
+    if (document.visibilityState === 'visible') tasksStore.fetchAll();
+  }, 60_000);
 });
-onBeforeUnmount(() => window.removeEventListener('keydown', onViewShortcut));
+
+onBeforeUnmount(() => {
+  window.removeEventListener('keydown', onViewShortcut);
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.removeEventListener('message', onSwMessage);
+  }
+  document.removeEventListener('visibilitychange', onVisible);
+  if (pollId) clearInterval(pollId);
+});
 
 const counts = computed(() => tasksStore.counts);
+watch(() => counts.value.all, (n) => setAppBadge(n), { immediate: true });
+
 const filteredTasks = computed(() => tasksStore.filteredTasks);
 const groups = computed(() => tasksStore.groups);
 const filter = computed(() => tasksStore.selectedFilter);

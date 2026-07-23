@@ -9,11 +9,7 @@
       <div class="bg-surface-raised/60 backdrop-blur-xl border border-white/10 p-10 rounded-[2rem] shadow-modal">
         
         <div class="text-center mb-10">
-          <div class="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-gradient-to-tr from-accent to-primary shadow-lg mb-6">
-            <svg class="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"></path>
-            </svg>
-          </div>
+          <img src="/favicon.svg" alt="TodoAPP Logo" class="w-20 h-20 mx-auto mb-6 rounded-2xl shadow-lg object-contain bg-white/5 p-1" />
           <h1 class="text-3xl font-display font-semibold tracking-tight">TodoAPP</h1>
           <p class="text-muted mt-2">Welcome back. Please enter your details.</p>
         </div>

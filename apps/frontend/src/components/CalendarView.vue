@@ -231,19 +231,23 @@
                 @click.stop="onEventClick(occ)"
                 @mousemove.stop="hoverSlot = null"
                 class="absolute text-left text-[11px] leading-tight text-white overflow-hidden transition-all rounded-md"
-                :class="[occ.task.completedAt ? 'opacity-35 line-through' : 'hover:brightness-110 hover:shadow-lg']"
-                :style="[occ.style, eventTimedStyle(occ.task)]"
+                :class="[occ.task.completedAt ? 'opacity-35 line-through' : 'hover:brightness-110 hover:shadow-lg', resizingState?.occKey === occ.key ? 'z-50 !transition-none' : '']"
+                :style="[occ.style, eventTimedStyle(occ.task), resizingState?.occKey === occ.key ? { top: resizingState.topPx, height: resizingState.heightPx } : {}]"
                 :title="occ.task.description"
               >
                 <!-- left accent bar -->
                 <span class="absolute left-0 top-0 bottom-0 w-[3px] rounded-l-md" :style="{ backgroundColor: priorityAccentColor(occ.task) }"></span>
-                <div class="pl-2 pr-1 py-1 flex flex-col h-full justify-start">
+                <div class="pl-2 pr-1 py-1 flex flex-col h-full justify-start pointer-events-none">
                   <span class="font-semibold truncate text-[11px] leading-none mb-0.5 flex items-center gap-1">
                     <img v-if="occ.isMoneyApp" src="/moneyapp-logo.png" class="w-3 h-3 rounded-full shrink-0" alt="" />
                     <span class="truncate">{{ occ.task.description }}</span>
                   </span>
-                  <span class="text-[9.5px] opacity-75 font-medium">{{ timedRangeLabel(occ) }}</span>
+                  <span class="text-[9.5px] opacity-75 font-medium">{{ resizingState?.occKey === occ.key ? resizingState.labelTime : timedRangeLabel(occ) }}</span>
                 </div>
+
+                <!-- Drag handles -->
+                <div v-if="!occ.isMoneyApp && !occ.task.completedAt" class="absolute top-0 left-0 right-0 h-2 cursor-ns-resize z-20" @mousedown.stop="onResizeStart($event, occ, 'top')"></div>
+                <div v-if="!occ.isMoneyApp && !occ.task.completedAt" class="absolute bottom-0 left-0 right-0 h-2 cursor-ns-resize z-20" @mousedown.stop="onResizeStart($event, occ, 'bottom')"></div>
               </button>
 
               <!-- current time indicator -->
@@ -711,14 +715,44 @@ async function toggleMoneyAppVisibility() {
 function occurrencesInRange(rangeStart: Date, rangeEnd: Date): Occurrence[] {
   const out: Occurrence[] = [];
   
+  function pushOccurrenceSplit(task: any, baseDate: Date, baseKey: string) {
+    const duration = task.durationMinutes || 60;
+    const startMs = baseDate.getTime();
+    const endMs = startMs + duration * 60000;
+    
+    let currentStart = new Date(startMs);
+    let i = 0;
+    
+    while (currentStart.getTime() < endMs) {
+      const endOfDay = new Date(currentStart.getFullYear(), currentStart.getMonth(), currentStart.getDate() + 1, 0, 0, 0, 0);
+      const currentEndMs = Math.min(endMs, endOfDay.getTime());
+      const currentDurationMins = (currentEndMs - currentStart.getTime()) / 60000;
+      
+      if (currentStart >= rangeStart && currentStart < rangeEnd) {
+        out.push({
+          task,
+          date: new Date(currentStart),
+          key: `${baseKey}${i > 0 ? '-split-' + i : ''}`,
+          durationOverride: currentDurationMins,
+          isContinuation: i > 0
+        });
+      }
+      
+      currentStart = endOfDay;
+      i++;
+    }
+  }
+  
   if (isTasksVisible.value) {
     for (const task of props.tasks) {
       if (!task.scheduledAt) continue;
       const base = new Date(task.scheduledAt);
 
       if (!task.recurrence) {
-        if (base >= rangeStart && base < rangeEnd) {
-          out.push({ task, date: base, key: `${task.id}` });
+        const duration = task.durationMinutes || 60;
+        const endMs = base.getTime() + duration * 60000;
+        if (endMs > rangeStart.getTime() && base.getTime() < rangeEnd.getTime()) {
+          pushOccurrenceSplit(task, base, `${task.id}`);
         }
         continue;
       }
@@ -726,9 +760,14 @@ function occurrencesInRange(rangeStart: Date, rangeEnd: Date): Occurrence[] {
       let d = new Date(base);
       let guard = 0;
       while (d < rangeEnd && guard++ < 5000) {
-        // regra de dias úteis nunca gera ocorrência em fim de semana, nem a base
         const skip = task.recurrence === 'weekdays' && (d.getDay() === 0 || d.getDay() === 6);
-        if (d >= rangeStart && !skip) out.push({ task, date: new Date(d), key: `${task.id}-${d.getTime()}` });
+        if (!skip) {
+          const duration = task.durationMinutes || 60;
+          const endMs = d.getTime() + duration * 60000;
+          if (endMs > rangeStart.getTime()) {
+            pushOccurrenceSplit(task, d, `${task.id}-${d.getTime()}`);
+          }
+        }
         d = nextOccurrence(d, task.recurrence, base);
       }
     }
@@ -882,15 +921,15 @@ const gridDays = computed(() => {
     const date = addDays(first, i);
     const key = dayKey(date);
     const dayOccs = occurrences.filter((o) => dayKey(o.date) === key);
-    const allDay = dayOccs.filter((o) => o.date.getHours() === 0 && o.date.getMinutes() === 0);
-    const timed = layoutTimed(dayOccs.filter((o) => o.date.getHours() !== 0 || o.date.getMinutes() !== 0));
+    const allDay = dayOccs.filter((o) => o.date.getHours() === 0 && o.date.getMinutes() === 0 && !o.isContinuation);
+    const timed = layoutTimed(dayOccs.filter((o) => o.date.getHours() !== 0 || o.date.getMinutes() !== 0 || o.isContinuation));
     return { key, date, isToday: key === todayKey, allDay, timed };
   });
 });
 
 // Duração visual do evento em minutos (padrão 1h; mínimo 15min p/ dar clique).
 function occDuration(occ: Occurrence) {
-  return Math.max(15, occ.task.durationMinutes || 60);
+  return Math.max(15, occ.durationOverride ?? occ.task.durationMinutes ?? 60);
 }
 
 // Blocos com a duração real; eventos sobrepostos dividem a largura (lanes).
@@ -1084,6 +1123,114 @@ function viewOccurrence(occ: Occurrence) {
   else emit('task-click', occ.task);
 }
 
+// ── resize ──────────────────────────────────────────────────────────────────
+
+const resizingState = ref<{
+  occKey: string;
+  topPx: string;
+  heightPx: string;
+  labelTime: string;
+  task: any;
+  initialStartMin: number;
+  initialDuration: number;
+  newStartMin: number;
+  newDuration: number;
+  type: 'top' | 'bottom';
+  initialY: number;
+} | null>(null);
+
+function onResizeStart(event: MouseEvent, occ: Occurrence, type: 'top' | 'bottom') {
+  if (event.button !== 0) return; // Only left click
+  event.stopPropagation();
+  event.preventDefault();
+
+  const startMin = occ.date.getHours() * 60 + occ.date.getMinutes();
+  const dur = occDuration(occ);
+  
+  resizingState.value = {
+    occKey: occ.key,
+    task: occ.task,
+    type,
+    initialY: event.clientY,
+    initialStartMin: startMin,
+    initialDuration: dur,
+    newStartMin: startMin,
+    newDuration: dur,
+    topPx: occ.style!.top as string,
+    heightPx: occ.style!.height as string,
+    labelTime: timedRangeLabel(occ)
+  };
+
+  document.addEventListener('mousemove', onResizeMove);
+  document.addEventListener('mouseup', onResizeEnd);
+}
+
+function onResizeMove(event: MouseEvent) {
+  if (!resizingState.value) return;
+  const state = resizingState.value;
+  
+  const diffPx = event.clientY - state.initialY;
+  const diffMins = Math.round((diffPx / HOUR_PX) * 60 / 15) * 15;
+  
+  let newStart = state.initialStartMin;
+  let newDur = state.initialDuration;
+
+  if (state.type === 'bottom') {
+    newDur = state.initialDuration + diffMins;
+    if (newDur < 15) newDur = 15;
+  } else if (state.type === 'top') {
+    newStart = state.initialStartMin + diffMins;
+    newDur = state.initialDuration - diffMins;
+    if (newDur < 15) {
+      const excess = 15 - newDur;
+      newStart -= excess;
+      newDur = 15;
+    }
+  }
+
+  state.newStartMin = newStart;
+  state.newDuration = newDur;
+  state.topPx = (newStart / 60) * HOUR_PX + 1 + 'px';
+  state.heightPx = (newDur / 60) * HOUR_PX - 2 + 'px';
+  
+  const startD = new Date();
+  startD.setHours(Math.floor(newStart / 60), newStart % 60, 0, 0);
+  const endD = new Date(startD.getTime() + newDur * 60000);
+  state.labelTime = `${timeLabel(startD, true).trim()} – ${timeLabel(endD, true).trim()}`;
+}
+
+async function onResizeEnd() {
+  document.removeEventListener('mousemove', onResizeMove);
+  document.removeEventListener('mouseup', onResizeEnd);
+  
+  if (!resizingState.value) return;
+  
+  const state = resizingState.value;
+  resizingState.value = null;
+  
+  if (state.newDuration === state.initialDuration && state.newStartMin === state.initialStartMin) {
+    return;
+  }
+  
+  const updates: any = {};
+  if (state.newDuration !== state.initialDuration) {
+    updates.durationMinutes = state.newDuration;
+  }
+  if (state.newStartMin !== state.initialStartMin) {
+    if (state.task.scheduledAt) {
+      const d = new Date(state.task.scheduledAt);
+      d.setHours(Math.floor(state.newStartMin / 60), state.newStartMin % 60, 0, 0);
+      updates.scheduledAt = d.toISOString();
+    }
+  }
+  
+  try {
+    await tasksStore.updateTaskFields(state.task.id, updates);
+  } catch (err) {
+    console.error('Failed to update task after resize', err);
+  }
+}
+
 // ── modais do MoneyAPP (detalhe + lista do dia) ─────────────────────────────
 
 const moneyDetail = ref<any | null>(null);
@@ -1161,8 +1308,9 @@ function timeLabel(d: Date, always = false) {
 // "08:00 – 09:30" quando o evento tem duração explícita; senão só o início.
 function timedRangeLabel(occ: Occurrence) {
   const start = timeLabel(occ.date, true).trim();
-  if (!occ.task.durationMinutes) return start;
-  const end = new Date(occ.date.getTime() + occ.task.durationMinutes * 60_000);
+  if (!occ.task.durationMinutes && !occ.durationOverride) return start;
+  const dur = occ.durationOverride ?? occ.task.durationMinutes;
+  const end = new Date(occ.date.getTime() + dur * 60_000);
   return `${start} – ${timeLabel(end, true).trim()}`;
 }
 

@@ -186,6 +186,13 @@ export const useTasksStore = defineStore('tasks', {
       const pending = state.tasks.filter(t => !t.completedAt);
       return {
         today: pending.filter(t => t.scheduledAt && new Date(t.scheduledAt).toISOString().split('T')[0] === new Date().toISOString().split('T')[0]).length,
+        tomorrow: pending.filter(t => {
+          if (!t.scheduledAt) return false;
+          const taskDate = new Date(t.scheduledAt).toISOString().split('T')[0];
+          const tomorrow = new Date();
+          tomorrow.setDate(tomorrow.getDate() + 1);
+          return taskDate === tomorrow.toISOString().split('T')[0];
+        }).length,
         scheduled: pending.filter(t => !!t.scheduledAt).length,
         all: pending.length,
         flagged: pending.filter(t => t.isFlagged).length,

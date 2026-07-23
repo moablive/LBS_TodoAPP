@@ -9,6 +9,7 @@ self.addEventListener('install', () => {
 });
 
 self.addEventListener('activate', (event) => {
+  event.waitUntil(caches.keys().then(keys => Promise.all(keys.map(k => caches.delete(k)))));
   event.waitUntil(self.clients.claim());
 });
 
@@ -21,13 +22,25 @@ self.addEventListener('push', (event) => {
   }
 
   event.waitUntil(
-    self.registration.showNotification(data.title, {
-      body: data.body,
-      icon: '/logo/icon-192.png',
-      badge: '/logo/icon-192.png',
-      data: { url: data.url },
-      tag: `todoapp-${Date.now()}`,
-    })
+    (async () => {
+      await self.registration.showNotification(data.title, {
+        body: data.body,
+        icon: '/logo/icon-192.png',
+        badge: '/logo/icon-192.png',
+        data: { url: data.url },
+        tag: `todoapp-${Date.now()}`,
+      });
+      // Número no ícone do app (Badging API) — funciona mesmo com o app fechado.
+      if (typeof data.badge === 'number' && self.navigator.setAppBadge) {
+        try {
+          if (data.badge > 0) await self.navigator.setAppBadge(data.badge);
+          else await self.navigator.clearAppBadge();
+        } catch { /* Badging não suportado neste dispositivo */ }
+      }
+      // Avisa qualquer aba aberta para recarregar a lista na hora
+      const windows = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
+      for (const client of windows) client.postMessage({ type: 'new-task', url: data.url });
+    })()
   );
 });
 
@@ -48,3 +61,4 @@ self.addEventListener('notificationclick', (event) => {
     })()
   );
 });
+// v2

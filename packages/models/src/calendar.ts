@@ -9,4 +9,6 @@ export interface Occurrence {
   money?: any;
   moneyGroup?: any[];
   isHoliday?: boolean;
+  durationOverride?: number;
+  isContinuation?: boolean;
 }

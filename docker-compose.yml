@@ -18,10 +18,13 @@ services:
       dockerfile: apps/backend/Dockerfile
     container_name: app_todoapp_backend
     env_file:
+    - ../shared.env
     - .env
     environment:
       NODE_ENV: production
       PORT: 3000
+      # DATABASE_URL montado a partir do DB_DSN (../shared.env) + DB_NAME (.env).
+      DATABASE_URL: "${DB_DSN:?defina DB_DSN em ../shared.env}/${DB_NAME:?defina DB_NAME no .env do app}"
     networks:
       awl_network:
         aliases:
@@ -59,7 +62,10 @@ services:
       context: apps/bot
     container_name: app_todoapp_bot
     env_file:
+      - ../shared.env
       - .env
+    environment:
+      DATABASE_URL: "${DB_DSN:?defina DB_DSN em ../shared.env}/${DB_NAME:?defina DB_NAME no .env do app}"
     networks:
       awl_network:
         aliases:
