@@ -11,7 +11,7 @@ async function transcribeAudio(audioBuffer: Buffer): Promise<string> {
   const blob = new Blob([audioBuffer as any], { type: 'audio/ogg' });
   const formData = new FormData();
   formData.append('file', blob, 'audio.ogg');
-  formData.append('model', 'whisper-large-v3');
+  formData.append('model', 'whisper-large-v3-turbo');
   formData.append('language', 'pt');
   
   const response = await fetch('https://api.groq.com/openai/v1/audio/transcriptions', {

@@ -7,8 +7,12 @@ interface OllamaParsedTask {
 }
 
 export async function parseTaskWithOllama(transcription: string, availableGroups: TaskGroup[]): Promise<OllamaParsedTask> {
-  const ollamaUrl = 'http://ollama:11434/api/generate';
-  const model = 'llama3:latest';
+  // Vinham fixos no código, o que tornava o .env inócuo para a IA. Agora saem do
+  // ambiente (../shared.env define OLLAMA_URL e OLLAMA_TEXT_MODEL p/ todos os
+  // apps); os valores antigos ficam como fallback para não mudar o padrão.
+  const baseUrl = process.env.OLLAMA_URL || 'http://server_ollama:11434';
+  const ollamaUrl = `${baseUrl.replace(/\/+$/, '')}/api/generate`;
+  const model = process.env.OLLAMA_TEXT_MODEL || 'llama3.1:latest';
 
   const groupNames = availableGroups.map(g => g.name).join(', ');
 

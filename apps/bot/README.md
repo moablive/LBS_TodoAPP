@@ -7,7 +7,7 @@ Um bot de Telegram avançado para gerenciamento de tarefas, inspirado na simplic
 - **Listas (Task Groups):** Crie múltiplas listas (ex: Developer, Pessoal, Compras) e agrupe suas tarefas.
 - **Gerenciamento de Tarefas:** Adicione, liste e remova tarefas de qualquer lista através de uma interface interativa (Inline Keyboards) no Telegram.
 - **Conclusão Guiada:** Sistema intuitivo (Wizard) de "Concluir Tarefas" onde o bot lista as pendências numeradas da lista escolhida para baixa rápida no sistema.
-- **Inteligência Artificial (Voz para Tarefa):** Envie áudios para o bot! Ele transcreve a sua voz instantaneamente usando o modelo **Whisper-Large-V3 (via Groq API)** e entende a intenção usando seu LLM local (**Ollama - llama3**). Ele identifica sozinho a tarefa, a data e a lista correta para inserção.
+- **Inteligência Artificial (Voz para Tarefa):** Envie áudios para o bot! Ele transcreve a sua voz instantaneamente usando o modelo **Whisper-Large-V3 (via Groq API)** e entende a intenção usando seu LLM local (**Ollama - llama3.1**). Ele identifica sozinho a tarefa, a data e a lista correta para inserção.
 - **Notificações:** Um Cron Job interno avisa quando uma tarefa agendada chegou no horário.
 - **Autenticação Segura:** Usuários validam acesso via LoginHub para vincular sua conta do Telegram de forma segura.
 
