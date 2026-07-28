@@ -21,7 +21,10 @@ apiRouter.post('/auth/login', async (req, res) => {
   }
   
   try {
-    const loginhubUrl = process.env.VITE_LOGINHUB_API_URL || process.env.LOGINHUB_API_URL || 'https://api-auth.astralwavelabel.com/api';
+    // Chamada server-side: usa o DNS interno do Docker, sem sair para o
+    // Cloudflare. Não ler VITE_* aqui — essa variável carrega a URL pública
+    // destinada ao browser e chega neste container via env_file.
+    const loginhubUrl = process.env.LOGINHUB_API_URL || 'http://server_loginhub_backend:3000/api';
     const response = await fetch(`${loginhubUrl}/auth/login`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },

@@ -2,7 +2,7 @@ import { defineStore } from 'pinia';
 import { api } from '@/api/client';
 import type { LoginRequest } from '@todoapp/models';
 
-const LOGINHUB_API = import.meta.env.VITE_LOGINHUB_API_URL || 'https://api-auth.astralwavelabel.com/api';
+const LOGINHUB_API = import.meta.env.VITE_LOGINHUB_API_URL || 'https://loginhub.astralwavelabel.com/api';
 
 export const useAuthStore = defineStore('auth', {
   state: () => ({

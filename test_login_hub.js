@@ -1,4 +1,4 @@
-const loginhubUrl = 'https://api-auth.astralwavelabel.com/api';
+const loginhubUrl = 'https://loginhub.astralwavelabel.com/api';
 async function testLogin() {
   try {
     const response = await fetch(`${loginhubUrl}/auth/login`, {

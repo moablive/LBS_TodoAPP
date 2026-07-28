@@ -7,7 +7,7 @@ const envSchema = z.object({
 
   // LoginHub — o bot valida e-mail+senha direto no LoginHub (padrão MoneyAPP)
   // e então vincula o telegramId ao usuário no banco do TodoAPP.
-  LOGINHUB_API_URL: z.string().default('https://api-auth.astralwavelabel.com/api'),
+  LOGINHUB_API_URL: z.string().default('http://server_loginhub_backend:3000/api'),
   LOGINHUB_APP_ID: z.coerce.number().default(4),
   // Web Push (VAPID) — mesmas chaves do backend; opcional, sem elas o bot só
   // envia lembretes pelo Telegram.
