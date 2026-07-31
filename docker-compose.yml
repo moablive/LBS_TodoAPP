@@ -12,11 +12,11 @@
 # =============================================================================
 
 services:
-  app_todoapp_backend:
+  lbs_todoapp_backend:
     build:
       context: .
       dockerfile: apps/backend/Dockerfile
-    container_name: app_todoapp_backend
+    container_name: lbs_todoapp_backend
     env_file:
     - ../shared.env
     - .env
@@ -39,7 +39,7 @@ services:
       retries: 3
       start_period: 20s
 
-  app_todoapp_frontend:
+  lbs_todoapp_frontend:
     build:
       context: .
       dockerfile: apps/frontend/Dockerfile
@@ -47,9 +47,9 @@ services:
         VITE_API_BASE_URL: ${VITE_API_BASE_URL}
         VITE_LOGINHUB_API_URL: ${VITE_LOGINHUB_API_URL}
         VITE_MONEYAPP_API_URL: ${VITE_MONEYAPP_API_URL}
-    container_name: app_todoapp_frontend
+    container_name: lbs_todoapp_frontend
     depends_on:
-      app_todoapp_backend:
+      lbs_todoapp_backend:
         condition: service_healthy
     networks:
       awl_network:
@@ -57,10 +57,10 @@ services:
         - todoapp_frontend
     restart: unless-stopped
 
-  app_todoapp_bot:
+  lbs_todoapp_bot:
     build:
       context: apps/bot
-    container_name: app_todoapp_bot
+    container_name: lbs_todoapp_bot
     env_file:
       - ../shared.env
       - .env
