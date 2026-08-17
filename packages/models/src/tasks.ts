@@ -17,6 +17,10 @@ export const taskSchema = z.object({
   recurrence: recurrenceSchema.nullable().optional(),
   details: z.string().nullable().optional(),
   durationMinutes: z.number().int().positive().nullable().optional(),
+  // 'ics' = espelho de um calendário externo (read-only: a sync sobrescreve).
+  source: z.enum(["manual", "ics"]).default("manual").optional(),
+  calendarId: z.string().nullable().optional(),
+  externalUid: z.string().nullable().optional(),
 });
 export type TaskDto = z.infer<typeof taskSchema>;
 

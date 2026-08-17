@@ -13,6 +13,98 @@
       </div>
 
       <div class="flex items-center gap-1.5 sm:gap-2 flex-wrap">
+        <!-- Busca de eventos -->
+        <div class="relative" ref="searchWrapEl">
+          <div
+            class="flex items-center gap-2 rounded-xl bg-[var(--bg-hover)] border px-2.5 py-1.5 transition-colors"
+            :class="searchQuery.trim() ? 'border-[var(--accent)]' : 'border-white/5'"
+          >
+            <MagnifyingGlassIcon class="w-4 h-4 text-[var(--muted)] shrink-0" />
+            <input
+              ref="searchInputEl"
+              v-model="searchQuery"
+              type="text"
+              placeholder="Buscar evento…"
+              title="Buscar evento (/)"
+              class="bg-transparent border-none outline-none text-[13px] text-[var(--text)] placeholder-[var(--muted)] w-28 sm:w-44"
+              @focus="isSearchOpen = true"
+              @keydown.down.prevent="moveSearchCursor(1)"
+              @keydown.up.prevent="moveSearchCursor(-1)"
+              @keydown.enter.prevent="goToResult(searchResults[searchCursor])"
+              @keydown.esc.prevent.stop="onSearchEscape"
+            />
+            <button
+              v-if="searchQuery"
+              @click="clearSearch()"
+              title="Limpar (Esc)"
+              class="p-0.5 rounded-md text-[var(--muted)] hover:text-[var(--text)] hover:bg-[var(--bg)] transition-colors shrink-0"
+            >
+              <XMarkIcon class="w-3.5 h-3.5" />
+            </button>
+          </div>
+
+          <div
+            v-if="isSearchOpen && searchQuery.trim().length >= 2"
+            class="absolute left-0 top-full mt-2 w-[340px] max-w-[calc(100vw-2rem)] bg-[var(--bg-card)] border border-white/10 rounded-xl shadow-2xl z-50 p-1.5"
+          >
+            <div v-if="searchResults.length === 0" class="px-2.5 py-3 text-[13px] text-[var(--muted)]">
+              Nenhum evento encontrado.
+            </div>
+
+            <div v-else class="max-h-[55vh] overflow-y-auto custom-scrollbar space-y-0.5">
+              <template v-for="(hit, i) in searchResults" :key="hit.id">
+                <p
+                  v-if="i === 0 || hit.group !== searchResults[i - 1]?.group"
+                  class="text-[10px] font-bold uppercase tracking-wide text-[var(--muted)] px-2.5 pt-2 pb-1"
+                >
+                  {{ searchGroupLabel(hit.group) }}
+                </p>
+                <div
+                  class="flex items-stretch rounded-lg transition-colors"
+                  :class="searchCursor === i ? 'bg-[var(--bg-hover)]' : ''"
+                  @mouseenter="searchCursor = i"
+                >
+                  <button
+                    @click="goToResult(hit)"
+                    class="flex-1 min-w-0 flex items-center gap-2.5 px-2.5 py-2 text-left"
+                    :title="hit.date ? 'Ir para o evento no calendário' : 'Abrir tarefa sem data'"
+                  >
+                    <span class="w-2 h-2 rounded-full shrink-0" :style="{ backgroundColor: hit.color }"></span>
+                    <span class="flex-1 min-w-0">
+                      <span
+                        class="block text-[13px] font-semibold text-[var(--text)] truncate"
+                        :class="hit.done ? 'line-through opacity-60' : ''"
+                      >
+                        {{ hit.label }}
+                      </span>
+                      <span class="flex items-center gap-1 text-[11px] text-[var(--muted)] min-w-0">
+                        <img v-if="hit.kind === 'money'" src="/moneyapp-logo.png" class="w-3 h-3 rounded-full shrink-0" alt="" />
+                        <ArrowPathIcon v-else-if="hit.recurring" class="w-3 h-3 shrink-0" />
+                        <span class="truncate">{{ hit.sub }}</span>
+                      </span>
+                    </span>
+                  </button>
+                  <button
+                    v-if="hit.kind !== 'holiday'"
+                    @click.stop="openResultDetails(hit)"
+                    title="Abrir detalhes"
+                    class="px-2 flex items-center text-[var(--muted)] hover:text-[var(--text)] transition-colors shrink-0"
+                  >
+                    <ArrowTopRightOnSquareIcon class="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              </template>
+            </div>
+
+            <p
+              v-if="!isTasksVisible || !isMoneyAppVisible || !isHolidaysVisible"
+              class="text-[10px] text-[var(--muted)] px-2.5 py-1.5 mt-1 border-t border-white/5"
+            >
+              Camadas ocultas não entram na busca.
+            </p>
+          </div>
+        </div>
+
         <button
           @click="toggleTasksVisibility"
           class="flex items-center gap-2 text-[13px] font-semibold pl-2 pr-3 py-1.5 rounded-xl transition-colors border"
@@ -86,13 +178,15 @@
               v-for="occ in cell.occurrences"
               :key="occ.key"
               @click.stop="onEventClick(occ)"
+              :data-cal-highlight="isHighlighted(occ) ? '1' : null"
               class="w-full text-left rounded-md pl-2 pr-1 py-0.5 text-[10px] leading-tight text-white transition-all border-l-2 overflow-hidden"
-              :class="[occ.task.completedAt ? 'opacity-35 line-through' : 'hover:brightness-110']"
+              :class="[occ.task.completedAt ? 'opacity-35 line-through' : 'hover:brightness-110', isHighlighted(occ) ? 'cal-flash' : '']"
               :style="eventMonthStyle(occ.task)"
               :title="occ.task.description"
             >
               <span class="flex items-center gap-1 min-w-0">
                 <img v-if="occ.isMoneyApp" src="/moneyapp-logo.png" class="w-3 h-3 rounded-full shrink-0" alt="" />
+                <span v-else-if="isSynced(occ)" class="shrink-0 text-[9px]" title="Sincronizado de um calendário externo">🔗</span>
                 <span class="truncate font-medium">{{ timeLabel(occ.date) }}{{ occ.task.description }}</span>
               </span>
             </button>
@@ -168,13 +262,15 @@
                 v-for="occ in day.allDay"
                 :key="occ.key"
                 @click.stop="onEventClick(occ)"
+                :data-cal-highlight="isHighlighted(occ) ? '1' : null"
                 class="w-full text-left rounded-md px-1.5 py-0.5 text-[10px] font-semibold text-white transition-all border-l-2 overflow-hidden"
-                :class="[occ.task.completedAt ? 'opacity-40 line-through' : 'hover:brightness-110']"
+                :class="[occ.task.completedAt ? 'opacity-40 line-through' : 'hover:brightness-110', isHighlighted(occ) ? 'cal-flash' : '']"
                 :style="eventMonthStyle(occ.task)"
                 :title="occ.task.description"
               >
                 <span class="flex items-center gap-1 min-w-0">
                   <img v-if="occ.isMoneyApp" src="/moneyapp-logo.png" class="w-3 h-3 rounded-full shrink-0" alt="" />
+                  <span v-else-if="isSynced(occ)" class="shrink-0 text-[9px]" title="Sincronizado de um calendário externo">🔗</span>
                   <span class="truncate">{{ occ.task.description }}</span>
                 </span>
               </button>
@@ -230,8 +326,9 @@
                 :key="occ.key"
                 @click.stop="onEventClick(occ)"
                 @mousemove.stop="hoverSlot = null"
+                :data-cal-highlight="isHighlighted(occ) ? '1' : null"
                 class="absolute text-left text-[11px] leading-tight text-white overflow-hidden transition-all rounded-md"
-                :class="[occ.task.completedAt ? 'opacity-35 line-through' : 'hover:brightness-110 hover:shadow-lg', resizingState?.occKey === occ.key ? 'z-50 !transition-none' : '']"
+                :class="[occ.task.completedAt ? 'opacity-35 line-through' : 'hover:brightness-110 hover:shadow-lg', resizingState?.occKey === occ.key ? 'z-50 !transition-none' : '', isHighlighted(occ) ? 'cal-flash' : '']"
                 :style="[occ.style, eventTimedStyle(occ.task), resizingState?.occKey === occ.key ? { top: resizingState.topPx, height: resizingState.heightPx } : {}]"
                 :title="occ.task.description"
               >
@@ -240,14 +337,16 @@
                 <div class="pl-2 pr-1 py-1 flex flex-col h-full justify-start pointer-events-none">
                   <span class="font-semibold truncate text-[11px] leading-none mb-0.5 flex items-center gap-1">
                     <img v-if="occ.isMoneyApp" src="/moneyapp-logo.png" class="w-3 h-3 rounded-full shrink-0" alt="" />
+                    <span v-else-if="isSynced(occ)" class="shrink-0 text-[10px]" title="Sincronizado de um calendário externo">🔗</span>
                     <span class="truncate">{{ occ.task.description }}</span>
                   </span>
                   <span class="text-[9.5px] opacity-75 font-medium">{{ resizingState?.occKey === occ.key ? resizingState.labelTime : timedRangeLabel(occ) }}</span>
                 </div>
 
-                <!-- Drag handles -->
-                <div v-if="!occ.isMoneyApp && !occ.task.completedAt" class="absolute top-0 left-0 right-0 h-2 cursor-ns-resize z-20" @mousedown.stop="onResizeStart($event, occ, 'top')"></div>
-                <div v-if="!occ.isMoneyApp && !occ.task.completedAt" class="absolute bottom-0 left-0 right-0 h-2 cursor-ns-resize z-20" @mousedown.stop="onResizeStart($event, occ, 'bottom')"></div>
+                <!-- Drag handles — eventos vindos de calendário externo não
+                     redimensionam: a próxima sync sobrescreveria o ajuste. -->
+                <div v-if="!occ.isMoneyApp && !isSynced(occ) && !occ.task.completedAt" class="absolute top-0 left-0 right-0 h-2 cursor-ns-resize z-20" @mousedown.stop="onResizeStart($event, occ, 'top')"></div>
+                <div v-if="!occ.isMoneyApp && !isSynced(occ) && !occ.task.completedAt" class="absolute bottom-0 left-0 right-0 h-2 cursor-ns-resize z-20" @mousedown.stop="onResizeStart($event, occ, 'bottom')"></div>
               </button>
 
               <!-- current time indicator -->
@@ -440,6 +539,9 @@ import {
   ChevronRightIcon,
   PlusIcon,
   ArrowPathIcon,
+  ArrowTopRightOnSquareIcon,
+  MagnifyingGlassIcon,
+  XMarkIcon,
   ListBulletIcon,
   FolderIcon,
   BriefcaseIcon,
@@ -523,6 +625,16 @@ function onKeydown(e: KeyboardEvent) {
       e.preventDefault();
       return;
     }
+    if (isSearchOpen.value || searchQuery.value) {
+      clearSearch();
+      e.preventDefault();
+      return;
+    }
+    if (highlight.value) {
+      highlight.value = null;
+      e.preventDefault();
+      return;
+    }
   }
 
   if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'n') {
@@ -545,6 +657,7 @@ function onKeydown(e: KeyboardEvent) {
     case 'y': setViewType('year'); break;
     case 't': goToday(); break;
     case 'c': openCreate(null); break;
+    case '/': focusSearch(); break;
     case 'arrowleft':
     case 'p':
     case 'k': navigate(-1); break;
@@ -1043,6 +1156,256 @@ const title = computed(() => {
   return `${num} - ${dayName}`;
 });
 
+// ── busca de eventos ────────────────────────────────────────────────────────
+// Digite no campo da toolbar → resultados ao vivo → clicar leva o calendário
+// até o evento e o destaca por alguns segundos (estilo Google Calendar).
+
+type SearchGroup = 'future' | 'past' | 'none';
+
+interface SearchHit {
+  id: string;          // chave única da linha do dropdown
+  rawId: string;       // id da tarefa / lançamento / feriado (usado no destaque)
+  kind: 'task' | 'money' | 'holiday';
+  group: SearchGroup;
+  date: Date | null;   // null = tarefa sem data agendada
+  label: string;
+  sub: string;
+  color: string;
+  done: boolean;
+  recurring: boolean;
+  task?: any;
+  money?: any;
+}
+
+const SEARCH_LIMIT = 25;
+
+const searchQuery = ref('');
+const isSearchOpen = ref(false);
+const searchCursor = ref(0);
+const searchWrapEl = ref<HTMLElement | null>(null);
+const searchInputEl = ref<HTMLInputElement | null>(null);
+
+// Sem acento e sem caixa — "reuniao" acha "Reunião".
+function norm(s: unknown) {
+  return String(s ?? '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+}
+
+const recurrenceLabels: Record<string, string> = {
+  daily: 'Diário',
+  weekdays: 'Dias úteis',
+  weekly: 'Semanal',
+  monthly: 'Mensal',
+  yearly: 'Anual',
+};
+
+function searchDateLabel(d: Date) {
+  const day = d.toLocaleDateString('pt-BR', {
+    weekday: 'short',
+    day: '2-digit',
+    month: 'short',
+    year: d.getFullYear() !== now.value.getFullYear() ? 'numeric' : undefined,
+  });
+  const t = timeLabel(d).trim();
+  return t ? `${day} · ${t}` : day;
+}
+
+function searchGroupLabel(g: SearchGroup) {
+  if (g === 'future') return 'Próximos';
+  if (g === 'past') return 'Anteriores';
+  return 'Sem data';
+}
+
+// Ocorrência mais relevante de uma tarefa recorrente: a primeira a partir de
+// hoje (se todas estiverem no passado, cai na última encontrada).
+function nearestOccurrence(task: any): Date {
+  const base = new Date(task.scheduledAt);
+  if (!task.recurrence) return base;
+
+  const todayStart = startOfDay(now.value);
+  const limit = new Date(now.value.getFullYear() + 2, now.value.getMonth(), now.value.getDate());
+  let d = new Date(base);
+  let last = new Date(base);
+  let guard = 0;
+
+  while (d < limit && guard++ < 5000) {
+    const skip = task.recurrence === 'weekdays' && (d.getDay() === 0 || d.getDay() === 6);
+    if (!skip) {
+      last = new Date(d);
+      if (d >= todayStart) return new Date(d);
+    }
+    d = nextOccurrence(d, task.recurrence, base);
+  }
+  return last;
+}
+
+const searchResults = computed<SearchHit[]>(() => {
+  const q = norm(searchQuery.value).trim();
+  if (q.length < 2) return [];
+
+  const hits: SearchHit[] = [];
+
+  if (isTasksVisible.value) {
+    for (const task of props.tasks) {
+      if (!norm(task.description).includes(q)) continue;
+      const date = task.scheduledAt ? nearestOccurrence(task) : null;
+      const rec = task.recurrence ? recurrenceLabels[task.recurrence] ?? task.recurrence : '';
+      hits.push({
+        id: `task-${task.id}`,
+        rawId: String(task.id),
+        kind: 'task',
+        group: 'none', // definido abaixo
+        date,
+        label: task.description,
+        sub: date ? [searchDateLabel(date), rec].filter(Boolean).join(' · ') : 'Sem data agendada',
+        color: priorityAccentColor(task),
+        done: !!task.completedAt,
+        recurring: !!task.recurrence,
+        task,
+      });
+    }
+  }
+
+  if (isMoneyAppVisible.value) {
+    for (const ev of moneyAppEvents.value) {
+      const title = ev.title ?? ev.description ?? '';
+      if (!norm(title).includes(q)) continue;
+      const date = new Date(ev.date);
+      hits.push({
+        id: `money-${ev.id}`,
+        rawId: String(ev.id),
+        kind: 'money',
+        group: 'none',
+        date,
+        label: title,
+        sub: `${searchDateLabel(date)} · ${moneyAmountLabel(ev)}`,
+        color: ev.color ?? moneyAppColor.value,
+        done: ev.status === 'paid',
+        recurring: false,
+        money: ev,
+      });
+    }
+  }
+
+  if (isHolidaysVisible.value) {
+    for (const h of holidays.value) {
+      if (!norm(h.name).includes(q)) continue;
+      hits.push({
+        id: `holiday-${h.id}`,
+        rawId: String(h.id),
+        kind: 'holiday',
+        group: 'none',
+        date: h.date,
+        label: `🏖️ ${h.name}`,
+        sub: `${searchDateLabel(h.date)} · Feriado nacional`,
+        color: holidayColor.value,
+        done: false,
+        recurring: false,
+      });
+    }
+  }
+
+  const todayMs = startOfDay(now.value).getTime();
+  const future = hits
+    .filter((h) => h.date && h.date.getTime() >= todayMs)
+    .sort((a, b) => a.date!.getTime() - b.date!.getTime())
+    .map((h) => ({ ...h, group: 'future' as SearchGroup }));
+  const past = hits
+    .filter((h) => h.date && h.date.getTime() < todayMs)
+    .sort((a, b) => b.date!.getTime() - a.date!.getTime())
+    .map((h) => ({ ...h, group: 'past' as SearchGroup }));
+  const undated = hits.filter((h) => !h.date);
+
+  return [...future, ...past, ...undated].slice(0, SEARCH_LIMIT);
+});
+
+watch(searchQuery, () => {
+  isSearchOpen.value = true;
+  searchCursor.value = 0;
+});
+
+function moveSearchCursor(dir: number) {
+  isSearchOpen.value = true;
+  const total = searchResults.value.length;
+  if (!total) return;
+  searchCursor.value = (searchCursor.value + dir + total) % total;
+}
+
+function focusSearch() {
+  isSearchOpen.value = true;
+  nextTick(() => searchInputEl.value?.focus());
+}
+
+function clearSearch() {
+  searchQuery.value = '';
+  isSearchOpen.value = false;
+  searchCursor.value = 0;
+}
+
+function onSearchEscape() {
+  if (isSearchOpen.value && searchQuery.value.trim()) isSearchOpen.value = false;
+  else clearSearch();
+}
+
+function onDocMouseDown(e: MouseEvent) {
+  if (!isSearchOpen.value) return;
+  if (searchWrapEl.value && !searchWrapEl.value.contains(e.target as Node)) isSearchOpen.value = false;
+}
+onMounted(() => document.addEventListener('mousedown', onDocMouseDown));
+onBeforeUnmount(() => document.removeEventListener('mousedown', onDocMouseDown));
+
+// Destaque temporário do evento encontrado (casado por dia + id da origem, o
+// que também funciona quando o lançamento está dentro de um chip agrupado).
+const highlight = ref<{ rawId: string; dayKey: string; kind: SearchHit['kind'] } | null>(null);
+let highlightTimer: number | undefined;
+onBeforeUnmount(() => window.clearTimeout(highlightTimer));
+
+/** Ocorrência espelhada de um calendário externo (.ics) — read-only. */
+function isSynced(occ: Occurrence) {
+  return occ.task?.source === 'ics';
+}
+
+function isHighlighted(occ: Occurrence) {
+  const h = highlight.value;
+  if (!h || dayKey(occ.date) !== h.dayKey) return false;
+  if (h.kind === 'money') {
+    return occ.money?.id != null && String(occ.money.id) === h.rawId
+      || !!occ.moneyGroup?.some((ev: any) => String(ev.id) === h.rawId);
+  }
+  return String(occ.task?.id) === h.rawId;
+}
+
+async function goToResult(hit: SearchHit | undefined) {
+  if (!hit) return;
+
+  // Tarefa sem data não aparece na grade — abre direto os detalhes.
+  if (!hit.date) {
+    isSearchOpen.value = false;
+    emit('task-click', hit.task);
+    return;
+  }
+
+  if (viewType.value === 'year') viewType.value = 'month';
+  cursor.value = new Date(hit.date);
+  isSearchOpen.value = false;
+
+  highlight.value = { rawId: hit.rawId, dayKey: dayKey(hit.date), kind: hit.kind };
+  window.clearTimeout(highlightTimer);
+  highlightTimer = window.setTimeout(() => (highlight.value = null), 6000);
+
+  // Dois ticks: o watch de viewType também ajusta o scroll da grade (7h).
+  await nextTick();
+  await nextTick();
+  document
+    .querySelector('[data-cal-highlight="1"]')
+    ?.scrollIntoView({ block: 'center', behavior: 'smooth' });
+}
+
+function openResultDetails(hit: SearchHit) {
+  isSearchOpen.value = false;
+  if (hit.kind === 'money') moneyDetail.value = hit.money;
+  else if (hit.task) emit('task-click', hit.task);
+}
+
 // ── create ──────────────────────────────────────────────────────────────────
 
 function openCreate(date: Date | null) {
@@ -1405,6 +1768,18 @@ function groupIconInfo(task: any): { img?: string; comp?: any } {
 }
 .weekend-cell:hover {
   background: color-mix(in srgb, #ff453a 10%, var(--bg-hover)) !important;
+}
+
+/* Evento encontrado pela busca — contorno + pulso curto para localizar na grade */
+@keyframes cal-flash-anim {
+  0%   { box-shadow: 0 0 0 0 color-mix(in srgb, var(--accent) 70%, transparent); }
+  100% { box-shadow: 0 0 0 8px color-mix(in srgb, var(--accent) 0%, transparent); }
+}
+.cal-flash {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+  z-index: 30;
+  animation: cal-flash-anim 1.2s ease-out 3;
 }
 
 /* Pulsação suave no indicador da hora atual */

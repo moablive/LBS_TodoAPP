@@ -6,6 +6,7 @@ import { pushRouter } from './push.js';
 import { remindersRouter } from './reminders.js';
 import { prefsRouter } from './prefs.js';
 import { integrationsRouter } from './integrations.js';
+import { calendarsRouter } from './calendars.js';
 import { botRouter } from './bot.js';
 import { requireAuth, requireBotKey } from '../middleware/auth.js';
 import { db } from '@todoapp/db';
@@ -43,6 +44,10 @@ apiRouter.post('/auth/login', async (req, res) => {
   }
 });
 
+import { feedRouter } from './feed.js';
+
+apiRouter.use('/feed', feedRouter);
+
 apiRouter.use('/bot', requireBotKey, botRouter);
 
 apiRouter.use(requireAuth);
@@ -66,3 +71,4 @@ apiRouter.use('/push', pushRouter);
 apiRouter.use('/reminders', remindersRouter);
 apiRouter.use('/prefs', prefsRouter);
 apiRouter.use('/integrations', integrationsRouter);
+apiRouter.use('/calendars', calendarsRouter);

@@ -12,7 +12,7 @@ export async function parseTaskWithOllama(transcription: string, availableGroups
   // apps); os valores antigos ficam como fallback para não mudar o padrão.
   const baseUrl = process.env.OLLAMA_URL || 'http://server_ollama:11434';
   const ollamaUrl = `${baseUrl.replace(/\/+$/, '')}/api/generate`;
-  const model = process.env.OLLAMA_TEXT_MODEL || 'llama3.1:latest';
+  const model = process.env.OLLAMA_TEXT_MODEL || 'qwen2.5vl:7b';
 
   const groupNames = availableGroups.map(g => g.name).join(', ');
 

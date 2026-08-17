@@ -259,6 +259,98 @@
             </div>
           </div>
 
+          <!-- Calendários externos (.ics) -->
+          <h3 class="text-[11px] font-bold text-[var(--muted)] uppercase tracking-wider mb-2">Calendários externos</h3>
+          <p class="text-[12px] text-[var(--muted)] mb-3 leading-relaxed">
+            Cole o link <strong>.ics</strong> do Proton Calendar, Google Calendar ou Outlook. Os eventos entram
+            sozinhos no grupo <strong>📅 Agenda</strong> e são atualizados a cada 15 minutos.
+          </p>
+
+          <div class="bg-[var(--bg)] rounded-xl divide-y divide-[var(--border)] mb-3">
+            <div v-if="!calendars.length" class="px-4 py-4 text-[13px] text-[var(--muted)]">
+              Nenhum calendário assinado ainda.
+            </div>
+            <div v-for="cal in calendars" :key="cal.id" class="px-4 py-3">
+              <div class="flex items-center gap-3">
+                <label class="w-6 h-6 rounded-full overflow-hidden cursor-pointer shadow border border-[var(--border)] shrink-0 relative" :style="{ backgroundColor: cal.color || '#5b8cff' }">
+                  <input type="color" :value="cal.color || '#5b8cff'" @change="updateCalendar(cal, { color: ($event.target as HTMLInputElement).value })" class="opacity-0 absolute inset-0 cursor-pointer" />
+                </label>
+                <div class="flex-1 min-w-0">
+                  <p class="text-[14px] text-[var(--text)] font-medium truncate">{{ cal.name }}</p>
+                  <p class="text-[11px] truncate" :class="cal.lastStatus === 'error' ? 'text-red-400' : 'text-[var(--muted)]'">
+                    {{ calendarStatus(cal) }}
+                  </p>
+                </div>
+                <button
+                  @click="syncCalendar(cal)"
+                  :disabled="syncingId === cal.id"
+                  class="p-2 rounded-lg text-[var(--muted)] hover:text-[var(--text)] hover:bg-[var(--bg-hover)] transition-colors disabled:opacity-40"
+                  title="Sincronizar agora"
+                >
+                  <ArrowPathIcon class="w-4 h-4" :class="syncingId === cal.id ? 'animate-spin' : ''" />
+                </button>
+                <ToggleSwitch :model-value="cal.enabled" @update:model-value="updateCalendar(cal, { enabled: $event })" />
+                <button
+                  @click="removeCalendar(cal)"
+                  class="p-2 rounded-lg text-[var(--muted)] hover:text-red-400 hover:bg-[var(--bg-hover)] transition-colors"
+                  title="Remover calendário (apaga os eventos sincronizados)"
+                >
+                  <TrashIcon class="w-4 h-4" />
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <div class="flex flex-col sm:flex-row gap-2 mb-2">
+            <input
+              v-model="newCalendar.name"
+              type="text"
+              placeholder="Nome (ex: Proton Calendar)"
+              class="sm:w-[38%] bg-[var(--bg)] text-[var(--text)] text-[13px] rounded-lg px-3 py-2 border border-transparent focus:border-[var(--accent)] outline-none transition-colors"
+            />
+            <input
+              v-model="newCalendar.url"
+              type="url"
+              placeholder="https://…/basic.ics ou webcal://…"
+              class="flex-1 min-w-0 bg-[var(--bg)] text-[var(--text)] text-[13px] rounded-lg px-3 py-2 border border-transparent focus:border-[var(--accent)] outline-none transition-colors"
+              @keydown.enter="addCalendar"
+            />
+            <button
+              @click="addCalendar"
+              :disabled="isAddingCalendar || !newCalendar.url.trim() || !newCalendar.name.trim()"
+              class="flex items-center justify-center gap-1.5 px-4 py-2 rounded-lg bg-[var(--accent)] text-white text-[13px] font-semibold disabled:opacity-40 transition-opacity shrink-0"
+            >
+              <PlusIcon class="w-4 h-4" /> {{ isAddingCalendar ? 'Assinando…' : 'Assinar' }}
+            </button>
+          </div>
+          <p v-if="calendarError" class="text-[12px] text-red-400 mb-8">{{ calendarError }}</p>
+          <div v-else class="mb-8"></div>
+
+          <!-- Exportar Tarefas -->
+          <h3 class="text-[11px] font-bold text-[var(--muted)] uppercase tracking-wider mb-2">Exportar Tarefas (.ics)</h3>
+          <p class="text-[12px] text-[var(--muted)] mb-3 leading-relaxed">
+            Exporte suas tarefas agendadas para o Google Calendar, Outlook ou Apple Calendar. 
+            Este link é exclusivo seu, copie e cole no seu calendário na opção "Adicionar por URL".
+          </p>
+          <div v-if="prefs.icsExportToken" class="flex items-center gap-2 mb-8 bg-[var(--bg)] p-3 rounded-xl border border-[var(--border)]">
+            <input 
+              type="text" 
+              readonly 
+              :value="`${apiBaseUrl}/feed/${prefs.icsExportToken}.ics`" 
+              class="flex-1 bg-transparent text-[13px] text-[var(--text)] outline-none min-w-0" 
+              @click="($event.target as HTMLInputElement).select()"
+            />
+            <button 
+              @click="copyToClipboard(`${apiBaseUrl}/feed/${prefs.icsExportToken}.ics`)" 
+              class="px-3 py-1.5 bg-[var(--accent)] text-white text-[12px] font-semibold rounded-lg shrink-0 transition-opacity hover:opacity-90"
+            >
+              Copiar Link
+            </button>
+          </div>
+          <div v-else class="mb-8 text-[13px] text-[var(--muted)]">
+            Carregando link de exportação...
+          </div>
+
           <h2 class="text-lg font-bold text-[var(--text)] mb-4 flex items-center gap-2"><SwatchIcon class="w-5 h-5 text-[var(--muted)]" /> Aparência</h2>
 
           <!-- Modo -->
@@ -368,7 +460,9 @@ import {
   SwatchIcon,
   MoonIcon,
   SunIcon,
-  PlusIcon
+  PlusIcon,
+  ArrowPathIcon,
+  TrashIcon
 } from '@heroicons/vue/24/outline';
 import ToggleSwitch from './ToggleSwitch.vue';
 
@@ -406,9 +500,15 @@ interface UserPrefs {
   moneyAppColor?: string;
   showHolidays?: boolean;
   holidayColor?: string;
+  icsExportToken?: string | null;
 }
 
 const emit = defineEmits<{ (e: 'close'): void }>();
+
+const rawBase = import.meta.env.VITE_API_BASE_URL?.replace(/\/$/, '') || '';
+const apiBaseUrl = rawBase.startsWith('http') 
+  ? rawBase 
+  : `${window.location.origin}${rawBase.startsWith('/') ? rawBase : '/' + rawBase}`;
 
 const push = usePush();
 const theme = useTheme();
@@ -452,24 +552,127 @@ const prefs = ref<UserPrefs>({
   moneyAppColor: '#30d158',
   showHolidays: true,
   holidayColor: '#6b7280',
+  icsExportToken: null,
 });
+
+// ── Calendários externos (.ics) ─────────────────────────────────────────────
+interface CalendarSubscription {
+  id: string;
+  name: string;
+  url: string;
+  color: string | null;
+  enabled: boolean;
+  lastSyncAt: string | null;
+  lastStatus: string | null;
+  lastError: string | null;
+  lastEventCount: number;
+}
+
+interface SyncResult {
+  ok: boolean;
+  created: number;
+  updated: number;
+  deleted: number;
+  events: number;
+  error?: string;
+}
+
+const calendars = ref<CalendarSubscription[]>([]);
+const newCalendar = ref({ name: '', url: '' });
+const isAddingCalendar = ref(false);
+const syncingId = ref<string | null>(null);
+const calendarError = ref('');
+
+function calendarStatus(cal: CalendarSubscription): string {
+  if (cal.lastStatus === 'error') return `Erro: ${cal.lastError || 'falha na sincronização'}`;
+  if (!cal.lastSyncAt) return 'Ainda não sincronizado';
+  const when = new Date(cal.lastSyncAt).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' });
+  return `${cal.lastEventCount} evento(s) · última sync ${when}`;
+}
+
+async function addCalendar() {
+  const name = newCalendar.value.name.trim();
+  const url = newCalendar.value.url.trim();
+  if (!name || !url || isAddingCalendar.value) return;
+
+  isAddingCalendar.value = true;
+  calendarError.value = '';
+  try {
+    // A primeira sync é síncrona no backend: se a URL não presta, o erro volta
+    // aqui em vez de sumir num log.
+    const created = await api.post<CalendarSubscription & { sync?: SyncResult }>('/calendars', { name, url });
+    calendars.value.push(created);
+    newCalendar.value = { name: '', url: '' };
+    if (created.sync && !created.sync.ok) {
+      calendarError.value = created.sync.error || 'Não consegui ler esse feed.';
+    }
+  } catch (err: any) {
+    calendarError.value = err?.message || 'Não consegui assinar esse calendário.';
+  } finally {
+    isAddingCalendar.value = false;
+  }
+}
+
+async function updateCalendar(cal: CalendarSubscription, patch: Partial<CalendarSubscription>) {
+  Object.assign(cal, patch);
+  try {
+    await api.patch(`/calendars/${cal.id}`, patch);
+  } catch (err) {
+    console.error('Erro ao atualizar calendário:', err);
+  }
+}
+
+async function syncCalendar(cal: CalendarSubscription) {
+  syncingId.value = cal.id;
+  calendarError.value = '';
+  try {
+    const result = await api.post<SyncResult>(`/calendars/${cal.id}/sync`, {});
+    const fresh = await api.get<CalendarSubscription[]>('/calendars');
+    calendars.value = fresh;
+    if (!result.ok) calendarError.value = result.error || 'Falha na sincronização.';
+  } catch (err: any) {
+    calendarError.value = err?.message || 'Falha na sincronização.';
+  } finally {
+    syncingId.value = null;
+  }
+}
+
+async function removeCalendar(cal: CalendarSubscription) {
+  if (!window.confirm(`Remover "${cal.name}"? Os eventos sincronizados dele saem do calendário.`)) return;
+  try {
+    await api.delete(`/calendars/${cal.id}`);
+    calendars.value = calendars.value.filter((c) => c.id !== cal.id);
+  } catch (err) {
+    console.error('Erro ao remover calendário:', err);
+  }
+}
 
 const handleEsc = (e: KeyboardEvent) => {
   if (e.key === 'Escape') emit('close');
 };
 
+function copyToClipboard(text: string) {
+  navigator.clipboard.writeText(text).then(() => {
+    // Optionally we could show a toast here, but simple copy is fine for now
+  }).catch(err => {
+    console.error('Falha ao copiar:', err);
+  });
+}
+
 onMounted(async () => {
   document.addEventListener('keydown', handleEsc);
   try {
-    const [s, p, g] = await Promise.all([
+    const [s, p, g, c] = await Promise.all([
       api.get<ReminderSettings>('/reminders'),
       api.get<UserPrefs>('/prefs'),
-      api.get<TaskGroup[]>('/groups')
+      api.get<TaskGroup[]>('/groups'),
+      api.get<CalendarSubscription[]>('/calendars')
     ]);
     settings.value = s;
     displayNameInput.value = s.displayName || '';
     prefs.value = p;
     taskGroups.value = g;
+    calendars.value = c;
   } catch (err) {
     console.error('Erro ao carregar configurações:', err);
   } finally {

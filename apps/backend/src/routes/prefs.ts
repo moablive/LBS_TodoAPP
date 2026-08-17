@@ -1,3 +1,4 @@
+import crypto from 'node:crypto';
 import { Router } from 'express';
 import { db, schema } from '@todoapp/db';
 import { eq } from 'drizzle-orm';
@@ -9,15 +10,26 @@ export const prefsRouter = Router();
 prefsRouter.use(resolveTelegramId);
 
 prefsRouter.get('/', async (req, res) => {
-  const row = await db.query.userPrefs.findFirst({
+  let row = await db.query.userPrefs.findFirst({
     where: eq(schema.userPrefs.userId, req.telegramId!),
   });
+  
+  if (row && !row.icsExportToken) {
+    const token = crypto.randomUUID();
+    const [updated] = await db.update(schema.userPrefs)
+      .set({ icsExportToken: token })
+      .where(eq(schema.userPrefs.userId, req.telegramId!))
+      .returning();
+    row = updated;
+  }
+
   res.json({ 
     kanbanLists: row?.kanbanLists ?? [],
     showMoneyAppEvents: row?.showMoneyAppEvents ?? true,
     moneyAppColor: row?.moneyAppColor ?? '#30d158',
     showHolidays: row?.showHolidays ?? true,
-    holidayColor: row?.holidayColor ?? '#6b7280'
+    holidayColor: row?.holidayColor ?? '#6b7280',
+    icsExportToken: row?.icsExportToken ?? null
   });
 });
 
@@ -53,6 +65,7 @@ prefsRouter.patch('/', async (req, res) => {
     showMoneyAppEvents: row?.showMoneyAppEvents ?? true,
     moneyAppColor: row?.moneyAppColor ?? '#30d158',
     showHolidays: row?.showHolidays ?? true,
-    holidayColor: row?.holidayColor ?? '#6b7280'
+    holidayColor: row?.holidayColor ?? '#6b7280',
+    icsExportToken: row?.icsExportToken ?? null
   });
 });

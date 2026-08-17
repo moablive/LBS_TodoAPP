@@ -1,5 +1,6 @@
 import { createApp } from './app';
 import { env } from '@todoapp/services';
+import { startCalendarScheduler } from './calendar/sync.js';
 
 async function main() {
   // Last-resort safety net: a stray promise rejection outside the request
@@ -15,6 +16,9 @@ async function main() {
     // eslint-disable-next-line no-console
     console.log(`TodoAPP backend listening on :${env.PORT} (${env.NODE_ENV})`);
   });
+
+  // Espelha os calendários externos (.ics) assinados pelo usuário.
+  startCalendarScheduler();
 
   for (const sig of ['SIGINT', 'SIGTERM'] as const) {
     process.on(sig, () => {

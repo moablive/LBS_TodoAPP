@@ -386,12 +386,12 @@ docker compose --env-file .env up -d --build
 
 | Container | Base | Porta | Função |
 | --------- | ---- | ----- | ------ |
-| `app_todoapp_backend` | Node 20 | `3000` (interno) | API REST + healthcheck |
-| `app_todoapp_frontend` | nginx | `80` (interno) | Static assets + reverse proxy `/api/` → backend |
-| `app_todoapp_bot` | Node 20 | `-` | Telegram Bot Worker |
+| `lbs_todoapp_backend` | Node 20 | `3000` (interno) | API REST + healthcheck |
+| `lbs_todoapp_frontend` | nginx | `80` (interno) | Static assets + reverse proxy `/api/` → backend |
+| `lbs_todoapp_bot` | Node 20 | `-` | Telegram Bot Worker |
 
 > [!IMPORTANT]
-> **Ingress em produção**: O tráfego chega via **Cloudflare Tunnel** diretamente ao `app_todoapp_frontend:80` dentro da `awl_network`. Nenhuma porta é exposta ao host.
+> **Ingress em produção**: O tráfego chega via **Cloudflare Tunnel** diretamente ao `lbs_todoapp_frontend:80` dentro da `awl_network`. Nenhuma porta é exposta ao host.
 
 ---
 
@@ -425,7 +425,7 @@ Para expor o TodoAPP via Cloudflare Tunnel, adicione a seguinte entrada na confi
 | **Subdomain** | `todo` (ou o desejado) |
 | **Domain** | `astralwavelabel.com` |
 | **URL completa** | `todo.astralwavelabel.com` |
-| **Service** | `http://app_todoapp_frontend:80` |
+| **Service** | `http://lbs_todoapp_frontend:80` |
 | **Type** | `HTTP` |
 
 ---

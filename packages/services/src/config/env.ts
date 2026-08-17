@@ -16,6 +16,22 @@ const envSchema = z.object({
     return val.split(',').map(s => s.trim());
   }),
   MAX_RECEIPT_BYTES: z.coerce.number().int().positive().default(5 * 1024 * 1024),
+  // ── Calendários externos (.ics) ─────────────────────────────────────────
+  // Intervalo entre syncs automáticas dos feeds assinados. 0 desliga o
+  // agendador (a sync manual pelo app continua funcionando).
+  CALENDAR_SYNC_MINUTES: z.coerce.number().int().min(0).default(15),
+  // Fuso usado para eventos de dia inteiro e para feeds que não informam TZID.
+  CALENDAR_TZ: z.string().default('America/Sao_Paulo'),
+  // Janela materializada como tarefas: passado curto (histórico) + 1 ano.
+  CALENDAR_PAST_DAYS: z.coerce.number().int().min(0).default(30),
+  CALENDAR_FUTURE_DAYS: z.coerce.number().int().min(1).default(365),
+  CALENDAR_MAX_BYTES: z.coerce.number().int().positive().default(8 * 1024 * 1024),
+  // O backend fica na rede interna do Docker: por padrão recusamos feeds que
+  // resolvam para IP privado/loopback (SSRF). Ligue só para um .ics interno.
+  CALENDAR_ALLOW_PRIVATE_HOSTS: z
+    .enum(['true', 'false'])
+    .default('false')
+    .transform((v) => v === 'true'),
   // Web Push (VAPID). Optional — push routes respond 503 when not configured.
   VAPID_PUBLIC_KEY: z.string().optional(),
   VAPID_PRIVATE_KEY: z.string().optional(),

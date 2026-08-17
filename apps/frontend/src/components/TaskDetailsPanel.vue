@@ -2,6 +2,17 @@
   <div class="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4" @click.self="$emit('close')">
     <div class="w-full md:w-[500px] max-h-[90vh] bg-[var(--bg-card)] rounded-2xl shadow-2xl border border-white/10 flex flex-col overflow-hidden">
       <div class="flex-1 px-5 pt-6 pb-4 overflow-y-auto custom-scrollbar">
+        <!-- Espelho de calendário externo: editar aqui não adianta, a próxima
+             sync traz o valor do feed de volta. -->
+        <div v-if="isSynced" class="flex items-start gap-2 mb-4 px-3 py-2 rounded-lg bg-[var(--bg)] border border-[var(--border)]">
+          <span class="text-[13px] leading-none mt-0.5">🔗</span>
+          <p class="text-[12px] text-[var(--muted)] leading-snug">
+            Evento sincronizado de um calendário externo. Título, horário e duração são
+            atualizados pelo feed — mudanças feitas aqui voltam atrás na próxima sincronização.
+            Apagar remove o evento só do TodoAPP.
+          </p>
+        </div>
+
         <!-- Título -->
         <input
           ref="titleEl"
@@ -142,6 +153,7 @@ const props = defineProps<{ initialDate?: Date | null; initialTask?: TaskDto | n
 const emit = defineEmits<{ (e: 'close'): void; (e: 'created'): void; (e: 'updated'): void }>();
 
 const tasksStore = useTasksStore();
+const isSynced = computed(() => props.initialTask?.source === 'ics');
 const isSaving = ref(false);
 const titleEl = ref<HTMLInputElement | null>(null);
 const detailsEl = ref<HTMLDivElement | null>(null);
