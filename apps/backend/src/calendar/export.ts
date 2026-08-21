@@ -1,12 +1,27 @@
 import { db, schema } from '@todoapp/db';
-import { and, eq, gte, isNotNull } from 'drizzle-orm';
+import { and, eq, gte, isNotNull, or } from 'drizzle-orm';
 import * as ics from 'ics';
 import { env } from '@todoapp/services';
 
 /**
+ * Mapeia a recorrência simplificada do TodoAPP para uma RRULE (RFC 5545) real,
+ * para que o Google Calendar/Outlook/Apple repitam o evento nativamente em vez
+ * de recebermos só a primeira ocorrência.
+ */
+const RECURRENCE_RULES: Record<string, string> = {
+  daily: 'FREQ=DAILY',
+  weekdays: 'FREQ=WEEKLY;BYDAY=MO,TU,WE,TH,FR',
+  weekly: 'FREQ=WEEKLY',
+  monthly: 'FREQ=MONTHLY',
+  yearly: 'FREQ=YEARLY',
+};
+
+/**
  * Gera um feed ICS (.ics) contendo as tarefas agendadas do usuário.
- * Para manter o feed leve e rápido, incluímos apenas tarefas agendadas e
- * limitamos as tarefas passadas aos últimos 30 dias.
+ * Para manter o feed leve e rápido, limitamos as tarefas passadas (não
+ * recorrentes) aos últimos 30 dias — uma tarefa recorrente nunca é cortada
+ * por esse filtro, pois a série pode ter ocorrências futuras mesmo que a
+ * primeira data seja antiga.
  */
 export async function generateUserIcsFeed(userId: string): Promise<string> {
   const past30Days = new Date();
@@ -16,7 +31,7 @@ export async function generateUserIcsFeed(userId: string): Promise<string> {
     where: and(
       eq(schema.tasks.userId, userId),
       isNotNull(schema.tasks.scheduledAt),
-      gte(schema.tasks.scheduledAt, past30Days)
+      or(isNotNull(schema.tasks.recurrence), gte(schema.tasks.scheduledAt, past30Days))
     )
   });
 
@@ -34,6 +49,7 @@ export async function generateUserIcsFeed(userId: string): Promise<string> {
     ];
 
     const durationMinutes = task.durationMinutes || 60; // Padrão 1 hora
+    const recurrenceRule = task.recurrence ? RECURRENCE_RULES[task.recurrence] : undefined;
 
     return {
       title: task.description,
@@ -42,6 +58,7 @@ export async function generateUserIcsFeed(userId: string): Promise<string> {
       duration: { minutes: durationMinutes },
       uid: task.id,
       status: task.completedAt ? 'CONFIRMED' : 'TENTATIVE', // Opcional, apenas semântico
+      ...(recurrenceRule ? { recurrenceRule } : {}),
       // url: env.VITE_APP_URL ? `${env.VITE_APP_URL}` : undefined // Poderíamos ter link de volta
     };
   });
