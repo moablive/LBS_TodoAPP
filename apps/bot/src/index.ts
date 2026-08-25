@@ -1,7 +1,7 @@
 import { Telegraf, session, Scenes } from 'telegraf';
 import { env } from './config.js';
 import type { BotContext } from './context.js';
-import { auth, forgetLinked, markLinked } from './auth.js';
+import { auth, markLinked } from './auth.js';
 import { handleAddTask, handleListTasks, handleRemoveTask } from './handlers/tasks.js';
 import { handleVoiceMessage } from './handlers/voice.js';
 import { startNotificationsCron } from './cron/notifications.js';
@@ -104,21 +104,6 @@ bot.hears('❌ Remover Tarefa', (ctx) => ctx.scene.enter('REMOVE_TASK_WIZARD'));
 bot.command('add', handleAddTask);
 bot.command('list', handleListTasks);
 bot.command('remove', handleRemoveTask);
-
-/**
- * Reentra no login para trocar a conta do LoginHub vinculada a este Telegram.
- *
- * Sem isto não havia saída: o `auth` só abre o wizard quando NÃO acha vínculo,
- * então um vínculo apontando para uma conta que não existe mais no hub (caso
- * típico depois de recriar a conta) prendia a pessoa. O bot seguia funcionando
- * — os dados moram sob o telegramId —, mas a web, que resolve o namespace pelo
- * loginhubId, mostrava um app vazio, e não havia como religar os dois lados.
- */
-bot.command('relogin', async (ctx) => {
-  forgetLinked(String(ctx.from.id));
-  await ctx.reply('🔐 Vamos revincular esta conta. Entre com o seu e-mail e senha do LoginHub.');
-  return ctx.scene.enter('LOGIN_WIZARD');
-});
 
 bot.catch((err, ctx) => {
   console.error(`[bot] erro ao processar update ${ctx.updateType}:`, err);

@@ -26,7 +26,7 @@ const hub = criarHubAuthBot({
 async function handleCancel(ctx: BotContext): Promise<boolean> {
   if (ctx.callbackQuery && 'data' in ctx.callbackQuery && ctx.callbackQuery.data === 'cancel') {
     await ctx.answerCbQuery().catch(() => {});
-    await ctx.reply('❌ Login cancelado. Envie /relogin quando quiser tentar novamente.');
+    await ctx.reply('❌ Login cancelado. Abra o TodoAPP no navegador e use Configurações → Vincular Telegram.');
     await ctx.scene.leave();
     return true;
   }
@@ -37,7 +37,7 @@ async function handleCancel(ctx: BotContext): Promise<boolean> {
 async function concluirVinculo(ctx: BotContext, session: HubSessionData) {
   const dono = hub.donoDaSessao(session);
   if (!dono) {
-    await ctx.reply('❌ Não consegui validar o seu login. Tente novamente com /relogin.');
+    await ctx.reply('❌ Não consegui validar o seu login. Vincule pelo app: Configurações → Vincular Telegram.');
     return ctx.scene.leave();
   }
 
@@ -117,7 +117,7 @@ export const loginWizard = new Scenes.WizardScene<BotContext>(
             'mostra o QR para escanear no seu app autenticador (Google Authenticator, Authy, ' +
             '1Password...). <b>Guarde os códigos de recuperação</b> — eles aparecem uma vez só.\n\n' +
             `${hub.linkEnrolamento()}\n\n` +
-            'Terminou? Volte aqui e envie /relogin.',
+            'Terminou? Volte ao app e use Configurações → Vincular Telegram.',
           { parse_mode: 'HTML' }
         );
         return ctx.scene.leave();
@@ -153,7 +153,7 @@ export const loginWizard = new Scenes.WizardScene<BotContext>(
         return ctx.scene.leave();
       }
       console.error('[login] erro ao validar no LoginHub:', err);
-      await ctx.reply('❌ Erro ao falar com o servidor de login. Tente novamente em instantes com /relogin.');
+      await ctx.reply('❌ Erro ao falar com o servidor de login. Tente de novo em instantes.');
       return ctx.scene.leave();
     }
   },
@@ -169,7 +169,7 @@ export const loginWizard = new Scenes.WizardScene<BotContext>(
     await ctx.deleteMessage().catch(() => {});
 
     if (!challengeToken) {
-      await ctx.reply('⚠️ A janela de verificação expirou. Envie /relogin para começar de novo.');
+      await ctx.reply('⚠️ A janela de verificação expirou. Comece de novo pelo app: Configurações → Vincular Telegram.');
       return ctx.scene.leave();
     }
 
@@ -182,7 +182,7 @@ export const loginWizard = new Scenes.WizardScene<BotContext>(
       // CHALLENGE_INVALIDO é a janela de 5 min vencida: não adianta insistir no
       // mesmo desafio, tem que refazer o login.
       if (err instanceof HubApiError && err.code === 'CHALLENGE_INVALIDO') {
-        await ctx.reply('⚠️ A janela de verificação expirou. Envie /relogin para começar de novo.');
+        await ctx.reply('⚠️ A janela de verificação expirou. Comece de novo pelo app: Configurações → Vincular Telegram.');
         return ctx.scene.leave();
       }
       if (err instanceof HubApiError && err.status === 401) {
@@ -190,7 +190,7 @@ export const loginWizard = new Scenes.WizardScene<BotContext>(
         return; // continua no mesmo passo esperando outro código
       }
       console.error('[login] erro ao verificar o segundo fator:', err);
-      await ctx.reply('❌ Erro ao falar com o servidor de login. Tente novamente em instantes com /relogin.');
+      await ctx.reply('❌ Erro ao falar com o servidor de login. Tente de novo em instantes.');
       return ctx.scene.leave();
     }
   }
