@@ -2,15 +2,15 @@ import { Router, Request, Response, NextFunction } from 'express';
 import { eq, and } from 'drizzle-orm';
 import { db, schema } from '@todoapp/db';
 import { env } from '@todoapp/services';
-import { resolveTelegramId } from '../middleware/telegram-id.js';
+import { resolveOwnerId } from '../middleware/owner-id.js';
 
 export const integrationsRouter = Router();
 
-integrationsRouter.use(resolveTelegramId);
+integrationsRouter.use(resolveOwnerId);
 
 integrationsRouter.get('/moneyapp/calendar', async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const telegramId = req.telegramId!;
+    const ownerId = req.ownerId!;
     const { start, end } = req.query;
 
     if (!start || !end) {
@@ -20,7 +20,7 @@ integrationsRouter.get('/moneyapp/calendar', async (req: Request, res: Response,
     // Buscar mapeamento
     const integration = await db.query.userIntegrations.findFirst({
       where: and(
-        eq(schema.userIntegrations.telegramId, telegramId),
+        eq(schema.userIntegrations.loginhubId, ownerId),
         eq(schema.userIntegrations.appId, 3) // MoneyAPP = 3
       )
     });
@@ -56,7 +56,7 @@ integrationsRouter.get('/moneyapp/calendar', async (req: Request, res: Response,
 // `tx-<uuid>` ou `loan-<uuid>` (mesmo id que o /api/calendar retorna).
 integrationsRouter.get('/moneyapp/receipt/:id', async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const telegramId = req.telegramId!;
+    const ownerId = req.ownerId!;
     const match = /^(tx|loan)-(.+)$/.exec(req.params.id!);
     if (!match) {
       return res.status(400).json({ error: 'Invalid receipt id' });
@@ -65,7 +65,7 @@ integrationsRouter.get('/moneyapp/receipt/:id', async (req: Request, res: Respon
 
     const integration = await db.query.userIntegrations.findFirst({
       where: and(
-        eq(schema.userIntegrations.telegramId, telegramId),
+        eq(schema.userIntegrations.loginhubId, ownerId),
         eq(schema.userIntegrations.appId, 3) // MoneyAPP = 3
       )
     });

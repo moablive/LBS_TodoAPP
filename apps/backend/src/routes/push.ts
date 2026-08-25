@@ -5,7 +5,7 @@ import { env } from '@todoapp/services';
 import { pushSubscribeSchema, pushUnsubscribeSchema } from '@todoapp/models';
 import crypto from 'crypto';
 import webpush from 'web-push';
-import { resolveTelegramId } from '../middleware/telegram-id.js';
+import { resolveOwnerId } from '../middleware/owner-id.js';
 
 const pushConfigured = Boolean(env.VAPID_PUBLIC_KEY && env.VAPID_PRIVATE_KEY);
 if (pushConfigured) {
@@ -18,7 +18,7 @@ pushRouter.use((_req, res, next) => {
   if (!pushConfigured) return res.status(503).json({ error: 'push_not_configured' });
   next();
 });
-pushRouter.use(resolveTelegramId);
+pushRouter.use(resolveOwnerId);
 
 pushRouter.get('/public-key', (_req, res) => {
   res.json({ publicKey: env.VAPID_PUBLIC_KEY });
@@ -26,7 +26,7 @@ pushRouter.get('/public-key', (_req, res) => {
 
 pushRouter.post('/subscribe', async (req, res) => {
   const parsed = pushSubscribeSchema.parse(req.body);
-  const userId = req.telegramId!;
+  const userId = req.ownerId!;
 
   await db
     .insert(schema.pushSubscriptions)
@@ -66,7 +66,7 @@ pushRouter.post('/unsubscribe', async (req, res) => {
     .where(
       and(
         eq(schema.pushSubscriptions.endpoint, parsed.endpoint),
-        eq(schema.pushSubscriptions.userId, req.telegramId!)
+        eq(schema.pushSubscriptions.userId, req.ownerId!)
       )
     );
   res.status(204).send();

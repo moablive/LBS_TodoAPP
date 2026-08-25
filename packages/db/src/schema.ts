@@ -14,7 +14,10 @@ import {
 export const userIntegrations = pgTable(
   "user_integrations",
   {
-    telegramId: varchar("telegram_id", { length: 50 }).notNull(),
+    // Dono = `loginhub_id`, como no resto do app. Era `telegram_id`, e essa era
+    // a mesma confusao de identidade que esvaziava a web quando a conta do hub
+    // era recriada: o hub e o dono da identidade, o Telegram e so um canal.
+    loginhubId: varchar("loginhub_id", { length: 50 }).notNull(),
     appId: integer("app_id").notNull(),
     appUserId: integer("app_user_id").notNull(),
     createdAt: timestamp("created_at", { withTimezone: true })
@@ -22,7 +25,7 @@ export const userIntegrations = pgTable(
       .notNull(),
   },
   (t) => ({
-    pk: primaryKey({ columns: [t.telegramId, t.appId] }),
+    pk: primaryKey({ columns: [t.loginhubId, t.appId] }),
   })
 );
 
@@ -163,8 +166,8 @@ export const tasks = pgTable(
   })
 );
 
-// Keyed by the same user_id as tasks (the telegramId) so both the backend and
-// the bot cron can read it without going through loginhub.
+// Mesmo `user_id` das tasks — o `loginhub_id`. Backend e cron do bot leem daqui
+// sem passar pelo hub; o vinculo com o Telegram fica em `user_settings`.
 export const reminderSettings = pgTable("reminder_settings", {
   userId: varchar("user_id", { length: 50 }).primaryKey(),
   remindAtTime: boolean("remind_at_time").default(true).notNull(),

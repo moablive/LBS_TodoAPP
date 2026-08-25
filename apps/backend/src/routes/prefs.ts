@@ -3,22 +3,22 @@ import { Router } from 'express';
 import { db, schema } from '@todoapp/db';
 import { eq } from 'drizzle-orm';
 import { updateUserPrefsSchema } from '@todoapp/models';
-import { resolveTelegramId } from '../middleware/telegram-id.js';
+import { resolveOwnerId } from '../middleware/owner-id.js';
 
 export const prefsRouter = Router();
 
-prefsRouter.use(resolveTelegramId);
+prefsRouter.use(resolveOwnerId);
 
 prefsRouter.get('/', async (req, res) => {
   let row = await db.query.userPrefs.findFirst({
-    where: eq(schema.userPrefs.userId, req.telegramId!),
+    where: eq(schema.userPrefs.userId, req.ownerId!),
   });
   
   if (row && !row.icsExportToken) {
     const token = crypto.randomUUID();
     const [updated] = await db.update(schema.userPrefs)
       .set({ icsExportToken: token })
-      .where(eq(schema.userPrefs.userId, req.telegramId!))
+      .where(eq(schema.userPrefs.userId, req.ownerId!))
       .returning();
     row = updated;
   }
@@ -35,7 +35,7 @@ prefsRouter.get('/', async (req, res) => {
 
 prefsRouter.patch('/', async (req, res) => {
   const parsed = updateUserPrefsSchema.parse(req.body);
-  const userId = req.telegramId!;
+  const userId = req.ownerId!;
 
   const setObj: any = { updatedAt: new Date() };
   if (parsed.kanbanLists !== undefined) setObj.kanbanLists = parsed.kanbanLists;

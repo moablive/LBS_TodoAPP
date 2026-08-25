@@ -1,3 +1,4 @@
+import { botApi } from '@todo/api-client';
 import fs from 'fs';
 import path from 'path';
 
@@ -20,8 +21,23 @@ export function isNotificationEnabled(telegramId: string): boolean {
   return !disabled.has(telegramId);
 }
 
-// Em modo standalone, o ID do banco é o próprio telegramId
+/**
+ * Dono das linhas no banco: o `loginhub_id`, resolvido a partir do Telegram.
+ *
+ * ANTES devolvia o próprio telegramId, e era daí que vinha o defeito de fundo:
+ * a mesma pessoa tinha duas identidades — a do hub, que a web usa, e a do
+ * Telegram, que o bot usava — e os dados ficavam sob uma ou outra dependendo de
+ * quem tinha criado a linha. Vincular o Telegram precisava MIGRAR o namespace; e
+ * recriar a conta no hub deixava a web vazia enquanto o bot seguia vendo tudo.
+ *
+ * O hub é o dono da identidade. O Telegram é só um canal por onde a mesma pessoa
+ * fala — e o `user_settings` é o mapa entre os dois. É como o MoneyAPP sempre fez.
+ *
+ * Devolve `null` quando não há vínculo: sem conta do hub não há dono, e o
+ * chamador deve mandar a pessoa vincular em vez de inventar um namespace.
+ */
 export async function getDbUserId(telegramId?: number): Promise<string | null> {
   if (!telegramId) return null;
-  return String(telegramId);
+  const vinculo = await botApi.getUserByTelegramId(String(telegramId));
+  return vinculo ? String(vinculo.loginhubId) : null;
 }

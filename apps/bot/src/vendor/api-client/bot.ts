@@ -123,8 +123,11 @@ export const botApi = {
     return row ? { loginhubId: row.loginhub_id } : null;
   },
 
-  // Vincula o telegramId ao usuário do LoginHub e migra o namespace provisório
-  // (dados criados na web antes do vínculo ficam sob String(loginhubId)).
+  // Vincula o telegramId ao usuário do LoginHub.
+  //
+  // Não migra nada: desde que o dono das linhas passou a ser o `loginhub_id`
+  // (como no MoneyAPP sempre foi), vincular o Telegram não move dado nenhum —
+  // só registra por onde mais aquela mesma pessoa fala.
   linkTelegram: async (loginhubId: number, telegramId: string): Promise<void> => {
     const client = await pool.connect();
     try {
@@ -135,9 +138,9 @@ export const botApi = {
       // que a conta do hub é recriada — o id novo não casa com o vínculo antigo —,
       // que é justamente quando a pessoa precisa reconquistar os próprios dados.
       //
-      // Soltar o vínculo antigo é seguro: o namespace dos dados é o telegramId, e
-      // não o loginhub_id, então nada se perde — só muda quem responde por ele. E
-      // o wizard só chega aqui depois de um login completo no hub, então a posse
+      // Soltar o vínculo antigo é seguro: os dados são do `loginhub_id`, não do
+      // Telegram, então nada se move — só muda por onde aquela pessoa fala. E o
+      // wizard só chega aqui depois de um login completo no hub, então a posse
       // da conta já está provada.
       await client.query(
         'DELETE FROM user_settings WHERE telegram_id = $1 AND loginhub_id <> $2',
@@ -148,19 +151,6 @@ export const botApi = {
          ON CONFLICT (loginhub_id) DO UPDATE SET telegram_id = EXCLUDED.telegram_id`,
         [loginhubId, telegramId]
       );
-      const provisional = String(loginhubId);
-      if (provisional !== telegramId) {
-        for (const table of ['tasks', 'task_groups', 'push_subscriptions']) {
-          await client.query(`UPDATE ${table} SET user_id = $1 WHERE user_id = $2`, [telegramId, provisional]);
-        }
-        // user_id é PK aqui — só migra se o destino ainda não tiver configuração.
-        await client.query(
-          `UPDATE reminder_settings SET user_id = $1
-           WHERE user_id = $2 AND NOT EXISTS (SELECT 1 FROM reminder_settings WHERE user_id = $1)`,
-          [telegramId, provisional]
-        );
-        await client.query('DELETE FROM reminder_settings WHERE user_id = $1', [provisional]);
-      }
       await client.query('COMMIT');
     } catch (err) {
       await client.query('ROLLBACK');

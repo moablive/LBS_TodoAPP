@@ -6,22 +6,22 @@ import {
   reminderSettingsSchema,
   updateReminderSettingsSchema,
 } from '@todoapp/models';
-import { resolveTelegramId } from '../middleware/telegram-id.js';
+import { resolveOwnerId } from '../middleware/owner-id.js';
 
 export const remindersRouter = Router();
 
-remindersRouter.use(resolveTelegramId);
+remindersRouter.use(resolveOwnerId);
 
 remindersRouter.get('/', async (req, res) => {
   const row = await db.query.reminderSettings.findFirst({
-    where: eq(schema.reminderSettings.userId, req.telegramId!),
+    where: eq(schema.reminderSettings.userId, req.ownerId!),
   });
   res.json(row ? reminderSettingsSchema.parse(row) : defaultReminderSettings);
 });
 
 remindersRouter.patch('/', async (req, res) => {
   const parsed = updateReminderSettingsSchema.parse(req.body);
-  const userId = req.telegramId!;
+  const userId = req.ownerId!;
 
   const [row] = await db
     .insert(schema.reminderSettings)

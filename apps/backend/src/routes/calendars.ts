@@ -6,12 +6,12 @@ import {
   createCalendarSubscriptionSchema,
   updateCalendarSubscriptionSchema,
 } from '@todoapp/models';
-import { resolveTelegramId } from '../middleware/telegram-id.js';
+import { resolveOwnerId } from '../middleware/owner-id.js';
 import { ensureAgendaGroup, syncSubscription, syncUserCalendars } from '../calendar/sync.js';
 
 export const calendarsRouter = Router();
 
-calendarsRouter.use(resolveTelegramId);
+calendarsRouter.use(resolveOwnerId);
 
 async function findOwned(userId: string, id: string) {
   return db.query.calendarSubscriptions.findFirst({
@@ -26,14 +26,14 @@ calendarsRouter.get('/', async (req, res) => {
   const rows = await db
     .select()
     .from(schema.calendarSubscriptions)
-    .where(eq(schema.calendarSubscriptions.userId, req.telegramId!))
+    .where(eq(schema.calendarSubscriptions.userId, req.ownerId!))
     .orderBy(asc(schema.calendarSubscriptions.createdAt));
   res.json(rows);
 });
 
 calendarsRouter.post('/', async (req, res) => {
   const parsed = createCalendarSubscriptionSchema.parse(req.body);
-  const userId = req.telegramId!;
+  const userId = req.ownerId!;
 
   const groupId = parsed.groupId ?? (await ensureAgendaGroup(userId, parsed.color));
   const [created] = await db
@@ -57,7 +57,7 @@ calendarsRouter.post('/', async (req, res) => {
 
 calendarsRouter.patch('/:id', async (req, res) => {
   const parsed = updateCalendarSubscriptionSchema.parse(req.body);
-  const userId = req.telegramId!;
+  const userId = req.ownerId!;
   const sub = await findOwned(userId, req.params.id!);
   if (!sub) return res.status(404).json({ error: 'not_found' });
 
@@ -83,7 +83,7 @@ calendarsRouter.patch('/:id', async (req, res) => {
 });
 
 calendarsRouter.delete('/:id', async (req, res) => {
-  const sub = await findOwned(req.telegramId!, req.params.id!);
+  const sub = await findOwned(req.ownerId!, req.params.id!);
   if (!sub) return res.status(404).json({ error: 'not_found' });
   // As tarefas geradas somem junto (FK ON DELETE CASCADE), assim como as
   // lápides — o grupo "📅 Agenda" fica, pode ter tarefas manuais dentro.
@@ -94,11 +94,11 @@ calendarsRouter.delete('/:id', async (req, res) => {
 });
 
 calendarsRouter.post('/:id/sync', async (req, res) => {
-  const sub = await findOwned(req.telegramId!, req.params.id!);
+  const sub = await findOwned(req.ownerId!, req.params.id!);
   if (!sub) return res.status(404).json({ error: 'not_found' });
   res.json(await syncSubscription(sub));
 });
 
 calendarsRouter.post('/sync', async (req, res) => {
-  res.json(await syncUserCalendars(req.telegramId!));
+  res.json(await syncUserCalendars(req.ownerId!));
 });

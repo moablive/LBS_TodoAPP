@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import crypto from 'node:crypto';
 import { db, schema } from '@todoapp/db';
-import { and, eq, gt, isNull, lt, ne, sql } from 'drizzle-orm';
+import { and, eq, gt, isNull, lt, ne } from 'drizzle-orm';
 import { env } from '@todoapp/services';
 
 /**
@@ -21,6 +21,10 @@ import { env } from '@todoapp/services';
  *
  * O que atravessa o chat é só o passe — e ele não abre nada além do próprio
  * vínculo, vale poucos minutos e morre no primeiro uso.
+ *
+ * Não há migração de namespace aqui: desde que o dono das linhas passou a ser o
+ * `loginhub_id` (como no MoneyAPP), vincular o Telegram não move dado nenhum —
+ * só registra por onde mais aquela mesma pessoa fala.
  */
 export const telegramRouter = Router();
 
@@ -169,26 +173,6 @@ telegramBotRouter.post('/consume-link-token', async (req, res) => {
       target: schema.userSettings.loginhubId,
       set: { telegramId },
     });
-
-  // Migra o namespace provisório. Quem usou a web ANTES de vincular tem os dados
-  // sob `String(loginhubId)` — é o fallback do `resolveTelegramId` — e a partir
-  // daqui o namespace passa a ser o telegramId. Sem isto a pessoa vincula e vê
-  // o app esvaziar, que é o oposto do que o vínculo promete.
-  const provisorio = String(linha.loginhubId);
-  if (provisorio !== telegramId) {
-    for (const tabela of ['tasks', 'task_groups', 'push_subscriptions'] as const) {
-      await db.execute(
-        sql`UPDATE ${sql.identifier(tabela)} SET user_id = ${telegramId} WHERE user_id = ${provisorio}`,
-      );
-    }
-    // `user_id` é PK aqui: só migra se o destino ainda não tiver configuração.
-    await db.execute(sql`
-      UPDATE reminder_settings SET user_id = ${telegramId}
-      WHERE user_id = ${provisorio}
-        AND NOT EXISTS (SELECT 1 FROM reminder_settings WHERE user_id = ${telegramId})
-    `);
-    await db.execute(sql`DELETE FROM reminder_settings WHERE user_id = ${provisorio}`);
-  }
 
   res.json({ loginhubId: linha.loginhubId, telegramId });
 });
