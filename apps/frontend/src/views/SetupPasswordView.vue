@@ -2,6 +2,10 @@
 import { ref, computed } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { useAuthStore } from '../stores/auth';
+import TwoFactorEnroll from '@/components/TwoFactorEnroll.vue';
+
+/** Passe de enrolamento: quando existe, o QR assume a tela. */
+const enrolarToken = ref<string | null>(null);
 
 /**
  * Primeiro acesso e reset de senha, a partir do Magic Link do LoginHUB.
@@ -41,10 +45,10 @@ async function handleSubmit() {
   try {
     const r = await authStore.setupPassword(token.value, senha.value);
 
-    // O convite exige 2FA e falta configurar: emenda direto no QR do hub — a
-    // tela de enrolamento e compartilhada por todos os apps. O magic link ja
-    // morreu nesta chamada, entao nao da para voltar aqui.
-    if (r.etapa === 'enrolar') { window.location.href = r.url; return; }
+    // O convite exige 2FA e falta configurar: emenda direto no QR, aqui mesmo.
+    // O magic link ja morreu nesta chamada, entao nao da para voltar a esta
+    // tela — motivo de sobra para nao atravessar origem no meio do caminho.
+    if (r.etapa === 'enrolar') { enrolarToken.value = r.setupToken; return; }
 
     // Conta que JA tem autenticador (tipico de reset de senha): o hub devolve
     // desafio em vez de sessao, senao o reset seria atalho para pular o 2FA.
@@ -67,7 +71,12 @@ async function handleSubmit() {
   <div class="relative min-h-screen bg-surface-base text-white flex items-center justify-center p-4 overflow-hidden bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-surface-raised via-surface-base to-surface-base">
     <div class="absolute inset-0 z-0 bg-[radial-gradient(circle_at_50%_0%,_#8b5cf615_0%,_transparent_40%)]"></div>
 
-    <div class="relative z-10 w-full max-w-[420px] animate-fade-in-up">
+    <!-- Enrolamento de 2FA, emendado no convite sem sair do app. -->
+    <div v-if="enrolarToken" class="relative z-10 w-full max-w-[420px]">
+      <TwoFactorEnroll :setup-token="enrolarToken" @concluido="router.replace('/')" />
+    </div>
+
+    <div v-else class="relative z-10 w-full max-w-[420px] animate-fade-in-up">
       <div class="bg-surface-raised/60 backdrop-blur-xl border border-white/10 p-10 rounded-[2rem] shadow-modal">
 
         <div class="text-center mb-10">

@@ -6,6 +6,12 @@ export type ConfirmDialogOptions = {
   confirmText?: string;
   cancelText?: string;
   isAlert?: boolean;
+  /**
+   * Cor e ícone do diálogo. Sem isto, alerta é sempre vermelho — e "sua sessão
+   * expirou" não merece o mesmo peso visual de "não foi possível salvar".
+   * Padrão: `erro` para alerta, `pergunta` para confirmação.
+   */
+  tone?: 'erro' | 'aviso' | 'pergunta';
 };
 
 const isOpen = ref(false);

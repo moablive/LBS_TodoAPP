@@ -4,8 +4,13 @@
     <div class="absolute inset-0 z-0 bg-[radial-gradient(circle_at_50%_0%,_#8b5cf615_0%,_transparent_40%)]"></div>
 
 
+    <!-- Enrolamento de 2FA: toma a tela inteira, sem sair do app. -->
+    <div v-if="enrolarToken" class="relative z-10 w-full max-w-[420px]">
+      <TwoFactorEnroll :setup-token="enrolarToken" @concluido="router.push('/')" />
+    </div>
+
     <!-- Login Card -->
-    <div class="relative z-10 w-full max-w-[420px] animate-fade-in-up">
+    <div v-else class="relative z-10 w-full max-w-[420px] animate-fade-in-up">
       <div class="bg-surface-raised/60 backdrop-blur-xl border border-white/10 p-10 rounded-[2rem] shadow-modal">
         
         <div class="text-center mb-10">
@@ -124,14 +129,25 @@
 import { ref } from 'vue';
 import { useAuthStore } from '@/stores/auth';
 import { useRouter } from 'vue-router';
+import { useConfirmDialog } from '@/composables/useConfirmDialog';
+import TwoFactorEnroll from '@/components/TwoFactorEnroll.vue';
 
 const authStore = useAuthStore();
 const router = useRouter();
+const { alert: alertar } = useConfirmDialog();
 
 const email = ref('');
 const password = ref('');
 const isLoading = ref(false);
 const isChanging = ref(false);
+
+/**
+ * Passe de enrolamento. Enquanto existir, o QR toma a tela — aqui mesmo, e nao
+ * no painel do hub: mandar a pessoa para outra origem com o passe na URL era o
+ * que fazia o convite terminar no login do hub quando o navegador tinha o
+ * service worker antigo dele em cache.
+ */
+const enrolarToken = ref<string | null>(null);
 
 // Segunda etapa
 const codigo = ref('');
@@ -155,17 +171,16 @@ async function handleLogin() {
   try {
     const r = await authStore.login({ email: email.value, password: password.value });
 
-    // 'enrolar': conta exige 2FA e nao tem autenticador. A tela de QR e a do
-    // hub, compartilhada por todos os apps.
+    // 'enrolar': conta exige 2FA e nao tem autenticador. O QR e montado aqui.
     if (r.etapa === 'enrolar') {
-      window.location.href = r.url;
+      enrolarToken.value = r.setupToken;
       return;
     }
     // '2fa': o card de codigo assume; nada a fazer aqui.
     if (r.etapa === 'sessao') router.push('/');
   } catch (e) {
     erro.value = traduzir(e);
-    alert(erro.value);
+    await alertar({ title: 'Nao foi possivel entrar', message: erro.value });
   } finally {
     isLoading.value = false;
   }

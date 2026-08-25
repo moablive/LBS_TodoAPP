@@ -1,11 +1,16 @@
 <template>
   <router-view />
+  <!-- Vive aqui, e nao dentro de um layout: o /login nao compartilha layout
+       com o resto do app, e era justamente ele que caia no alert() do
+       navegador. -->
+  <ConfirmDialog />
 </template>
 
 <script setup lang="ts">
 import { watch } from 'vue';
 import { useAuthStore } from '@/stores/auth';
 import { useTasksStore } from '@/stores/tasks';
+import ConfirmDialog from '@/components/ConfirmDialog.vue';
 
 // Initialize auth state
 useAuthStore();

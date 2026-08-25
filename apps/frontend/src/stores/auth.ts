@@ -3,8 +3,6 @@ import { createHubAuth } from '../lib/hubAuthClient';
 import type { LoginRequest } from '@todoapp/models';
 
 const LOGINHUB_API = import.meta.env.VITE_LOGINHUB_API_URL || 'https://loginhub.astralwavelabel.com/api';
-/** Painel do LoginHUB — e la que mora a tela de enrolamento de 2FA (com o QR). */
-const LOGINHUB_UI = import.meta.env.VITE_LOGINHUB_UI_URL || 'https://loginhub.astralwavelabel.com';
 /** Sem o app_id o hub responde 409 AMBIGUOUS_EMAIL para e-mail repetido entre apps. */
 const APP_ID = import.meta.env.VITE_LOGINHUB_APP_ID as string | undefined;
 
@@ -13,10 +11,6 @@ const hub = createHubAuth({
   appId: APP_ID,
   tokenKey: 'token',
 });
-
-const urlEnrolamento = (setupToken: string) =>
-  `${LOGINHUB_UI}/enrolar-2fa?token=${encodeURIComponent(setupToken)}` +
-  `&retorno=${encodeURIComponent(window.location.origin)}`;
 
 /**
  * Sessao do LoginHUB.
@@ -47,7 +41,7 @@ export const useAuthStore = defineStore('auth', {
      * Devolve a etapa alcancada:
      *   'sessao'  — autenticado, pode navegar
      *   '2fa'     — pedir o codigo e chamar `verificarSegundoFator`
-     *   'enrolar' — redirecionar para `url` (tela de QR do hub)
+     *   'enrolar' — montar o QR aqui mesmo com `setupToken` (TwoFactorEnroll)
      */
     async login(payload: LoginRequest) {
       this.challengeToken = null;
@@ -58,13 +52,38 @@ export const useAuthStore = defineStore('auth', {
         return { etapa: '2fa' as const };
       }
       if (r.status === 'enrolar') {
-        // O passe de 10 min so abre as rotas de enrolamento. A tela com o QR e
-        // a do hub — nenhum app cliente reimplementa.
-        return { etapa: 'enrolar' as const, url: urlEnrolamento(r.setupToken) };
+        return { etapa: 'enrolar' as const, setupToken: r.setupToken };
       }
 
       this.token = r.session.token;
       return { etapa: 'sessao' as const };
+    },
+
+    /**
+     * Enrolamento de 2FA, passo 1: pede o secret e a URI `otpauth://` ao hub.
+     *
+     * O QR e desenhado NO NAVEGADOR a partir dessa URI (ver TwoFactorEnroll) —
+     * o segredo nao vai para gerador de terceiro nenhum, e nao atravessa
+     * origem: antes o passe viajava na query string para o painel do hub, o que
+     * o deixava no historico do navegador e em log de acesso.
+     */
+    async iniciarEnrolamento(setupToken: string) {
+      return hub.twoFactor.setup(setupToken);
+    },
+
+    /**
+     * Passo 2: confirma com o codigo do autenticador.
+     *
+     * A ativacao mata o passe que fez esta chamada e devolve uma sessao nova —
+     * o kit ja a grava. Sincronizar `this.token` aqui e o que evita a pessoa
+     * ser deslogada no exato momento em que terminou o convite.
+     *
+     * Os `backupCodes` aparecem UMA vez so; quem chama tem de mostra-los.
+     */
+    async confirmarEnrolamento(codigo: string, setupToken: string) {
+      const r = await hub.twoFactor.verifySetup(codigo, setupToken);
+      this.token = hub.getToken();
+      return r;
     },
 
     /** Fecha o login pendente com o codigo do autenticador (ou de recuperacao). */
@@ -93,7 +112,7 @@ export const useAuthStore = defineStore('auth', {
         return { etapa: '2fa' as const };
       }
       if (r.status === 'enrolar') {
-        return { etapa: 'enrolar' as const, url: urlEnrolamento(r.setupToken) };
+        return { etapa: 'enrolar' as const, setupToken: r.setupToken };
       }
 
       this.token = r.session.token;
