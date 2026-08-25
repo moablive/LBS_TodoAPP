@@ -9,6 +9,10 @@ const envSchema = z.object({
   // e então vincula o telegramId ao usuário no banco do TodoAPP.
   LOGINHUB_API_URL: z.string().default('http://server_loginhub_backend:3000/api'),
   LOGINHUB_APP_ID: z.coerce.number().default(4),
+  // Painel do hub — endereço PÚBLICO, porque vai dentro de um link que a pessoa
+  // abre no navegador dela. É lá que mora a tela do QR de enrolamento de 2FA,
+  // compartilhada por todos os apps; o bot não reimplementa nada disso.
+  LOGINHUB_UI_URL: z.string().default('https://loginhub.astralwavelabel.com'),
   // Web Push (VAPID) — mesmas chaves do backend; opcional, sem elas o bot só
   // envia lembretes pelo Telegram.
   VAPID_PUBLIC_KEY: z.string().optional(),

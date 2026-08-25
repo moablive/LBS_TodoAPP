@@ -10,6 +10,11 @@ export function markLinked(telegramId: string) {
   linkedCache.add(telegramId);
 }
 
+/** Esquece o vínculo em cache para que o próximo update reentre no wizard. */
+export function forgetLinked(telegramId: string) {
+  linkedCache.delete(telegramId);
+}
+
 /**
  * Autenticação estilo MoneyAPP: qualquer usuário do LoginHub (convidado por
  * e-mail) pode usar o bot DEPOIS de vincular a conta via LOGIN_WIZARD.
