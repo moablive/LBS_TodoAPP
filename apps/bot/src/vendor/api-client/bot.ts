@@ -104,6 +104,20 @@ export const botApi = {
     const client = await pool.connect();
     try {
       await client.query('BEGIN');
+      // `telegram_id` tem UNIQUE próprio, e o `ON CONFLICT (loginhub_id)` abaixo
+      // não cobre ele: se este Telegram já estiver preso a OUTRO loginhub_id, o
+      // INSERT estoura 23505 e o wizard morre com erro interno. Acontece toda vez
+      // que a conta do hub é recriada — o id novo não casa com o vínculo antigo —,
+      // que é justamente quando a pessoa precisa reconquistar os próprios dados.
+      //
+      // Soltar o vínculo antigo é seguro: o namespace dos dados é o telegramId, e
+      // não o loginhub_id, então nada se perde — só muda quem responde por ele. E
+      // o wizard só chega aqui depois de um login completo no hub, então a posse
+      // da conta já está provada.
+      await client.query(
+        'DELETE FROM user_settings WHERE telegram_id = $1 AND loginhub_id <> $2',
+        [telegramId, loginhubId]
+      );
       await client.query(
         `INSERT INTO user_settings (loginhub_id, telegram_id) VALUES ($1, $2)
          ON CONFLICT (loginhub_id) DO UPDATE SET telegram_id = EXCLUDED.telegram_id`,
