@@ -28,7 +28,7 @@
  * resolvendo por conta própria, cada um do seu jeito:
  *
  *   • roteamento TOTP × código de recuperação (rotas diferentes no hub)
- *   • montagem do link da tela de enrolamento do hub
+ *   • para onde mandar quem precisa enrolar (o login do proprio app)
  *   • identificação do dono da sessão para gravar o vínculo
  */
 
@@ -55,12 +55,17 @@ export interface HubAuthBotConfig {
      */
     appId?: string | number;
     /**
-     * Painel PÚBLICO do hub, ex.: `https://loginhub.astralwavelabel.com`.
+     * Login PÚBLICO deste app, ex.: `https://todo.astralwavelabel.com/login`.
      *
      * Endereço público e não o interno do container: ele entra num link que a
      * pessoa abre no navegador do celular dela, fora da rede do Docker.
+     *
+     * É o app, e não o painel do hub: desde que cada app passou a enrolar o 2FA
+     * em casa, mandar para o hub só reintroduzia a dependência que quebrava o
+     * convite — navegador com o service worker antigo do painel em cache não
+     * conhecia a rota `/enrolar-2fa` e ia parar no login do hub.
      */
-    uiUrl?: string;
+    appLoginUrl?: string;
 }
 
 /** Quem é o dono da sessão que acabou de nascer. */
@@ -123,9 +128,9 @@ export function criarHubAuthBot(config: HubAuthBotConfig) {
     });
 
     // Tolerante na construção, rigoroso no uso — mesma regra do `hubAuthClient`:
-    // um bot sem `uiUrl` ainda faz login e vincula; só não sabe montar o link de
-    // enrolamento, e o erro sai lá, com código.
-    const ui = (config.uiUrl ?? '').replace(/\/+$/, '');
+    // um bot sem `appLoginUrl` ainda faz login e vincula; só não sabe montar o
+    // link de enrolamento, e o erro sai lá, com código.
+    const login = (config.appLoginUrl ?? '').replace(/\/+$/, '');
 
     return {
         /**
@@ -134,7 +139,7 @@ export function criarHubAuthBot(config: HubAuthBotConfig) {
          *
          *   sessao   → conta sem pendência; siga para o vínculo
          *   desafio  → peça o código e chame `segundoFator` (janela de 5 min)
-         *   enrolar  → mande o link de `linkEnrolamento` (janela de 10 min)
+         *   enrolar  → mande a pessoa para `linkEnrolamento()` (o login do app)
          */
         login(email: string, password: string): Promise<LoginResult> {
             return hub.login(email, password);
@@ -154,22 +159,26 @@ export function criarHubAuthBot(config: HubAuthBotConfig) {
         },
 
         /**
-         * Link da tela de enrolamento do hub, para o desfecho `enrolar`.
+         * Para onde mandar quem caiu em `enrolar`: o login do PRÓPRIO app.
          *
-         * Um bot não escaneia QR nem hospeda tela: ele manda a pessoa para a
-         * página que TODOS os apps compartilham. Reimplementar enrolamento no
-         * chat significaria o secret do TOTP passeando pelo histórico do
-         * Telegram — o mesmo canal por onde o bot conversa.
+         * Um bot não desenha QR — o secret do TOTP passearia pelo histórico do
+         * Telegram, o mesmo canal por onde o bot conversa. Então ele manda a
+         * pessoa para a web, onde a tela de enrolamento já vive.
+         *
+         * Repare que o `setupToken` NÃO entra na URL. Ele não precisa: ao entrar
+         * no app com a mesma senha, o login emite um passe novo e o QR aparece
+         * ali mesmo. Passe em query string fica no histórico do navegador e em
+         * log de acesso — e era o que amarrava este fluxo ao painel do hub.
          */
-        linkEnrolamento(setupToken: string): string {
-            if (!ui) {
+        linkEnrolamento(): string {
+            if (!login) {
                 throw new HubApiError(
                     500,
                     'CONFIG_AUSENTE',
-                    'A URL do painel do LoginHUB nao esta configurada neste bot.',
+                    'A URL de login do app nao esta configurada neste bot.',
                 );
             }
-            return `${ui}/enrolar-2fa?token=${encodeURIComponent(setupToken)}`;
+            return login;
         },
 
         /**

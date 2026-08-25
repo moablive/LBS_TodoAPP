@@ -20,7 +20,7 @@ const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const hub = criarHubAuthBot({
   baseUrl: env.LOGINHUB_API_URL,
   appId: env.LOGINHUB_APP_ID,
-  uiUrl: env.LOGINHUB_UI_URL,
+  appLoginUrl: env.APP_LOGIN_URL,
 });
 
 async function handleCancel(ctx: BotContext): Promise<boolean> {
@@ -113,11 +113,11 @@ export const loginWizard = new Scenes.WizardScene<BotContext>(
       if (r.status === 'enrolar') {
         await ctx.reply(
           '🔐 <b>Falta configurar a verificação em duas etapas.</b>\n\n' +
-            'Abra o link abaixo no navegador e escaneie o QR com o seu app autenticador ' +
-            '(Google Authenticator, Authy, 1Password...). <b>Guarde os códigos de recuperação</b> — ' +
-            'eles aparecem uma vez só.\n\n' +
-            `${hub.linkEnrolamento(r.setupToken)}\n\n` +
-            '⏳ O link vale 10 minutos. Terminou? Volte aqui e envie /relogin.',
+            'Abra o link abaixo no navegador e entre com o mesmo e-mail e senha. A própria tela ' +
+            'mostra o QR para escanear no seu app autenticador (Google Authenticator, Authy, ' +
+            '1Password...). <b>Guarde os códigos de recuperação</b> — eles aparecem uma vez só.\n\n' +
+            `${hub.linkEnrolamento()}\n\n` +
+            'Terminou? Volte aqui e envie /relogin.',
           { parse_mode: 'HTML' }
         );
         return ctx.scene.leave();
