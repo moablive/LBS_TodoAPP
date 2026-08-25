@@ -15,34 +15,11 @@ import { eq } from 'drizzle-orm';
 
 export const apiRouter = Router();
 
-apiRouter.post('/auth/login', async (req, res) => {
-  const { email, password } = req.body;
-  if (!email || !password) {
-    return res.status(400).json({ error: 'Email e senha são obrigatórios' });
-  }
-  
-  try {
-    // Chamada server-side: usa o DNS interno do Docker, sem sair para o
-    // Cloudflare. Não ler VITE_* aqui — essa variável carrega a URL pública
-    // destinada ao browser e chega neste container via env_file.
-    const loginhubUrl = process.env.LOGINHUB_API_URL || 'http://server_loginhub_backend:3000/api';
-    const response = await fetch(`${loginhubUrl}/auth/login`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email, password, app_id: Number(process.env.LOGINHUB_APP_ID) || 4 })
-    });
-    
-    const data = await response.json();
-    if (!response.ok) {
-       return res.status(response.status).json(data);
-    }
-    
-    return res.json(data);
-  } catch (error) {
-    console.error('Erro no proxy de auth:', error);
-    return res.status(500).json({ error: 'Erro ao conectar ao LoginHUB' });
-  }
-});
+// O proxy `POST /auth/login` foi removido: o frontend fala direto com o
+// LoginHUB pelo auth-kit (`lib/hubAuthClient.ts`), e a CORS do hub ja libera
+// *.astralwavelabel.com. Repassar o login por aqui so acrescentava um salto e
+// uma copia do contrato — que ficou desatualizada quando o hub passou a
+// responder tres desfechos em vez de um.
 
 import { feedRouter } from './feed.js';
 
