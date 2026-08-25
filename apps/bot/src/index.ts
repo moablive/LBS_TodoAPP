@@ -9,21 +9,19 @@ import { addTaskWizard } from './scenes/addTaskWizard.js';
 import { removeTaskWizard } from './scenes/removeTaskWizard.js';
 import { completeTaskWizard } from './scenes/completeTaskWizard.js';
 import { addGroupWizard } from './scenes/addGroupWizard.js';
-import { loginWizard } from './scenes/loginWizard.js';
 import { menuKeyboard } from './ui/menu.js';
 import { botApi } from '@todo/api-client';
 
 // Inicializar Bot
 const bot = new Telegraf<BotContext>(env.TELEGRAM_BOT_TOKEN);
 
-// Sessão e Stages precisam vir ANTES do auth: usuários não vinculados são
-// jogados no LOGIN_WIZARD, e isso exige ctx.scene disponível.
+// Sessão e Stages antes do auth: as wizard scenes precisam de ctx.scene, e o
+// handler do vínculo híbrido roda antes de qualquer guarda.
 const stage = new Scenes.Stage<BotContext>([
   addTaskWizard,
   removeTaskWizard,
   completeTaskWizard,
-  addGroupWizard,
-  loginWizard
+  addGroupWizard
 ]);
 bot.use(session());
 bot.use(stage.middleware());

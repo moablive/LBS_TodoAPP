@@ -12,9 +12,9 @@ export function markLinked(telegramId: string) {
 
 
 /**
- * Autenticação estilo MoneyAPP: qualquer usuário do LoginHub (convidado por
- * e-mail) pode usar o bot DEPOIS de vincular a conta via LOGIN_WIZARD.
- * Quem ainda não vinculou cai direto no fluxo de login.
+ * Identidade central: vale quem tem a conta do LoginHub vinculada a este
+ * Telegram. O vínculo nasce no app (Configurações → Vincular Telegram), com a
+ * pessoa já autenticada e com 2FA cumprido — nunca por senha digitada no chat.
  */
 export const auth: MiddlewareFn<BotContext> = async (ctx, next) => {
   const id = ctx.from?.id;
@@ -38,7 +38,19 @@ export const auth: MiddlewareFn<BotContext> = async (ctx, next) => {
     return;
   }
 
-  // Não vinculado: deixa o próprio wizard de login processar as respostas.
-  if (ctx.scene?.current?.id === 'LOGIN_WIZARD') return next();
-  return ctx.scene.enter('LOGIN_WIZARD');
+  // Não vinculado. Antes isto abria o wizard de senha; ele saiu porque pedia
+  // e-mail, senha e o código do 2FA DENTRO do chat — tudo isso fica no
+  // histórico do Telegram, nos servidores deles e em qualquer backup.
+  //
+  // O vínculo agora nasce no app, onde a pessoa já se autenticou com 2FA de
+  // verdade, e o que atravessa o chat é só um passe de uso único.
+  await ctx.reply(
+    '🔒 <b>Este bot precisa da sua conta do TodoAPP.</b>\n\n' +
+      'Abra <b>https://todo.astralwavelabel.com</b> no navegador, entre na sua conta e use ' +
+      '<b>Configurações → Vincular Telegram</b>. O link que aparecer abre esta ' +
+      'conversa e conclui sozinho.\n\n' +
+      '<i>Senha e código do autenticador nunca são digitados aqui.</i>',
+    { parse_mode: 'HTML' },
+  );
+  return;
 };
