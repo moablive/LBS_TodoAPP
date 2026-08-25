@@ -31,6 +31,34 @@ export const userSettings = pgTable("user_settings", {
   telegramId: varchar("telegram_id", { length: 50 }).unique(),
 });
 
+/**
+ * Passes de uso único que vinculam um Telegram a uma conta já autenticada.
+ *
+ * POR QUE ISTO EXISTE
+ *
+ * O vínculo era feito digitando e-mail, senha e o código do 2FA DENTRO do chat.
+ * Três problemas, nessa ordem de gravidade: a senha fica no histórico do
+ * Telegram (nos servidores deles, no aparelho e em qualquer backup de chat); o
+ * código do autenticador também; e o bot precisava saber falar login com o hub,
+ * o que duplicava o fluxo de 2FA num lugar onde ele não cabe — um chat não
+ * desenha QR sem expor o segredo no mesmo canal.
+ *
+ * Aqui a ordem se inverte: a pessoa já entrou no app pelo PC, com 2FA, e de lá
+ * emite um passe. O passe atravessa o chat — e ele é inofensivo: vale poucos
+ * minutos, serve uma vez, e não abre nada além de gravar o vínculo.
+ *
+ * Guardamos o SHA-256 e não o passe: vazamento do banco não entrega passe
+ * utilizável, do mesmo jeito que não se guarda senha em texto.
+ */
+export const telegramLinkTokens = pgTable("telegram_link_tokens", {
+  tokenHash: varchar("token_hash", { length: 64 }).primaryKey(),
+  loginhubId: integer("loginhub_id").notNull(),
+  criadoEm: timestamp("criado_em", { withTimezone: true }).defaultNow().notNull(),
+  expiraEm: timestamp("expira_em", { withTimezone: true }).notNull(),
+  /** Carimbo do consumo. Não-nulo = já usado, e não serve de novo. */
+  usadoEm: timestamp("usado_em", { withTimezone: true }),
+});
+
 export const taskGroups = pgTable(
   "task_groups",
   {
@@ -217,6 +245,8 @@ export type PushSubscription = typeof pushSubscriptions.$inferSelect;
 export type NewPushSubscription = typeof pushSubscriptions.$inferInsert;
 export type UserSettingsType = typeof userSettings.$inferSelect;
 export type NewUserSettings = typeof userSettings.$inferInsert;
+export type TelegramLinkToken = typeof telegramLinkTokens.$inferSelect;
+export type NewTelegramLinkToken = typeof telegramLinkTokens.$inferInsert;
 export type TaskGroup = typeof taskGroups.$inferSelect;
 export type NewTaskGroup = typeof taskGroups.$inferInsert;
 export type Task = typeof tasks.$inferSelect;

@@ -13,6 +13,13 @@ const envSchema = z.object({
   // passou a enrolar em casa; o painel do hub saiu do caminho.
   APP_LOGIN_URL: z.string().default('https://todo.astralwavelabel.com/login'),
   LOGINHUB_APP_ID: z.coerce.number().default(4),
+  // API interna do proprio app. So o vinculo hibrido passa por aqui — o resto
+  // do bot fala direto com o Postgres. A logica do passe de uso unico (hash,
+  // validade, consumo) vive no backend, que e quem manda no schema; duplica-la
+  // aqui abriria espaco para as duas copias divergirem num ponto sensivel.
+  BACKEND_API_URL: z.string().default('http://todoapp_backend:3000/api'),
+  // Mesma chave do backend: e o que autoriza o bot em /api/bot/*.
+  BOT_SERVICE_KEY: z.string().min(1, 'BOT_SERVICE_KEY is required'),
   // Web Push (VAPID) — mesmas chaves do backend; opcional, sem elas o bot só
   // envia lembretes pelo Telegram.
   VAPID_PUBLIC_KEY: z.string().optional(),

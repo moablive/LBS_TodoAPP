@@ -9,6 +9,31 @@ const pool = new Pool({
 });
 
 export const botApi = {
+  /**
+   * Troca o passe do deep link pelo vinculo `telegram_id -> loginhub_id`.
+   *
+   * Unica chamada HTTP deste cliente — o resto fala direto com o Postgres. E de
+   * proposito: a regra do passe (hash guardado em vez do passe, validade, uso
+   * unico com corrida resolvida no UPDATE) mora no backend, que e o dono do
+   * schema. Reimplementar aqui daria duas copias de uma verificacao de
+   * seguranca, livres para divergir.
+   */
+  consumirPasseDeVinculo: async (token: string, telegramId: string): Promise<{ loginhubId: number }> => {
+    const res = await fetch(`${process.env.BACKEND_API_URL ?? 'http://todoapp_backend:3000/api'}/bot/consume-link-token`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': process.env.BOT_SERVICE_KEY ?? '',
+      },
+      body: JSON.stringify({ token, telegramId }),
+    });
+    if (!res.ok) {
+      const corpo = await res.json().catch(() => ({}));
+      throw new Error((corpo as { message?: string }).message ?? `HTTP ${res.status}`);
+    }
+    return (await res.json()) as { loginhubId: number };
+  },
+
   getAllBotUsers: async (): Promise<{ id: string, telegramId: string }[]> => {
     const result = await pool.query('SELECT DISTINCT user_id FROM tasks');
     return result.rows.map(row => ({ id: row.user_id, telegramId: row.user_id }));

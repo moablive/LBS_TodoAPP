@@ -25,6 +25,11 @@
               <ToggleSwitch v-model="settings.notifyTelegram" />
             </div>
 
+            <!-- Vinculo da conta: fora do `v-if` do toggle de proposito. Quem
+                 ainda nao vinculou precisa ver o botao mesmo com as notificacoes
+                 desligadas — e desvincular tem de continuar alcancavel. -->
+            <TelegramLinkCard />
+
             <template v-if="settings.notifyTelegram">
               <!-- Nome de exibição -->
               <div class="px-4 py-3">
@@ -465,6 +470,7 @@ import {
   TrashIcon
 } from '@heroicons/vue/24/outline';
 import ToggleSwitch from './ToggleSwitch.vue';
+import TelegramLinkCard from './TelegramLinkCard.vue';
 
 interface ReminderSettings {
   remindAtTime: boolean;

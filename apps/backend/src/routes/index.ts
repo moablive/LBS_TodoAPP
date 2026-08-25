@@ -8,6 +8,7 @@ import { prefsRouter } from './prefs.js';
 import { integrationsRouter } from './integrations.js';
 import { calendarsRouter } from './calendars.js';
 import { botRouter } from './bot.js';
+import { telegramRouter, telegramBotRouter } from './telegram.js';
 import { requireAuth, requireBotKey } from '../middleware/auth.js';
 import { db } from '@todoapp/db';
 import { schema } from '@todoapp/db';
@@ -25,6 +26,9 @@ import { feedRouter } from './feed.js';
 
 apiRouter.use('/feed', feedRouter);
 
+// O consumo do passe de vinculo entra pela MESMA guarda do resto do /bot: e o
+// bot chamando com a chave de servico, nao a pessoa com sessao.
+apiRouter.use('/bot', requireBotKey, telegramBotRouter);
 apiRouter.use('/bot', requireBotKey, botRouter);
 
 apiRouter.use(requireAuth);
@@ -42,6 +46,7 @@ apiRouter.use(async (req, res, next) => {
 });
 
 apiRouter.use('/user', userRouter);
+apiRouter.use('/telegram', telegramRouter);
 apiRouter.use('/tasks', tasksRouter);
 apiRouter.use('/groups', groupsRouter);
 apiRouter.use('/push', pushRouter);
