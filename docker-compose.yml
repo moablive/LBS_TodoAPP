@@ -46,6 +46,9 @@ services:
       args:
         VITE_API_BASE_URL: ${VITE_API_BASE_URL}
         VITE_LOGINHUB_API_URL: ${VITE_LOGINHUB_API_URL}
+        # Sem o app_id o hub responde 409 AMBIGUOUS_EMAIL quando o mesmo e-mail
+        # existe em mais de um app. Ja estava no .env, faltava chegar no build.
+        VITE_LOGINHUB_APP_ID: ${VITE_LOGINHUB_APP_ID}
         VITE_MONEYAPP_API_URL: ${VITE_MONEYAPP_API_URL}
     container_name: lbs_todoapp_frontend
     depends_on:

@@ -8,6 +8,10 @@ const envSchema = z.object({
   // Shared with LoginHub: requireAuth verifies LoginHub-issued user JWTs with
   // this secret. shares.ts also signs/verifies its own share-link tokens with it.
   JWT_SECRET: z.string().min(32, 'JWT_SECRET must be at least 32 chars'),
+  // ID do TodoAPP no LoginHub. Obrigatorio: `requireAuth` recusa token de outro
+  // tenant, e sem esse id nao ha como delimitar o escopo — um JWT assinado
+  // para qualquer outro app do hub passaria por aqui.
+  LOGINHUB_APP_ID: z.coerce.number().int().positive(),
   // Shared secret the Telegram bot presents (x-api-key) to call /bot/* routes.
   // Optional — bot runs in a separate repo (TodoAPP_BOT).
   BOT_SERVICE_KEY: z.string().min(32, 'BOT_SERVICE_KEY must be at least 32 chars').optional(),

@@ -60,44 +60,58 @@
 
       </div>
 
-      <!-- Change Password Card (Replaces Login Card if requirePasswordChange is true) -->
-      <div v-if="authStore.requirePasswordChange" class="absolute inset-0 bg-surface-raised/60 backdrop-blur-xl border border-white/10 p-10 rounded-[2rem] shadow-modal animate-fade-in-up z-20 flex flex-col justify-center">
+      <!-- Segundo fator. Substitui o antigo card de troca de senha, que batia
+           em /auth/change-password — rota removida do hub. O que barra o login
+           hoje e o codigo do autenticador, e a sessao so nasce depois dele. -->
+      <div v-if="authStore.aguardandoSegundoFator" class="absolute inset-0 bg-surface-raised/60 backdrop-blur-xl border border-white/10 p-10 rounded-[2rem] shadow-modal animate-fade-in-up z-20 flex flex-col justify-center">
         <div class="text-center mb-8">
           <div class="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-gradient-to-tr from-[#ff3b30] to-[#ff9500] shadow-lg mb-6">
             <svg class="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
             </svg>
           </div>
-          <h1 class="text-2xl font-display font-semibold tracking-tight">Security Update</h1>
-          <p class="text-muted mt-2 text-sm">Please set a new password to secure your account.</p>
+          <h1 class="text-2xl font-display font-semibold tracking-tight">Verificacao em duas etapas</h1>
+          <p class="text-muted mt-2 text-sm">
+            {{ usarBackup
+              ? 'Digite um dos codigos de recuperacao que voce guardou.'
+              : 'Digite o codigo de 6 digitos do seu aplicativo autenticador.' }}
+          </p>
         </div>
 
-        <form @submit.prevent="handleChangePassword" class="space-y-6">
+        <form @submit.prevent="handleSegundoFator" class="space-y-6">
           <div class="relative group">
-            <input 
-              v-model="newPassword" 
-              type="password" 
-              required 
-              placeholder="New Password"
-              class="w-full bg-surface-overlay/50 border border-surface-border rounded-2xl px-5 py-4 pl-12 text-white placeholder-muted focus:border-accent focus:bg-surface-overlay focus:ring-1 focus:ring-accent outline-none transition-all duration-300" 
+            <input
+              v-model="codigo"
+              type="text"
+              required
+              autofocus
+              autocomplete="one-time-code"
+              :inputmode="usarBackup ? 'text' : 'numeric'"
+              :maxlength="usarBackup ? 11 : 6"
+              :placeholder="usarBackup ? 'XXXXX-XXXXX' : '000000'"
+              class="w-full bg-surface-overlay/50 border border-surface-border rounded-2xl px-5 py-4 text-center tracking-[0.4em] text-white placeholder-muted focus:border-accent focus:bg-surface-overlay focus:ring-1 focus:ring-accent outline-none transition-all duration-300"
             />
-            <svg class="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-muted group-focus-within:text-accent transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z" />
-            </svg>
           </div>
 
-          <button 
-            type="submit" 
-            :disabled="isChanging"
+          <p v-if="erro" class="text-sm text-red-400 text-center">{{ erro }}</p>
+
+          <button
+            type="submit"
+            :disabled="isChanging || !codigo"
             class="group relative w-full bg-gradient-to-r from-accent to-primary text-white font-semibold py-4 rounded-2xl transition-all duration-300 hover:scale-[1.02] active:scale-[0.98] disabled:opacity-70 disabled:hover:scale-100 overflow-hidden shadow-lg"
           >
             <span class="relative z-10 flex items-center justify-center gap-2">
-              <span v-if="isChanging">Updating...</span>
-              <span v-else>Update Password</span>
-              <svg v-if="!isChanging" class="w-5 h-5 group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-              </svg>
+              <span v-if="isChanging">Verificando...</span>
+              <span v-else>Verificar</span>
             </span>
+          </button>
+
+          <button
+            type="button"
+            class="w-full text-sm text-muted hover:text-accent transition-colors"
+            @click="usarBackup = !usarBackup; codigo = ''; erro = null"
+          >
+            {{ usarBackup ? 'Usar o aplicativo autenticador' : 'Perdi o acesso ao autenticador' }}
           </button>
         </form>
       </div>
@@ -116,34 +130,56 @@ const router = useRouter();
 
 const email = ref('');
 const password = ref('');
-const newPassword = ref('');
 const isLoading = ref(false);
 const isChanging = ref(false);
+
+// Segunda etapa
+const codigo = ref('');
+const usarBackup = ref(false);
+const erro = ref<string | null>(null);
+
+function traduzir(e: unknown): string {
+  const cod = (e as { code?: string })?.code;
+  if (cod === 'CODIGO_INVALIDO') return 'Codigo invalido. Confira o relogio do celular e tente o proximo.';
+  if (cod === 'CHALLENGE_INVALIDO') return 'A janela de verificacao expirou. Faca login de novo.';
+  if (cod === 'MUITAS_TENTATIVAS') return (e as Error).message;
+  if (cod === 'REDE') return 'Sem conexao com o servidor de login.';
+  return (e as Error)?.message || 'Nao foi possivel concluir.';
+}
 
 async function handleLogin() {
   if (isLoading.value) return;
   
   isLoading.value = true;
+  erro.value = null;
   try {
-    await authStore.login({ email: email.value, password: password.value });
-    if (!authStore.requirePasswordChange) {
-      router.push('/');
+    const r = await authStore.login({ email: email.value, password: password.value });
+
+    // 'enrolar': conta exige 2FA e nao tem autenticador. A tela de QR e a do
+    // hub, compartilhada por todos os apps.
+    if (r.etapa === 'enrolar') {
+      window.location.href = r.url;
+      return;
     }
+    // '2fa': o card de codigo assume; nada a fazer aqui.
+    if (r.etapa === 'sessao') router.push('/');
   } catch (e) {
-    alert('Erro ao fazer login. Verifique suas credenciais.');
+    erro.value = traduzir(e);
+    alert(erro.value);
   } finally {
     isLoading.value = false;
   }
 }
 
-async function handleChangePassword() {
+async function handleSegundoFator() {
   if (isChanging.value) return;
   isChanging.value = true;
+  erro.value = null;
   try {
-    await authStore.changePassword(newPassword.value);
+    await authStore.verificarSegundoFator(codigo.value.trim(), usarBackup.value);
     router.push('/');
   } catch (e) {
-    alert('Erro ao alterar senha. Tente novamente.');
+    erro.value = traduzir(e);
   } finally {
     isChanging.value = false;
   }
