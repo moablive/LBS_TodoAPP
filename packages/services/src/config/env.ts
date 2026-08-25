@@ -12,6 +12,11 @@ const envSchema = z.object({
   // tenant, e sem esse id nao ha como delimitar o escopo — um JWT assinado
   // para qualquer outro app do hub passaria por aqui.
   LOGINHUB_APP_ID: z.coerce.number().int().positive(),
+  /**
+   * API interna do hub — usada pela introspeccao de revogacao de sessao
+   * (`GET /auth/session-floor`). DNS do Docker, sem sair para o Cloudflare.
+   */
+  LOGINHUB_API_URL: z.string().default('http://server_loginhub_backend:3000/api'),
   // Shared secret the Telegram bot presents (x-api-key) to call /bot/* routes.
   // Optional — bot runs in a separate repo (TodoAPP_BOT).
   BOT_SERVICE_KEY: z.string().min(32, 'BOT_SERVICE_KEY must be at least 32 chars').optional(),
