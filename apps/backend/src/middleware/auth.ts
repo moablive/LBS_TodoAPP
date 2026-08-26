@@ -1,6 +1,7 @@
 import type { NextFunction, Request, Response } from 'express';
 import { env } from '@todoapp/services';
 import { verifyHubToken, HubAuthError, bearerDoRequest, criarVerificadorDeRevogacao } from '../lib/hubAuthServer.js';
+import { veioDaBordaPublica } from './rede.js';
 // `@todoapp/models` nunca exportou `LoginHubPayload` — o import estava quebrado
 // desde antes desta mudanca. `HubSession` do auth-kit descreve o mesmo payload.
 import type { HubSession as LoginHubPayload } from '../lib/hubAuthServer.js';
@@ -62,9 +63,16 @@ export function verifyBearer(req: Request): LoginHubPayload | null {
  */
 export async function requireAuth(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
-    // 1) Trusted bot, delegated identity.
+    // 1) Trusted bot, delegated identity. LEGADO: confia cego no `x-user-id`.
+    // Fica atras de ALLOW_LEGACY_BOT_DELEGATION — quando `false`, este ramo some
+    // e o bot precisa apresentar um JWT do LoginHub (cai no caminho 2). E recusa
+    // a chave que chega pela borda publica: nenhum chamador legitimo faz isso.
     const apiKey = req.headers['x-api-key'];
-    if (typeof apiKey === 'string' && apiKey === env.BOT_SERVICE_KEY) {
+    if (env.ALLOW_LEGACY_BOT_DELEGATION && typeof apiKey === 'string' && apiKey === env.BOT_SERVICE_KEY) {
+      if (veioDaBordaPublica(req) && !env.TRUST_EDGE_SERVICE_KEY) {
+        res.status(401).json({ error: 'unauthorized' });
+        return;
+      }
       const onBehalfOf = req.headers['x-user-id'];
       if (typeof onBehalfOf !== 'string' || !onBehalfOf || isNaN(Number(onBehalfOf))) {
         res.status(401).json({ error: 'unauthorized' });
@@ -121,6 +129,11 @@ export async function requireAuth(req: Request, res: Response, next: NextFunctio
  * key; end-user credentials are validated by the bot against LoginHub directly.
  */
 export function requireBotKey(req: Request, res: Response, next: NextFunction): void {
+  // Chave de servico vinda da borda publica nunca e legitima (ver rede.ts).
+  if (veioDaBordaPublica(req) && !env.TRUST_EDGE_SERVICE_KEY) {
+    res.status(401).json({ error: 'unauthorized' });
+    return;
+  }
   const key = req.headers['x-api-key'];
   if (typeof key !== 'string' || key !== env.BOT_SERVICE_KEY) {
     res.status(401).json({ error: 'unauthorized' });

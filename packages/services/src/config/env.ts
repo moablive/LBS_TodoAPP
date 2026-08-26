@@ -1,6 +1,15 @@
 import 'dotenv/config';
 import { z } from 'zod';
 
+// z.coerce.boolean() trata QUALQUER string nao-vazia como true ("false" -> true).
+// Aqui a leitura e explicita: so 1/true/yes/on (case-insensitive) contam como
+// verdadeiro; qualquer outra coisa, ou ausencia, cai no padrao informado.
+const boolEnv = (padrao: boolean) =>
+  z
+    .string()
+    .optional()
+    .transform((v) => (v === undefined ? padrao : /^(1|true|yes|on)$/i.test(v.trim())));
+
 const envSchema = z.object({
   NODE_ENV: z.enum(['development', 'production', 'test']).default('development'),
   PORT: z.coerce.number().int().positive().default(3000),
@@ -20,6 +29,18 @@ const envSchema = z.object({
   // Shared secret the Telegram bot presents (x-api-key) to call /bot/* routes.
   // Optional — bot runs in a separate repo (TodoAPP_BOT).
   BOT_SERVICE_KEY: z.string().min(32, 'BOT_SERVICE_KEY must be at least 32 chars').optional(),
+  /**
+   * Mantem o ramo LEGADO do `requireAuth` (x-api-key + x-user-id confiado cego).
+   * `true` enquanto o bot ainda nao repassa JWT do LoginHub; vira `false` para
+   * FECHAR de vez a delegacao cega. Ver middleware/auth.ts e middleware/rede.ts.
+   */
+  ALLOW_LEGACY_BOT_DELEGATION: boolEnv(true),
+  /**
+   * Escape hatch: aceitar chave de servico vinda da borda publica. Fica `false`
+   * — so ligar se a topologia mudar (algum chamador legitimo passar a entrar
+   * pelo nginx do frontend). Ver middleware/rede.ts.
+   */
+  TRUST_EDGE_SERVICE_KEY: boolEnv(false),
   /**
    * Username do bot, sem `@` — entra no deep link do vinculo hibrido
    * (`https://t.me/<username>?start=<passe>`). Opcional: sem ele o app segue
