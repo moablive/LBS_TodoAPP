@@ -4,6 +4,10 @@
        com o resto do app, e era justamente ele que caia no alert() do
        navegador. -->
   <ConfirmDialog />
+
+  <!-- Fora do router-view de proposito: sobrevivem a troca de rota. -->
+  <VersionBadge />
+  <UpdateBanner />
 </template>
 
 <script setup lang="ts">
@@ -11,6 +15,8 @@ import { watch } from 'vue';
 import { useAuthStore } from '@/stores/auth';
 import { useTasksStore } from '@/stores/tasks';
 import ConfirmDialog from '@/components/ConfirmDialog.vue';
+import UpdateBanner from '@/components/UpdateBanner.vue';
+import VersionBadge from '@/components/VersionBadge.vue';
 
 // Initialize auth state
 useAuthStore();

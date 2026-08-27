@@ -25,6 +25,10 @@ services:
       PORT: 3000
       # DATABASE_URL montado a partir do DB_DSN (../shared.env) + DB_NAME (.env).
       DATABASE_URL: "${DB_DSN:?defina DB_DSN em ../shared.env}/${DB_NAME:?defina DB_NAME no .env do app}"
+      # Versão do build (gerada por scripts/bump-version.mjs). Sai no /health
+      # e é o que o front compara para descobrir que houve deploy.
+      APP_VERSION: ${APP_VERSION:-0.0.0}
+      APP_BUILD_DATE: ${APP_BUILD_DATE:-}
     networks:
       awl_network:
         aliases:
@@ -49,6 +53,9 @@ services:
         # Sem o app_id o hub responde 409 AMBIGUOUS_EMAIL quando o mesmo e-mail
         # existe em mais de um app. Ja estava no .env, faltava chegar no build.
         VITE_LOGINHUB_APP_ID: ${VITE_LOGINHUB_APP_ID}
+        # Mesma versão do backend, congelada no bundle pelo vite build.
+        VITE_APP_VERSION: ${APP_VERSION:-0.0.0}
+        VITE_APP_BUILD_DATE: ${APP_BUILD_DATE:-}
         VITE_MONEYAPP_API_URL: ${VITE_MONEYAPP_API_URL}
     container_name: lbs_todoapp_frontend
     depends_on:
