@@ -1,23 +1,73 @@
 {
-  "id": "c15a9d25-8e27-48d8-95a8-ef48321cd60a",
+  "id": "93ccef97-13b4-49ed-916c-c684c74f9906",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
-    "public.accounts": {
-      "name": "accounts",
+    "public.calendar_ignored_events": {
+      "name": "calendar_ignored_events",
+      "schema": "",
+      "columns": {
+        "calendar_id": {
+          "name": "calendar_id",
+          "type": "varchar(36)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "external_uid": {
+          "name": "external_uid",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "calendar_ignored_events_calendar_id_calendar_subscriptions_id_fk": {
+          "name": "calendar_ignored_events_calendar_id_calendar_subscriptions_id_fk",
+          "tableFrom": "calendar_ignored_events",
+          "tableTo": "calendar_subscriptions",
+          "columnsFrom": [
+            "calendar_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "calendar_ignored_events_calendar_id_external_uid_pk": {
+          "name": "calendar_ignored_events_calendar_id_external_uid_pk",
+          "columns": [
+            "calendar_id",
+            "external_uid"
+          ]
+        }
+      },
+      "uniqueConstraints": {}
+    },
+    "public.calendar_subscriptions": {
+      "name": "calendar_subscriptions",
       "schema": "",
       "columns": {
         "id": {
           "name": "id",
-          "type": "uuid",
+          "type": "varchar(36)",
           "primaryKey": true,
-          "notNull": true,
-          "default": "gen_random_uuid()"
+          "notNull": true
         },
         "user_id": {
           "name": "user_id",
-          "type": "uuid",
+          "type": "varchar(50)",
           "primaryKey": false,
           "notNull": true
         },
@@ -27,31 +77,56 @@
           "primaryKey": false,
           "notNull": true
         },
-        "type": {
-          "name": "type",
-          "type": "account_type",
-          "typeSchema": "public",
+        "url": {
+          "name": "url",
+          "type": "text",
           "primaryKey": false,
           "notNull": true
         },
-        "bank_code": {
-          "name": "bank_code",
-          "type": "varchar(32)",
+        "color": {
+          "name": "color",
+          "type": "varchar(20)",
+          "primaryKey": false,
+          "notNull": false,
+          "default": "'#5b8cff'"
+        },
+        "group_id": {
+          "name": "group_id",
+          "type": "varchar(36)",
           "primaryKey": false,
           "notNull": false
         },
-        "custom_icon_url": {
-          "name": "custom_icon_url",
+        "enabled": {
+          "name": "enabled",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": true
+        },
+        "last_sync_at": {
+          "name": "last_sync_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "last_status": {
+          "name": "last_status",
+          "type": "varchar(20)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "last_error": {
+          "name": "last_error",
           "type": "text",
           "primaryKey": false,
           "notNull": false
         },
-        "current_balance": {
-          "name": "current_balance",
-          "type": "numeric(14, 2)",
+        "last_event_count": {
+          "name": "last_event_count",
+          "type": "integer",
           "primaryKey": false,
           "notNull": true,
-          "default": "'0'"
+          "default": 0
         },
         "created_at": {
           "name": "created_at",
@@ -62,8 +137,8 @@
         }
       },
       "indexes": {
-        "accounts_user_idx": {
-          "name": "accounts_user_idx",
+        "calendar_subscriptions_user_idx": {
+          "name": "calendar_subscriptions_user_idx",
           "columns": [
             {
               "expression": "user_id",
@@ -79,58 +154,56 @@
         }
       },
       "foreignKeys": {
-        "accounts_user_id_users_id_fk": {
-          "name": "accounts_user_id_users_id_fk",
-          "tableFrom": "accounts",
-          "tableTo": "users",
+        "calendar_subscriptions_group_id_task_groups_id_fk": {
+          "name": "calendar_subscriptions_group_id_task_groups_id_fk",
+          "tableFrom": "calendar_subscriptions",
+          "tableTo": "task_groups",
           "columnsFrom": [
-            "user_id"
+            "group_id"
           ],
           "columnsTo": [
             "id"
           ],
-          "onDelete": "cascade",
+          "onDelete": "set null",
           "onUpdate": "no action"
         }
       },
       "compositePrimaryKeys": {},
       "uniqueConstraints": {}
     },
-    "public.categories": {
-      "name": "categories",
+    "public.push_subscriptions": {
+      "name": "push_subscriptions",
       "schema": "",
       "columns": {
         "id": {
           "name": "id",
-          "type": "uuid",
+          "type": "varchar(36)",
           "primaryKey": true,
-          "notNull": true,
-          "default": "gen_random_uuid()"
+          "notNull": true
         },
         "user_id": {
           "name": "user_id",
-          "type": "uuid",
+          "type": "varchar(50)",
           "primaryKey": false,
           "notNull": true
         },
-        "name": {
-          "name": "name",
-          "type": "varchar(120)",
+        "endpoint": {
+          "name": "endpoint",
+          "type": "text",
           "primaryKey": false,
           "notNull": true
         },
-        "type": {
-          "name": "type",
-          "type": "category_type",
-          "typeSchema": "public",
+        "p256dh": {
+          "name": "p256dh",
+          "type": "text",
           "primaryKey": false,
           "notNull": true
         },
-        "color": {
-          "name": "color",
-          "type": "varchar(9)",
+        "auth": {
+          "name": "auth",
+          "type": "text",
           "primaryKey": false,
-          "notNull": false
+          "notNull": true
         },
         "created_at": {
           "name": "created_at",
@@ -141,8 +214,375 @@
         }
       },
       "indexes": {
-        "categories_user_idx": {
-          "name": "categories_user_idx",
+        "push_subscriptions_user_idx": {
+          "name": "push_subscriptions_user_idx",
+          "columns": [
+            {
+              "expression": "user_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "push_subscriptions_endpoint_unique": {
+          "name": "push_subscriptions_endpoint_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "endpoint"
+          ]
+        }
+      }
+    },
+    "public.reminder_settings": {
+      "name": "reminder_settings",
+      "schema": "",
+      "columns": {
+        "user_id": {
+          "name": "user_id",
+          "type": "varchar(50)",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "remind_at_time": {
+          "name": "remind_at_time",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": true
+        },
+        "remind_before_enabled": {
+          "name": "remind_before_enabled",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": true
+        },
+        "remind_before_minutes": {
+          "name": "remind_before_minutes",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 30
+        },
+        "remind_days_enabled": {
+          "name": "remind_days_enabled",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": true
+        },
+        "remind_days_before": {
+          "name": "remind_days_before",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 7
+        },
+        "notify_push": {
+          "name": "notify_push",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": true
+        },
+        "notify_telegram": {
+          "name": "notify_telegram",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": true
+        },
+        "display_name": {
+          "name": "display_name",
+          "type": "varchar(60)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "morning_digest_enabled": {
+          "name": "morning_digest_enabled",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": true
+        },
+        "morning_digest_time": {
+          "name": "morning_digest_time",
+          "type": "varchar(5)",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'08:00'"
+        },
+        "afternoon_digest_enabled": {
+          "name": "afternoon_digest_enabled",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": true
+        },
+        "afternoon_digest_time": {
+          "name": "afternoon_digest_time",
+          "type": "varchar(5)",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'13:00'"
+        },
+        "night_digest_enabled": {
+          "name": "night_digest_enabled",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": false
+        },
+        "night_digest_time": {
+          "name": "night_digest_time",
+          "type": "varchar(5)",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'20:00'"
+        },
+        "notification_style": {
+          "name": "notification_style",
+          "type": "varchar(20)",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'all'"
+        },
+        "notified_categories": {
+          "name": "notified_categories",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'[]'::jsonb"
+        },
+        "notified_priorities": {
+          "name": "notified_priorities",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'[]'::jsonb"
+        },
+        "notification_period": {
+          "name": "notification_period",
+          "type": "varchar(10)",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'all'"
+        },
+        "digest_today_only": {
+          "name": "digest_today_only",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": false
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {}
+    },
+    "public.task_groups": {
+      "name": "task_groups",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "varchar(36)",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "user_id": {
+          "name": "user_id",
+          "type": "varchar(50)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "name": {
+          "name": "name",
+          "type": "varchar(120)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "color": {
+          "name": "color",
+          "type": "varchar(20)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "icon": {
+          "name": "icon",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "order": {
+          "name": "order",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 0
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": false,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "task_groups_user_idx": {
+          "name": "task_groups_user_idx",
+          "columns": [
+            {
+              "expression": "user_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {}
+    },
+    "public.tasks": {
+      "name": "tasks",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "varchar(36)",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "user_id": {
+          "name": "user_id",
+          "type": "varchar(50)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "description": {
+          "name": "description",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "scheduled_at": {
+          "name": "scheduled_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": false,
+          "default": "now()"
+        },
+        "group_id": {
+          "name": "group_id",
+          "type": "varchar(36)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "completed_at": {
+          "name": "completed_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "is_flagged": {
+          "name": "is_flagged",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": false
+        },
+        "is_urgent": {
+          "name": "is_urgent",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": false
+        },
+        "priority": {
+          "name": "priority",
+          "type": "varchar(10)",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'low'"
+        },
+        "order": {
+          "name": "order",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 0
+        },
+        "recurrence": {
+          "name": "recurrence",
+          "type": "varchar(20)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "details": {
+          "name": "details",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "duration_minutes": {
+          "name": "duration_minutes",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "source": {
+          "name": "source",
+          "type": "varchar(20)",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'manual'"
+        },
+        "calendar_id": {
+          "name": "calendar_id",
+          "type": "varchar(36)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "external_uid": {
+          "name": "external_uid",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {
+        "tasks_user_idx": {
+          "name": "tasks_user_idx",
           "columns": [
             {
               "expression": "user_id",
@@ -156,41 +596,79 @@
           "method": "btree",
           "with": {}
         },
-        "categories_user_name_type_uq": {
-          "name": "categories_user_name_type_uq",
+        "tasks_group_idx": {
+          "name": "tasks_group_idx",
           "columns": [
             {
-              "expression": "user_id",
+              "expression": "group_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "tasks_calendar_idx": {
+          "name": "tasks_calendar_idx",
+          "columns": [
+            {
+              "expression": "calendar_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "tasks_calendar_uid_uidx": {
+          "name": "tasks_calendar_uid_uidx",
+          "columns": [
+            {
+              "expression": "calendar_id",
               "isExpression": false,
               "asc": true,
               "nulls": "last"
             },
             {
-              "expression": "name",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "type",
+              "expression": "external_uid",
               "isExpression": false,
               "asc": true,
               "nulls": "last"
             }
           ],
           "isUnique": true,
+          "where": "calendar_id IS NOT NULL",
           "concurrently": false,
           "method": "btree",
           "with": {}
         }
       },
       "foreignKeys": {
-        "categories_user_id_users_id_fk": {
-          "name": "categories_user_id_users_id_fk",
-          "tableFrom": "categories",
-          "tableTo": "users",
+        "tasks_group_id_task_groups_id_fk": {
+          "name": "tasks_group_id_task_groups_id_fk",
+          "tableFrom": "tasks",
+          "tableTo": "task_groups",
           "columnsFrom": [
-            "user_id"
+            "group_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "tasks_calendar_id_calendar_subscriptions_id_fk": {
+          "name": "tasks_calendar_id_calendar_subscriptions_id_fk",
+          "tableFrom": "tasks",
+          "tableTo": "calendar_subscriptions",
+          "columnsFrom": [
+            "calendar_id"
           ],
           "columnsTo": [
             "id"
@@ -202,127 +680,48 @@
       "compositePrimaryKeys": {},
       "uniqueConstraints": {}
     },
-    "public.investments": {
-      "name": "investments",
+    "public.telegram_link_tokens": {
+      "name": "telegram_link_tokens",
       "schema": "",
       "columns": {
-        "id": {
-          "name": "id",
-          "type": "uuid",
+        "token_hash": {
+          "name": "token_hash",
+          "type": "varchar(64)",
           "primaryKey": true,
-          "notNull": true,
-          "default": "gen_random_uuid()"
+          "notNull": true
         },
-        "user_id": {
-          "name": "user_id",
-          "type": "uuid",
+        "loginhub_id": {
+          "name": "loginhub_id",
+          "type": "integer",
           "primaryKey": false,
           "notNull": true
         },
-        "account_id": {
-          "name": "account_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "name": {
-          "name": "name",
-          "type": "varchar(120)",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "type": {
-          "name": "type",
-          "type": "investment_type",
-          "typeSchema": "public",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "quantity": {
-          "name": "quantity",
-          "type": "numeric(14, 6)",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "buy_price": {
-          "name": "buy_price",
-          "type": "numeric(14, 2)",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "current_price": {
-          "name": "current_price",
-          "type": "numeric(14, 2)",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "'0'"
-        },
-        "buy_date": {
-          "name": "buy_date",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "goal_amount": {
-          "name": "goal_amount",
-          "type": "numeric(14, 2)",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "yield_rate": {
-          "name": "yield_rate",
-          "type": "numeric(14, 2)",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "yield_index": {
-          "name": "yield_index",
-          "type": "varchar(32)",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "notes": {
-          "name": "notes",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "created_at": {
-          "name": "created_at",
+        "criado_em": {
+          "name": "criado_em",
           "type": "timestamp with time zone",
           "primaryKey": false,
           "notNull": true,
           "default": "now()"
         },
-        "updated_at": {
-          "name": "updated_at",
+        "expira_em": {
+          "name": "expira_em",
           "type": "timestamp with time zone",
           "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
+          "notNull": true
+        },
+        "usado_em": {
+          "name": "usado_em",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
         }
       },
       "indexes": {
-        "investments_user_idx": {
-          "name": "investments_user_idx",
+        "telegram_link_tokens_expira_idx": {
+          "name": "telegram_link_tokens_expira_idx",
           "columns": [
             {
-              "expression": "user_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "investments_account_idx": {
-          "name": "investments_account_idx",
-          "columns": [
-            {
-              "expression": "account_id",
+              "expression": "expira_em",
               "isExpression": false,
               "asc": true,
               "nulls": "last"
@@ -334,711 +733,149 @@
           "with": {}
         }
       },
-      "foreignKeys": {
-        "investments_user_id_users_id_fk": {
-          "name": "investments_user_id_users_id_fk",
-          "tableFrom": "investments",
-          "tableTo": "users",
-          "columnsFrom": [
-            "user_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        },
-        "investments_account_id_accounts_id_fk": {
-          "name": "investments_account_id_accounts_id_fk",
-          "tableFrom": "investments",
-          "tableTo": "accounts",
-          "columnsFrom": [
-            "account_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "set null",
-          "onUpdate": "no action"
-        }
-      },
+      "foreignKeys": {},
       "compositePrimaryKeys": {},
       "uniqueConstraints": {}
     },
-    "public.loans": {
-      "name": "loans",
+    "public.user_integrations": {
+      "name": "user_integrations",
       "schema": "",
       "columns": {
-        "id": {
-          "name": "id",
-          "type": "uuid",
-          "primaryKey": true,
-          "notNull": true,
-          "default": "gen_random_uuid()"
+        "loginhub_id": {
+          "name": "loginhub_id",
+          "type": "varchar(50)",
+          "primaryKey": false,
+          "notNull": true
         },
+        "app_id": {
+          "name": "app_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "app_user_id": {
+          "name": "app_user_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {
+        "user_integrations_loginhub_id_app_id_pk": {
+          "name": "user_integrations_loginhub_id_app_id_pk",
+          "columns": [
+            "loginhub_id",
+            "app_id"
+          ]
+        }
+      },
+      "uniqueConstraints": {}
+    },
+    "public.user_prefs": {
+      "name": "user_prefs",
+      "schema": "",
+      "columns": {
         "user_id": {
           "name": "user_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "account_id": {
-          "name": "account_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "description": {
-          "name": "description",
-          "type": "varchar(255)",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "amount": {
-          "name": "amount",
-          "type": "numeric(14, 2)",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "date": {
-          "name": "date",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "type": {
-          "name": "type",
-          "type": "loan_type",
-          "typeSchema": "public",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "status": {
-          "name": "status",
-          "type": "loan_status",
-          "typeSchema": "public",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "'active'"
-        },
-        "receipt_base64": {
-          "name": "receipt_base64",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "receipt_mime_type": {
-          "name": "receipt_mime_type",
-          "type": "varchar(255)",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "created_at": {
-          "name": "created_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        },
-        "updated_at": {
-          "name": "updated_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        }
-      },
-      "indexes": {
-        "loans_user_idx": {
-          "name": "loans_user_idx",
-          "columns": [
-            {
-              "expression": "user_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        }
-      },
-      "foreignKeys": {
-        "loans_user_id_users_id_fk": {
-          "name": "loans_user_id_users_id_fk",
-          "tableFrom": "loans",
-          "tableTo": "users",
-          "columnsFrom": [
-            "user_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        },
-        "loans_account_id_accounts_id_fk": {
-          "name": "loans_account_id_accounts_id_fk",
-          "tableFrom": "loans",
-          "tableTo": "accounts",
-          "columnsFrom": [
-            "account_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "set null",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {}
-    },
-    "public.subscriptions": {
-      "name": "subscriptions",
-      "schema": "",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "uuid",
+          "type": "varchar(50)",
           "primaryKey": true,
-          "notNull": true,
-          "default": "gen_random_uuid()"
-        },
-        "user_id": {
-          "name": "user_id",
-          "type": "uuid",
-          "primaryKey": false,
           "notNull": true
         },
-        "description": {
-          "name": "description",
-          "type": "varchar(255)",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "amount": {
-          "name": "amount",
-          "type": "numeric(14, 2)",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "type": {
-          "name": "type",
-          "type": "transaction_type",
-          "typeSchema": "public",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "category_id": {
-          "name": "category_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "account_id": {
-          "name": "account_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "status": {
-          "name": "status",
-          "type": "subscription_status",
-          "typeSchema": "public",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "'active'"
-        },
-        "billing_day": {
-          "name": "billing_day",
-          "type": "numeric",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "created_at": {
-          "name": "created_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        },
-        "updated_at": {
-          "name": "updated_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        }
-      },
-      "indexes": {
-        "subscriptions_user_idx": {
-          "name": "subscriptions_user_idx",
-          "columns": [
-            {
-              "expression": "user_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        }
-      },
-      "foreignKeys": {
-        "subscriptions_user_id_users_id_fk": {
-          "name": "subscriptions_user_id_users_id_fk",
-          "tableFrom": "subscriptions",
-          "tableTo": "users",
-          "columnsFrom": [
-            "user_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        },
-        "subscriptions_category_id_categories_id_fk": {
-          "name": "subscriptions_category_id_categories_id_fk",
-          "tableFrom": "subscriptions",
-          "tableTo": "categories",
-          "columnsFrom": [
-            "category_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "restrict",
-          "onUpdate": "no action"
-        },
-        "subscriptions_account_id_accounts_id_fk": {
-          "name": "subscriptions_account_id_accounts_id_fk",
-          "tableFrom": "subscriptions",
-          "tableTo": "accounts",
-          "columnsFrom": [
-            "account_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "set null",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {}
-    },
-    "public.transactions": {
-      "name": "transactions",
-      "schema": "",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "uuid",
-          "primaryKey": true,
-          "notNull": true,
-          "default": "gen_random_uuid()"
-        },
-        "user_id": {
-          "name": "user_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "description": {
-          "name": "description",
-          "type": "varchar(255)",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "amount": {
-          "name": "amount",
-          "type": "numeric(14, 2)",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "type": {
-          "name": "type",
-          "type": "transaction_type",
-          "typeSchema": "public",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "status": {
-          "name": "status",
-          "type": "transaction_status",
-          "typeSchema": "public",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "'paid'"
-        },
-        "occurred_at": {
-          "name": "occurred_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "category_id": {
-          "name": "category_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "account_id": {
-          "name": "account_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "subscription_id": {
-          "name": "subscription_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "investment_id": {
-          "name": "investment_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "receipt_base64": {
-          "name": "receipt_base64",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "receipt_mime_type": {
-          "name": "receipt_mime_type",
-          "type": "varchar(80)",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "created_at": {
-          "name": "created_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        },
-        "updated_at": {
-          "name": "updated_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        }
-      },
-      "indexes": {
-        "transactions_user_occurred_idx": {
-          "name": "transactions_user_occurred_idx",
-          "columns": [
-            {
-              "expression": "user_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "occurred_at",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "transactions_user_type_occurred_idx": {
-          "name": "transactions_user_type_occurred_idx",
-          "columns": [
-            {
-              "expression": "user_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "type",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "occurred_at",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "transactions_category_idx": {
-          "name": "transactions_category_idx",
-          "columns": [
-            {
-              "expression": "category_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "transactions_account_idx": {
-          "name": "transactions_account_idx",
-          "columns": [
-            {
-              "expression": "account_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "transactions_subscription_idx": {
-          "name": "transactions_subscription_idx",
-          "columns": [
-            {
-              "expression": "subscription_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        }
-      },
-      "foreignKeys": {
-        "transactions_user_id_users_id_fk": {
-          "name": "transactions_user_id_users_id_fk",
-          "tableFrom": "transactions",
-          "tableTo": "users",
-          "columnsFrom": [
-            "user_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        },
-        "transactions_category_id_categories_id_fk": {
-          "name": "transactions_category_id_categories_id_fk",
-          "tableFrom": "transactions",
-          "tableTo": "categories",
-          "columnsFrom": [
-            "category_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "restrict",
-          "onUpdate": "no action"
-        },
-        "transactions_account_id_accounts_id_fk": {
-          "name": "transactions_account_id_accounts_id_fk",
-          "tableFrom": "transactions",
-          "tableTo": "accounts",
-          "columnsFrom": [
-            "account_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "set null",
-          "onUpdate": "no action"
-        },
-        "transactions_subscription_id_subscriptions_id_fk": {
-          "name": "transactions_subscription_id_subscriptions_id_fk",
-          "tableFrom": "transactions",
-          "tableTo": "subscriptions",
-          "columnsFrom": [
-            "subscription_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "set null",
-          "onUpdate": "no action"
-        },
-        "transactions_investment_id_investments_id_fk": {
-          "name": "transactions_investment_id_investments_id_fk",
-          "tableFrom": "transactions",
-          "tableTo": "investments",
-          "columnsFrom": [
-            "investment_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "set null",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {}
-    },
-    "public.users": {
-      "name": "users",
-      "schema": "",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "uuid",
-          "primaryKey": true,
-          "notNull": true,
-          "default": "gen_random_uuid()"
-        },
-        "name": {
-          "name": "name",
-          "type": "varchar(120)",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "email": {
-          "name": "email",
-          "type": "varchar(255)",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "password_hash": {
-          "name": "password_hash",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "created_at": {
-          "name": "created_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        },
-        "updated_at": {
-          "name": "updated_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        },
-        "settings": {
-          "name": "settings",
+        "kanban_lists": {
+          "name": "kanban_lists",
           "type": "jsonb",
           "primaryKey": false,
           "notNull": true,
-          "default": "'{\"requireReceipts\":true}'::jsonb"
+          "default": "'[]'::jsonb"
+        },
+        "show_moneyapp_events": {
+          "name": "show_moneyapp_events",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": true
+        },
+        "moneyapp_color": {
+          "name": "moneyapp_color",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "default": "'#30d158'"
+        },
+        "show_holidays": {
+          "name": "show_holidays",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": true
+        },
+        "holiday_color": {
+          "name": "holiday_color",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "default": "'#6b7280'"
+        },
+        "ics_export_token": {
+          "name": "ics_export_token",
+          "type": "varchar(36)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {}
+    },
+    "public.user_settings": {
+      "name": "user_settings",
+      "schema": "",
+      "columns": {
+        "loginhub_id": {
+          "name": "loginhub_id",
+          "type": "integer",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "telegram_id": {
+          "name": "telegram_id",
+          "type": "varchar(50)",
+          "primaryKey": false,
+          "notNull": false
         }
       },
       "indexes": {},
       "foreignKeys": {},
       "compositePrimaryKeys": {},
       "uniqueConstraints": {
-        "users_email_unique": {
-          "name": "users_email_unique",
+        "user_settings_telegram_id_unique": {
+          "name": "user_settings_telegram_id_unique",
           "nullsNotDistinct": false,
           "columns": [
-            "email"
+            "telegram_id"
           ]
         }
       }
     }
   },
-  "enums": {
-    "public.account_type": {
-      "name": "account_type",
-      "schema": "public",
-      "values": [
-        "checking",
-        "savings",
-        "credit_card",
-        "wallet",
-        "investment",
-        "other"
-      ]
-    },
-    "public.category_type": {
-      "name": "category_type",
-      "schema": "public",
-      "values": [
-        "expense",
-        "income"
-      ]
-    },
-    "public.investment_type": {
-      "name": "investment_type",
-      "schema": "public",
-      "values": [
-        "stock",
-        "crypto",
-        "fixed_income",
-        "fund",
-        "other"
-      ]
-    },
-    "public.loan_status": {
-      "name": "loan_status",
-      "schema": "public",
-      "values": [
-        "active",
-        "paid"
-      ]
-    },
-    "public.loan_type": {
-      "name": "loan_type",
-      "schema": "public",
-      "values": [
-        "given",
-        "received",
-        "fgts"
-      ]
-    },
-    "public.subscription_status": {
-      "name": "subscription_status",
-      "schema": "public",
-      "values": [
-        "active",
-        "inactive"
-      ]
-    },
-    "public.transaction_status": {
-      "name": "transaction_status",
-      "schema": "public",
-      "values": [
-        "paid",
-        "pending"
-      ]
-    },
-    "public.transaction_type": {
-      "name": "transaction_type",
-      "schema": "public",
-      "values": [
-        "expense",
-        "income"
-      ]
-    }
-  },
+  "enums": {},
   "schemas": {},
   "sequences": {},
   "_meta": {

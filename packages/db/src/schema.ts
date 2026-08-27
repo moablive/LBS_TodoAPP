@@ -1,4 +1,4 @@
-import { relations } from "drizzle-orm";
+import { relations, sql } from "drizzle-orm";
 import {
   boolean,
   index,
@@ -9,6 +9,7 @@ import {
   pgTable,
   integer,
   primaryKey,
+  uniqueIndex,
 } from "drizzle-orm/pg-core";
 
 export const userIntegrations = pgTable(
@@ -53,14 +54,20 @@ export const userSettings = pgTable("user_settings", {
  * Guardamos o SHA-256 e não o passe: vazamento do banco não entrega passe
  * utilizável, do mesmo jeito que não se guarda senha em texto.
  */
-export const telegramLinkTokens = pgTable("telegram_link_tokens", {
-  tokenHash: varchar("token_hash", { length: 64 }).primaryKey(),
-  loginhubId: integer("loginhub_id").notNull(),
-  criadoEm: timestamp("criado_em", { withTimezone: true }).defaultNow().notNull(),
-  expiraEm: timestamp("expira_em", { withTimezone: true }).notNull(),
-  /** Carimbo do consumo. Não-nulo = já usado, e não serve de novo. */
-  usadoEm: timestamp("usado_em", { withTimezone: true }),
-});
+export const telegramLinkTokens = pgTable(
+  "telegram_link_tokens",
+  {
+    tokenHash: varchar("token_hash", { length: 64 }).primaryKey(),
+    loginhubId: integer("loginhub_id").notNull(),
+    criadoEm: timestamp("criado_em", { withTimezone: true }).defaultNow().notNull(),
+    expiraEm: timestamp("expira_em", { withTimezone: true }).notNull(),
+    /** Carimbo do consumo. Não-nulo = já usado, e não serve de novo. */
+    usadoEm: timestamp("usado_em", { withTimezone: true }),
+  },
+  // Existia em producao, criado a mao. A varredura de tokens vencidos filtra
+  // por expira_em; sem o indice ela vira seq scan.
+  (t) => ({ expiraIdx: index("telegram_link_tokens_expira_idx").on(t.expiraEm) }),
+);
 
 export const taskGroups = pgTable(
   "task_groups",
@@ -71,9 +78,10 @@ export const taskGroups = pgTable(
     color: varchar("color", { length: 20 }),
     icon: text("icon"),
     order: integer("order").default(0).notNull(),
-    createdAt: timestamp("created_at", { withTimezone: true })
-      .defaultNow()
-      .notNull(),
+    // Sem fuso e aceitando nulo porque e assim que a coluna existe em producao.
+    // Converter para timestamptz deslocaria os carimbos ja gravados; a correcao,
+    // se um dia valer a pena, e migration propria e nao ajuste de tipo aqui.
+    createdAt: timestamp("created_at").defaultNow(),
   },
   (t) => ({ userIdx: index("task_groups_user_idx").on(t.userId) })
 );
@@ -133,14 +141,18 @@ export const tasks = pgTable(
     id: varchar("id", { length: 36 }).primaryKey(),
     userId: varchar("user_id", { length: 50 }).notNull(),
     description: text("description").notNull(),
-    scheduledAt: timestamp("scheduled_at", { withTimezone: true }),
-    createdAt: timestamp("created_at", { withTimezone: true })
-      .defaultNow()
-      .notNull(),
+    scheduledAt: timestamp("scheduled_at"),
+    // Sem fuso e aceitando nulo: e assim que as colunas existem em producao.
+    // Converter para timestamptz deslocaria carimbo ja gravado — se um dia
+    // valer a pena, e migration propria, com decisao explicita de fuso.
+    createdAt: timestamp("created_at").defaultNow(),
     groupId: varchar("group_id", { length: 36 }).references(() => taskGroups.id, {
-      onDelete: "set null",
+      // CASCADE, e nao SET NULL: e o que a producao faz desde sempre. Apagar um
+      // grupo apaga as 215 tarefas ligadas a ele. O schema dizia SET NULL e
+      // ninguem percebeu porque o banco jamais foi reconstruido a partir dele.
+      onDelete: "cascade",
     }),
-    completedAt: timestamp("completed_at", { withTimezone: true }),
+    completedAt: timestamp("completed_at"),
     isFlagged: boolean("is_flagged").default(false).notNull(),
     isUrgent: boolean("is_urgent").default(false).notNull(),
     priority: varchar("priority", { length: 10 }).default("low").notNull(),
@@ -163,6 +175,11 @@ export const tasks = pgTable(
     userIdx: index("tasks_user_idx").on(t.userId),
     groupIdx: index("tasks_group_idx").on(t.groupId),
     calendarIdx: index("tasks_calendar_idx").on(t.calendarId),
+    // Impede a mesma ocorrencia de calendario entrar duas vezes numa
+    // ressincronizacao. Existia em producao, criado a mao, e o schema nao sabia.
+    calendarUidUidx: uniqueIndex("tasks_calendar_uid_uidx")
+      .on(t.calendarId, t.externalUid)
+      .where(sql`calendar_id IS NOT NULL`),
   })
 );
 
