@@ -2,12 +2,29 @@ import type { MiddlewareFn } from 'telegraf';
 import type { BotContext } from './context.js';
 import { botApi } from '@todo/api-client';
 
-// Cache em memória de telegramIds já vinculados — evita um SELECT por update.
-// Vínculo não é desfeito em operação normal, então não precisa de TTL.
-const linkedCache = new Set<string>();
+// Cache em memória de telegramIds vinculados — evita um SELECT por update.
+//
+// TTL curto, e não infinito: sem prazo, o "Desvincular Telegram" do app não tem
+// efeito nenhum sobre o bot até alguém reiniciar o container — a revogação
+// existiria só na tela. 60 s derruba o custo do SELECT e mantém o desvínculo
+// praticamente imediato. Mesmo desenho do `vinculo.py` do LBSTTSAPP.
+const TTL_MS = 60_000;
+
+/** telegramId → instante (ms) em que a entrada deixa de valer. */
+const linkedCache = new Map<string, number>();
 
 export function markLinked(telegramId: string) {
-  linkedCache.add(telegramId);
+  linkedCache.set(telegramId, Date.now() + TTL_MS);
+}
+
+function vinculoEmCache(telegramId: string): boolean {
+  const expiraEm = linkedCache.get(telegramId);
+  if (expiraEm === undefined) return false;
+  if (expiraEm <= Date.now()) {
+    linkedCache.delete(telegramId);
+    return false;
+  }
+  return true;
 }
 
 
@@ -24,15 +41,17 @@ export const auth: MiddlewareFn<BotContext> = async (ctx, next) => {
   const telegramId = String(id);
 
 
-  if (linkedCache.has(telegramId)) return next();
+  if (vinculoEmCache(telegramId)) return next();
 
   try {
     const user = await botApi.getUserByTelegramId(telegramId);
     if (user) {
-      linkedCache.add(telegramId);
+      markLinked(telegramId);
       return next();
     }
   } catch (err) {
+    // Falha fechada e sem gravar nada: backend fora do ar nega o acesso, mas a
+    // negativa não entra no cache — quando ele voltar, o bot volta junto.
     console.error('[auth] erro ao consultar vínculo:', err);
     await ctx.reply('⚠️ Erro interno. Tente novamente em instantes.');
     return;
