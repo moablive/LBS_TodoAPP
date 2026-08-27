@@ -97,7 +97,7 @@
             </div>
 
             <p
-              v-if="!isTasksVisible || !isMoneyAppVisible || !isHolidaysVisible"
+              v-if="!isTasksVisible || (hasMoneyAppLink && !isMoneyAppVisible) || !isHolidaysVisible"
               class="text-[10px] text-[var(--muted)] px-2.5 py-1.5 mt-1 border-t border-white/5"
             >
               Camadas ocultas não entram na busca.
@@ -115,6 +115,7 @@
         </button>
 
         <button
+          v-if="hasMoneyAppLink"
           @click="toggleMoneyAppVisibility"
           class="flex items-center gap-2 text-[13px] font-semibold pl-2 pr-3 py-1.5 rounded-xl transition-colors border"
           :class="isMoneyAppVisible ? 'bg-[#30d158]/20 border-[#30d158] text-[#30d158]' : 'bg-[var(--bg-hover)] border-white/5 text-[var(--muted)] hover:text-white'"
@@ -731,6 +732,18 @@ function nextOccurrence(d: Date, rule: string, base: Date): Date {
 const moneyAppEvents = ref<any[]>([]);
 const isMoneyAppVisible = ref(true);
 const moneyAppColor = ref('#30d158');
+/**
+ * Esta pessoa tem conta no MoneyAPP ligada à daqui?
+ *
+ * O vínculo é por pessoa, cadastrado um a um (user_integrations), e não vem de
+ * brinde com o convite: no LoginHUB cada app tem a sua conta, com id próprio e
+ * até e-mail diferente. Antes disto o chip do MoneyAPP aparecia para todo mundo
+ * e devolvia lista vazia para quem não tem o app — botão morto oferecendo um
+ * sistema que a pessoa não assina. Quem tem os dois é quem decide, no chip.
+ */
+const hasMoneyAppLink = ref(false);
+/** Só existe camada do MoneyAPP se houver vínculo E a pessoa quiser vê-la. */
+const showMoneyAppLayer = computed(() => hasMoneyAppLink.value && isMoneyAppVisible.value);
 const isTasksVisible = ref(true);
 
 const holidays = ref<any[]>([]);
@@ -770,6 +783,7 @@ function toggleTasksVisibility() {
 }
 
 async function fetchMoneyAppEvents() {
+  if (!hasMoneyAppLink.value) return;
   try {
     const start = new Date();
     start.setFullYear(start.getFullYear() - 1);
@@ -794,12 +808,21 @@ async function fetchMoneyAppEvents() {
 
 onMounted(async () => {
   try {
+    const link = await api.get<{ linked: boolean }>('/integrations/moneyapp/status');
+    hasMoneyAppLink.value = link.linked;
+  } catch (err) {
+    // Falhou a checagem: fica sem a camada, que é o estado de quem não tem o
+    // vínculo. O contrário desenharia o chip de um app que talvez não exista.
+    console.error('Failed to check moneyapp link:', err);
+  }
+
+  try {
     const prefs = await api.get<{ showMoneyAppEvents: boolean; showHolidays?: boolean; moneyAppColor?: string; holidayColor?: string }>('/prefs');
     isMoneyAppVisible.value = prefs.showMoneyAppEvents;
     isHolidaysVisible.value = prefs.showHolidays ?? true;
     if (prefs.moneyAppColor) moneyAppColor.value = prefs.moneyAppColor;
     if (prefs.holidayColor) holidayColor.value = prefs.holidayColor;
-    if (isMoneyAppVisible.value) {
+    if (showMoneyAppLayer.value) {
       await fetchMoneyAppEvents();
     }
     if (isHolidaysVisible.value) {
@@ -888,7 +911,7 @@ function occurrencesInRange(rangeStart: Date, rangeEnd: Date): Occurrence[] {
 
   // Merge MoneyApp events — vários lançamentos no mesmo dia viram UM chip
   // "N lançamentos" (clique abre a lista); um só abre direto os detalhes.
-  if (isMoneyAppVisible.value) {
+  if (showMoneyAppLayer.value) {
     const byDay = new Map<string, any[]>();
     for (const ev of moneyAppEvents.value) {
       const d = new Date(ev.date);
@@ -1265,7 +1288,7 @@ const searchResults = computed<SearchHit[]>(() => {
     }
   }
 
-  if (isMoneyAppVisible.value) {
+  if (showMoneyAppLayer.value) {
     for (const ev of moneyAppEvents.value) {
       const title = ev.title ?? ev.description ?? '';
       if (!norm(title).includes(q)) continue;

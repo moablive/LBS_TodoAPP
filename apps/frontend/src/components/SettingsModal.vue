@@ -238,7 +238,10 @@
           <!-- Integrações -->
           <h3 class="text-[11px] font-bold text-[var(--muted)] uppercase tracking-wider mb-2 mt-5">Integrações</h3>
           <div class="bg-[var(--bg)] rounded-xl divide-y divide-[var(--border)] mb-8">
-            <div class="flex items-center justify-between px-4 py-3">
+            <!-- Vínculo por pessoa: quem não tem conta no MoneyAPP não tem o que
+                 ajustar aqui, e oferecer o botão seria propaganda de um app que
+                 ela não assina. -->
+            <div v-if="hasMoneyAppLink" class="flex items-center justify-between px-4 py-3">
               <div>
                 <p class="text-[14px] text-[var(--text)] font-medium">Eventos do MoneyAPP</p>
                 <p class="text-[12px] text-[var(--muted)]">Exibir faturas e compromissos no calendário</p>
@@ -552,6 +555,9 @@ const taskGroups = ref<TaskGroup[]>([]);
 
 const displayNameInput = ref('');
 
+/** Tem conta no MoneyAPP ligada à daqui? Ver /integrations/moneyapp/status. */
+const hasMoneyAppLink = ref(false);
+
 const prefs = ref<UserPrefs>({
   kanbanLists: [],
   showMoneyAppEvents: true,
@@ -668,17 +674,21 @@ function copyToClipboard(text: string) {
 onMounted(async () => {
   document.addEventListener('keydown', handleEsc);
   try {
-    const [s, p, g, c] = await Promise.all([
+    const [s, p, g, c, link] = await Promise.all([
       api.get<ReminderSettings>('/reminders'),
       api.get<UserPrefs>('/prefs'),
       api.get<TaskGroup[]>('/groups'),
-      api.get<CalendarSubscription[]>('/calendars')
+      api.get<CalendarSubscription[]>('/calendars'),
+      // Falhar aqui não pode derrubar a tela inteira de configurações; sem
+      // resposta, trata como quem não tem o vínculo e some com a linha.
+      api.get<{ linked: boolean }>('/integrations/moneyapp/status').catch(() => ({ linked: false }))
     ]);
     settings.value = s;
     displayNameInput.value = s.displayName || '';
     prefs.value = p;
     taskGroups.value = g;
     calendars.value = c;
+    hasMoneyAppLink.value = link.linked;
   } catch (err) {
     console.error('Erro ao carregar configurações:', err);
   } finally {

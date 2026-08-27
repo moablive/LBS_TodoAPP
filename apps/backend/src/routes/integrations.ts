@@ -8,6 +8,41 @@ export const integrationsRouter = Router();
 
 integrationsRouter.use(resolveOwnerId);
 
+/** MoneyAPP = aplicativo 3 no LoginHUB. */
+const MONEYAPP_APP_ID = 3;
+
+/**
+ * A linha que casa a conta desta pessoa aqui com a dela no MoneyAPP.
+ *
+ * Ela é cadastrada uma a uma: no hub a unicidade é `(email, app_id)`, então a
+ * mesma pessoa tem um id por app — e nem o e-mail precisa ser o mesmo nos dois
+ * lados. Sem esta linha não há como afirmar que as duas contas são da mesma
+ * pessoa, e é por isso que ninguém entra vinculado por convite.
+ */
+const vinculoMoneyApp = (ownerId: string) =>
+  db.query.userIntegrations.findFirst({
+    where: and(
+      eq(schema.userIntegrations.loginhubId, ownerId),
+      eq(schema.userIntegrations.appId, MONEYAPP_APP_ID)
+    )
+  });
+
+/**
+ * Esta pessoa tem o vínculo com o MoneyAPP?
+ *
+ * A tela precisa saber ANTES de desenhar. Sem isto o TodoAPP oferecia a camada
+ * do MoneyAPP a todo mundo — chip no calendário e ajuste em Preferências — e
+ * respondia lista vazia para quem não tem MoneyAPP: botão morto, e a promessa
+ * de um app que a pessoa não assina.
+ */
+integrationsRouter.get('/moneyapp/status', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    res.json({ linked: !!(await vinculoMoneyApp(req.ownerId!)) });
+  } catch (error) {
+    next(error);
+  }
+});
+
 integrationsRouter.get('/moneyapp/calendar', async (req: Request, res: Response, next: NextFunction) => {
   try {
     const ownerId = req.ownerId!;
@@ -17,13 +52,7 @@ integrationsRouter.get('/moneyapp/calendar', async (req: Request, res: Response,
       return res.status(400).json({ error: 'Missing start or end date' });
     }
 
-    // Buscar mapeamento
-    const integration = await db.query.userIntegrations.findFirst({
-      where: and(
-        eq(schema.userIntegrations.loginhubId, ownerId),
-        eq(schema.userIntegrations.appId, 3) // MoneyAPP = 3
-      )
-    });
+    const integration = await vinculoMoneyApp(ownerId);
 
     if (!integration) {
       return res.json([]);
@@ -63,12 +92,7 @@ integrationsRouter.get('/moneyapp/receipt/:id', async (req: Request, res: Respon
     }
     const resource = match[1] === 'tx' ? 'transactions' : 'loans';
 
-    const integration = await db.query.userIntegrations.findFirst({
-      where: and(
-        eq(schema.userIntegrations.loginhubId, ownerId),
-        eq(schema.userIntegrations.appId, 3) // MoneyAPP = 3
-      )
-    });
+    const integration = await vinculoMoneyApp(ownerId);
 
     if (!integration) {
       return res.status(404).json({ error: 'No MoneyApp integration' });
