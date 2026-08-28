@@ -580,3 +580,77 @@ Para expor o TodoAPP via Cloudflare Tunnel, adicione a seguinte entrada na confi
   <sub>Feito com ☕ por <strong>Moab</strong></sub><br/>
   <sub>Projeto privado — uso pessoal</sub>
 </p>
+
+---
+
+## 🔔 LBS Notify — notificações pela plataforma central
+
+Desde 27/08/2026 existe um serviço central de notificações da suite, o
+[**LBS Notify**](https://github.com/moablive/LBSNotify) (containers
+`lbs_notify_api` e `lbs_notify_worker`, banco `lbsnotify`). Ele substitui a
+infraestrutura de Web Push que cada app carregava duplicada.
+
+> ⚠️ **Está DESLIGADO por padrão.** Com as flags abaixo em branco/`false` — que
+> é como elas nascem — o comportamento deste app é **exatamente** o de antes.
+> Nada muda até você virar as chaves, e a virada é um app por vez.
+
+### As flags
+
+| Variável | Onde | Vazio/`false` significa |
+|---|---|---|
+| `VITE_LBS_NOTIFY_URL` | build do frontend | o PWA registra o aparelho no `/api/push/*` deste app |
+| `LBS_NOTIFY_KEY` | backend/bot | chave de serviço deste app na central |
+| `TODO_NOTIFY_USE_CENTRAL` | backend/bot | a entrega continua saindo daqui |
+
+### Como ligar
+
+```bash
+# 1) o PWA passa a registrar o aparelho na central
+#    .env:  VITE_LBS_NOTIFY_URL='https://notify.astralwavelabel.com'
+bash ../deploy/redeploy.sh TodoAPP
+#    -> abra o app, ative as notificações, confirme que chega
+
+# 2) a entrega passa a sair da central
+#    .env:  TODO_NOTIFY_USE_CENTRAL='true'
+bash ../deploy/redeploy.sh TodoAPP
+```
+
+### Duas coisas que mordem
+
+**A inscrição antiga não migra.** Uma `PushSubscription` fica amarrada à chave
+pública VAPID usada no `subscribe()` do navegador. O Notify assina com **outro**
+par, então as linhas de ``push_subscriptions`` **não podem** ser copiadas para lá — o
+servidor de push responderia `403` em todo envio. Cada aparelho se reinscreve na
+primeira vez que a pessoa ativa. O `usePush` já confere a chave da inscrição
+existente e a refaz quando ela é do outro caminho; sem isso o sintoma seria
+"ativei e não chega nada", sem erro nenhum.
+
+**Entre os passos 1 e 2 pode chegar em dobro.** O mesmo aparelho fica inscrito
+nos dois lados por um período. É o preço do rollout gradual e some quando
+a `push_subscriptions` deste app for aposentada.
+
+### O que muda no código deste app
+
+| Arquivo | O que faz |
+|---|---|
+| `apps/bot/src/lib/lbsNotify.ts` | cliente da API interna. Nunca lança: se o Notify cair, o **Telegram sai do mesmo jeito** |
+| `apps/bot/src/utils/push.ts` | `sendPushToUser` ganhou um segundo caminho; o legado continua letra por letra |
+| `apps/bot/src/cron/notifications.ts` | passa o `eventId` estável do lembrete |
+| `apps/frontend/src/lib/lbsNotifyClient.ts` | registro do aparelho na central |
+| `apps/frontend/src/composables/usePush.ts` | escolhe o caminho e confere a chave VAPID |
+
+**O `eventId` é o contrato.** É `todo:reminder:<user>:<dia>T<hora:minuto>`,
+derivado do fato. Um `Date.now()` ali daria id novo a cada execução e
+desligaria a idempotência — o restart do bot voltaria a notificar duas vezes,
+que é exatamente o que o Notify existe para impedir. O **dia** entra no id de
+propósito: só `HH:MM` se repete todo dia, e o lembrete de amanhã às 08:00 seria
+tratado como duplicata do de hoje.
+
+**Não há fallback silencioso para o legado** quando o Notify recusa o evento.
+Durante o rollout o aparelho pode estar inscrito nos dois lados; cair para o
+legado depois de a central já ter aceito entregaria a notificação em dobro.
+
+O **Telegram não muda**: continua saindo deste processo, como sempre.
+
+📖 Contrato da API, decisões e operação: [`LBSNotify/README.md`](https://github.com/moablive/LBSNotify).
+Sequência de corte detalhada: `LBSNotify/docs/ARCHITECTURE_DISCOVERY.md`.
