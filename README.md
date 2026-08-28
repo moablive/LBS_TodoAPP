@@ -607,12 +607,12 @@ infraestrutura de Web Push que cada app carregava duplicada.
 ```bash
 # 1) o PWA passa a registrar o aparelho na central
 #    .env:  VITE_LBS_NOTIFY_URL='https://notify.astralwavelabel.com'
-bash ../deploy/redeploy.sh TodoAPP
+bash /mnt/nvme2tb/docker-services/server/dashboard/scripts/redeploy.sh LifeBusinessSuit/LBS_TodoAPP
 #    -> abra o app, ative as notificações, confirme que chega
 
 # 2) a entrega passa a sair da central
 #    .env:  TODO_NOTIFY_USE_CENTRAL='true'
-bash ../deploy/redeploy.sh TodoAPP
+bash /mnt/nvme2tb/docker-services/server/dashboard/scripts/redeploy.sh LifeBusinessSuit/LBS_TodoAPP
 ```
 
 ### Duas coisas que mordem
