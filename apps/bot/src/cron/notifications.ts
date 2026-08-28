@@ -4,6 +4,7 @@ import { botApi } from '@todo/api-client';
 import type { BotContext } from '../context.js';
 import { isNotificationEnabled } from '../utils/user-cache.js';
 import { sendPushToUser } from '../utils/push.js';
+import { enviarLongo } from '../utils/chunk.js';
 
 // ── helpers ────────────────────────────────────────────────────────────────
 
@@ -94,7 +95,7 @@ export const sendUserMorningGreeting = async (bot: Telegraf<BotContext>, user: a
     }
 
     if (settings.notifyTelegram) {
-      await bot.telegram.sendMessage(user.telegramId, msg, { parse_mode: 'HTML' });
+      await enviarLongo((t, extra) => bot.telegram.sendMessage(user.telegramId, t, extra as never), msg, { parse_mode: 'HTML' });
       console.log(`☀️ Bom dia enviado para ${user.telegramId}`);
     }
   } catch (err) {
@@ -132,7 +133,7 @@ export const sendUserDailySummary = async (bot: Telegraf<BotContext>, user: any,
     msg += buildSection('Prioridade Baixa', lowTasks, '🟢');
 
     if (settings.notifyTelegram) {
-      await bot.telegram.sendMessage(user.telegramId, msg, { parse_mode: 'HTML' });
+      await enviarLongo((t, extra) => bot.telegram.sendMessage(user.telegramId, t, extra as never), msg, { parse_mode: 'HTML' });
       console.log(`📋 Resumo "${label}" enviado para ${user.telegramId}`);
     }
   } catch (err) {
@@ -276,7 +277,7 @@ export function startNotificationsCron(bot: Telegraf<BotContext>) {
           }
 
           if (settings.notifyTelegram && isNotificationEnabled(String(user.telegramId))) {
-            await bot.telegram.sendMessage(user.telegramId, msg.trimEnd(), { parse_mode: 'HTML' });
+            await enviarLongo((t, extra) => bot.telegram.sendMessage(user.telegramId, t, extra as never), msg.trimEnd(), { parse_mode: 'HTML' });
             console.log(`⏰ Lembrete (telegram) enviado para ${user.telegramId}`);
           }
 

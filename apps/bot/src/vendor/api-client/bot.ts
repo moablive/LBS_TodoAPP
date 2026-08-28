@@ -35,8 +35,18 @@ export const botApi = {
   },
 
   getAllBotUsers: async (): Promise<{ id: string, telegramId: string }[]> => {
-    const result = await pool.query('SELECT DISTINCT user_id FROM tasks');
-    return result.rows.map(row => ({ id: row.user_id, telegramId: row.user_id }));
+    // O user_id da tabela `tasks` e o id do LoginHub, NAO o chat do Telegram.
+    // Devolve-lo como telegramId fazia todo digest agendado morrer em
+    // `400: Bad Request: chat not found` — silenciosamente, porque o erro so
+    // aparecia no log do cron. O chat real mora em `user_settings.telegram_id`;
+    // quem nao vinculou o Telegram simplesmente nao entra no laco.
+    const result = await pool.query(
+      `SELECT DISTINCT t.user_id, s.telegram_id
+         FROM tasks t
+         JOIN user_settings s ON s.loginhub_id::text = t.user_id
+        WHERE s.telegram_id IS NOT NULL AND s.telegram_id <> ''`
+    );
+    return result.rows.map(row => ({ id: row.user_id, telegramId: row.telegram_id }));
   },
 
   createGroup: async (userId: string, name: string): Promise<TaskGroup> => {

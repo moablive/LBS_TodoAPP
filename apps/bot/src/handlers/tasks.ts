@@ -2,6 +2,7 @@ import type { BotContext } from '../context.js';
 import { getDbUserId } from '../utils/user-cache.js';
 import { botApi } from '@todo/api-client';
 import { menuKeyboard } from '../ui/menu.js';
+import { enviarLongo } from '../utils/chunk.js';
 
 export async function handleAddTask(ctx: BotContext) {
   try {
@@ -107,7 +108,7 @@ export async function handleListTasks(ctx: BotContext) {
       msg += '\n';
     }
 
-    await ctx.reply(msg, { parse_mode: 'HTML', ...menuKeyboard });
+    await enviarLongo((t, extra) => ctx.reply(t, extra as never), msg, { parse_mode: 'HTML', ...menuKeyboard });
   } catch (error) {
     console.error('Erro ao listar tarefas:', error);
     await ctx.reply('Ocorreu um erro ao listar as tarefas.', { ...menuKeyboard });
