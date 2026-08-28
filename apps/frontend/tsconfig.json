@@ -3,9 +3,15 @@
   "compilerOptions": {
     "jsx": "preserve",
     "types": ["vite/client"],
-    "paths": {
-      "@/*": ["./src/*"]
-    }
+    // `baseUrl` PRECISA estar aqui, e nao so no tsconfig.base.json: o `paths`
+    // e resolvido relativo ao baseUrl, e um baseUrl herdado aponta para o
+    // diretorio do arquivo que o DECLARA — a raiz do monorepo. Com isso `@/*`
+    // apontava para `TodoAPP/src/*`, que nao existe, e o `vue-tsc` dava
+    // "Cannot find module '@/...'" em todo import com alias. O `vite build`
+    // seguia funcionando (o alias esta no vite.config.ts), entao o defeito so
+    // aparecia no typecheck. O NotesAPP ja tinha esta linha.
+    "baseUrl": ".",
+    "paths": { "@/*": ["./src/*"] }
   },
   "include": ["src/**/*.ts", "src/**/*.vue", "vite.config.ts"]
 }

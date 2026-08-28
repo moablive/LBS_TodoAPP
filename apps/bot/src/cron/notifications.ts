@@ -212,6 +212,12 @@ export function startNotificationsCron(bot: Telegraf<BotContext>) {
 
           // Resumos diários (verifica apenas o horário local no formato HH:MM)
           const nowStr = now.toLocaleTimeString('pt-BR', { timeZone: 'America/Sao_Paulo', hour: '2-digit', minute: '2-digit' });
+          // Dia corrente em São Paulo, no formato YYYY-MM-DD ('en-CA' devolve
+          // ISO). Entra no `eventId` do LBS Notify junto com `nowStr`: só a
+          // hora não basta, porque 08:00 se repete todo dia e o Notify trataria
+          // o lembrete de amanhã como duplicata do de hoje — a pessoa pararia
+          // de receber a partir do segundo dia.
+          const nowDay = now.toLocaleDateString('en-CA', { timeZone: 'America/Sao_Paulo' });
           
           if (settings.morningDigestEnabled && settings.morningDigestTime === nowStr) {
              await sendUserMorningGreeting(bot, user, tasks, settings);
@@ -275,11 +281,24 @@ export function startNotificationsCron(bot: Telegraf<BotContext>) {
           }
 
           if (settings.notifyPush) {
-            await sendPushToUser(user.id, {
-              title: '⏰ Lembrete de Tarefa',
-              body: pushLines.join('\n'),
-              url: '/',
-            });
+            await sendPushToUser(
+              user.id,
+              {
+                title: '⏰ Lembrete de Tarefa',
+                body: pushLines.join('\n'),
+                url: '/',
+              },
+              {
+                type: 'todo.reminder',
+                // Id ESTÁVEL: usuário + o minuto do disparo. Este cron roda a
+                // cada minuto e o conjunto de tarefas vencendo é o mesmo dentro
+                // do minuto, então um restart do bot no meio da execução não
+                // manda o lembrete duas vezes — o LBS Notify reconhece o
+                // `eventId` repetido e devolve `duplicated`. Um `Date.now()`
+                // aqui devolveria um id novo e desligaria a idempotência.
+                eventId: `todo:reminder:${user.id}:${nowDay}T${nowStr}`,
+              },
+            );
           }
         } catch (uErr) {
           console.error(`Erro ao processar lembrete para ${user.id}:`, uErr);

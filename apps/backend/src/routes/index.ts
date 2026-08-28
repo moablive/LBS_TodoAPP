@@ -32,7 +32,7 @@ apiRouter.use('/bot', requireBotKey, telegramBotRouter);
 apiRouter.use('/bot', requireBotKey, botRouter);
 
 apiRouter.use(requireAuth);
-apiRouter.use(async (req, res, next) => {
+apiRouter.use(async (req, _res, next) => {
   // auto-create user_settings if not exists
   if (req.user) {
     const existing = await db.query.userSettings.findFirst({

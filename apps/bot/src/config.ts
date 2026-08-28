@@ -25,6 +25,16 @@ const envSchema = z.object({
   VAPID_PUBLIC_KEY: z.string().optional(),
   VAPID_PRIVATE_KEY: z.string().optional(),
   VAPID_SUBJECT: z.string().default('mailto:admin@astralwavelabel.com'),
+  // ── LBS Notify (plataforma central de notificacoes) ──────────────────────
+  // Enquanto a flag for `false`, NADA muda: o Web Push continua saindo daqui
+  // com as chaves VAPID acima. Ligar a flag move so a ENTREGA do push para o
+  // Notify — o Telegram continua sendo mandado por este processo.
+  LBS_NOTIFY_URL: z.string().default('http://lbs_notify_api:3000'),
+  LBS_NOTIFY_KEY: z.string().optional(),
+  TODO_NOTIFY_USE_CENTRAL: z
+    .string()
+    .optional()
+    .transform((v) => (v === undefined ? false : /^(1|true|yes|on)$/i.test(v.trim()))),
 });
 
 const parsed = envSchema.safeParse(process.env);

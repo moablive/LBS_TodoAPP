@@ -1,7 +1,6 @@
 import { db, schema } from '@todoapp/db';
 import { and, eq, gte, isNotNull, or } from 'drizzle-orm';
 import * as ics from 'ics';
-import { env } from '@todoapp/services';
 
 /**
  * Mapeia a recorrência simplificada do TodoAPP para uma RRULE (RFC 5545) real,
