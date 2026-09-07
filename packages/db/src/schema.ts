@@ -227,6 +227,9 @@ export const userPrefs = pgTable("user_prefs", {
   moneyAppColor: text("moneyapp_color").default('#30d158'),
   showHolidays: boolean("show_holidays").default(true).notNull(),
   holidayColor: text("holiday_color").default('#6b7280'),
+  // Camada da Astral Wave Label: a agenda de lançamentos ao lado das tarefas.
+  showAstralWaveEvents: boolean("show_astralwave_events").default(true).notNull(),
+  astralWaveColor: text("astralwave_color").default('#a855f7'),
   icsExportToken: varchar("ics_export_token", { length: 36 }),
   updatedAt: timestamp("updated_at", { withTimezone: true })
     .defaultNow()

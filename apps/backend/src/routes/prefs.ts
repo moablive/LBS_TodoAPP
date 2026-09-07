@@ -29,6 +29,8 @@ prefsRouter.get('/', async (req, res) => {
     moneyAppColor: row?.moneyAppColor ?? '#30d158',
     showHolidays: row?.showHolidays ?? true,
     holidayColor: row?.holidayColor ?? '#6b7280',
+    showAstralWaveEvents: row?.showAstralWaveEvents ?? true,
+    astralWaveColor: row?.astralWaveColor ?? '#a855f7',
     icsExportToken: row?.icsExportToken ?? null
   });
 });
@@ -43,6 +45,8 @@ prefsRouter.patch('/', async (req, res) => {
   if (parsed.moneyAppColor !== undefined) setObj.moneyAppColor = parsed.moneyAppColor;
   if (parsed.showHolidays !== undefined) setObj.showHolidays = parsed.showHolidays;
   if (parsed.holidayColor !== undefined) setObj.holidayColor = parsed.holidayColor;
+  if (parsed.showAstralWaveEvents !== undefined) setObj.showAstralWaveEvents = parsed.showAstralWaveEvents;
+  if (parsed.astralWaveColor !== undefined) setObj.astralWaveColor = parsed.astralWaveColor;
 
   const [row] = await db
     .insert(schema.userPrefs)
@@ -52,7 +56,9 @@ prefsRouter.patch('/', async (req, res) => {
       showMoneyAppEvents: parsed.showMoneyAppEvents ?? true,
       moneyAppColor: parsed.moneyAppColor ?? '#30d158',
       showHolidays: parsed.showHolidays ?? true,
-      holidayColor: parsed.holidayColor ?? '#6b7280'
+      holidayColor: parsed.holidayColor ?? '#6b7280',
+      showAstralWaveEvents: parsed.showAstralWaveEvents ?? true,
+      astralWaveColor: parsed.astralWaveColor ?? '#a855f7'
     })
     .onConflictDoUpdate({
       target: schema.userPrefs.userId,
@@ -66,6 +72,8 @@ prefsRouter.patch('/', async (req, res) => {
     moneyAppColor: row?.moneyAppColor ?? '#30d158',
     showHolidays: row?.showHolidays ?? true,
     holidayColor: row?.holidayColor ?? '#6b7280',
+    showAstralWaveEvents: row?.showAstralWaveEvents ?? true,
+    astralWaveColor: row?.astralWaveColor ?? '#a855f7',
     icsExportToken: row?.icsExportToken ?? null
   });
 });

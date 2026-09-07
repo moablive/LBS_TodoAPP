@@ -79,6 +79,7 @@
                       </span>
                       <span class="flex items-center gap-1 text-[11px] text-[var(--muted)] min-w-0">
                         <img v-if="hit.kind === 'money'" src="/moneyapp-logo.png" class="w-3 h-3 rounded-full shrink-0" alt="" />
+                        <img v-else-if="hit.kind === 'release'" src="/astralwave-logo.png" class="w-3 h-3 rounded-full shrink-0" alt="" />
                         <ArrowPathIcon v-else-if="hit.recurring" class="w-3 h-3 shrink-0" />
                         <span class="truncate">{{ hit.sub }}</span>
                       </span>
@@ -97,7 +98,7 @@
             </div>
 
             <p
-              v-if="!isTasksVisible || (hasMoneyAppLink && !isMoneyAppVisible) || !isHolidaysVisible"
+              v-if="!isTasksVisible || (hasMoneyAppLink && !isMoneyAppVisible) || (hasAstralWaveLink && !isAstralWaveVisible) || !isHolidaysVisible"
               class="text-[10px] text-[var(--muted)] px-2.5 py-1.5 mt-1 border-t border-white/5"
             >
               Camadas ocultas não entram na busca.
@@ -122,6 +123,16 @@
           title="Exibir lançamentos do MoneyAPP"
         >
           <img src="/moneyapp-logo.png" class="w-4 h-4 rounded-full" alt="" /><span class="hidden sm:inline">MoneyAPP</span>
+        </button>
+
+        <button
+          v-if="hasAstralWaveLink"
+          @click="toggleAstralWaveVisibility"
+          class="flex items-center gap-2 text-[13px] font-semibold pl-2 pr-3 py-1.5 rounded-xl transition-colors border"
+          :class="isAstralWaveVisible ? 'bg-[#a855f7]/20 border-[#a855f7] text-[#a855f7]' : 'bg-[var(--bg-hover)] border-white/5 text-[var(--muted)] hover:text-white'"
+          title="Exibir lançamentos da Astral Wave"
+        >
+          <img src="/astralwave-logo.png" class="w-4 h-4 rounded-full" alt="" /><span class="hidden sm:inline">Astral Wave</span>
         </button>
 
         <button @click="navigate(-1)" title="Anterior (←)" class="p-1.5 rounded-md hover:bg-[var(--bg-hover)] text-[var(--muted)] hover:text-[var(--text)] transition-colors">
@@ -187,6 +198,7 @@
             >
               <span class="flex items-center gap-1 min-w-0">
                 <img v-if="occ.isMoneyApp" src="/moneyapp-logo.png" class="w-3 h-3 rounded-full shrink-0" alt="" />
+                <img v-if="occ.isAstralWave" src="/astralwave-logo.png" class="w-3 h-3 rounded-full shrink-0" alt="" />
                 <span v-else-if="isSynced(occ)" class="shrink-0 text-[9px]" title="Sincronizado de um calendário externo">🔗</span>
                 <span class="truncate font-medium">{{ timeLabel(occ.date) }}{{ occ.task.description }}</span>
               </span>
@@ -271,6 +283,7 @@
               >
                 <span class="flex items-center gap-1 min-w-0">
                   <img v-if="occ.isMoneyApp" src="/moneyapp-logo.png" class="w-3 h-3 rounded-full shrink-0" alt="" />
+                <img v-if="occ.isAstralWave" src="/astralwave-logo.png" class="w-3 h-3 rounded-full shrink-0" alt="" />
                   <span v-else-if="isSynced(occ)" class="shrink-0 text-[9px]" title="Sincronizado de um calendário externo">🔗</span>
                   <span class="truncate">{{ occ.task.description }}</span>
                 </span>
@@ -338,6 +351,7 @@
                 <div class="pl-2 pr-1 py-1 flex flex-col h-full justify-start pointer-events-none">
                   <span class="font-semibold truncate text-[11px] leading-none mb-0.5 flex items-center gap-1">
                     <img v-if="occ.isMoneyApp" src="/moneyapp-logo.png" class="w-3 h-3 rounded-full shrink-0" alt="" />
+                <img v-if="occ.isAstralWave" src="/astralwave-logo.png" class="w-3 h-3 rounded-full shrink-0" alt="" />
                     <span v-else-if="isSynced(occ)" class="shrink-0 text-[10px]" title="Sincronizado de um calendário externo">🔗</span>
                     <span class="truncate">{{ occ.task.description }}</span>
                   </span>
@@ -346,8 +360,8 @@
 
                 <!-- Drag handles — eventos vindos de calendário externo não
                      redimensionam: a próxima sync sobrescreveria o ajuste. -->
-                <div v-if="!occ.isMoneyApp && !isSynced(occ) && !occ.task.completedAt" class="absolute top-0 left-0 right-0 h-2 cursor-ns-resize z-20" @mousedown.stop="onResizeStart($event, occ, 'top')"></div>
-                <div v-if="!occ.isMoneyApp && !isSynced(occ) && !occ.task.completedAt" class="absolute bottom-0 left-0 right-0 h-2 cursor-ns-resize z-20" @mousedown.stop="onResizeStart($event, occ, 'bottom')"></div>
+                <div v-if="!occ.isMoneyApp && !occ.isAstralWave && !isSynced(occ) && !occ.task.completedAt" class="absolute top-0 left-0 right-0 h-2 cursor-ns-resize z-20" @mousedown.stop="onResizeStart($event, occ, 'top')"></div>
+                <div v-if="!occ.isMoneyApp && !occ.isAstralWave && !isSynced(occ) && !occ.task.completedAt" class="absolute bottom-0 left-0 right-0 h-2 cursor-ns-resize z-20" @mousedown.stop="onResizeStart($event, occ, 'bottom')"></div>
               </button>
 
               <!-- current time indicator -->
@@ -518,6 +532,112 @@
     </div>
   </div>
 
+  <!-- Lista de lançamentos da Astral Wave no dia -->
+  <div v-if="releaseList" class="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[60] p-4" @click.self="releaseList = null">
+    <div class="bg-[var(--bg-card)] rounded-2xl shadow-2xl w-full max-w-md border border-white/10 p-6">
+      <div class="flex items-center gap-2 mb-1">
+        <img src="/astralwave-logo.png" class="w-5 h-5 rounded-full" alt="Astral Wave" />
+        <h3 class="text-lg font-semibold text-white flex-1">Lançamentos da Astral Wave</h3>
+        <span class="text-[12px] font-bold text-[#a855f7] bg-[#a855f7]/10 border border-[#a855f7]/40 rounded-full px-2.5 py-0.5">
+          {{ releaseList.events.length }}
+        </span>
+      </div>
+      <p class="text-[13px] text-[var(--muted)] capitalize mb-4">
+        {{ releaseList.date.toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }) }}
+      </p>
+
+      <div class="max-h-[50vh] overflow-y-auto custom-scrollbar space-y-2 pr-1">
+        <button
+          v-for="ev in releaseList.events"
+          :key="ev.id"
+          @click="releaseDetail = ev"
+          class="w-full flex items-center gap-3 text-left bg-[var(--bg)] hover:bg-[var(--bg-hover)] rounded-xl px-4 py-3 border border-white/5 transition-colors"
+        >
+          <span class="w-2 h-2 rounded-full shrink-0" :style="{ backgroundColor: ev.color || '#a855f7' }"></span>
+          <span class="flex-1 min-w-0">
+            <span class="block text-[14px] font-semibold text-white truncate">{{ ev.title }}</span>
+            <span class="block text-[12px] text-[var(--muted)] truncate">{{ ev.artist }} · {{ ev.type }}</span>
+          </span>
+          <span class="text-[10px] font-bold border rounded-full px-2 py-0.5 shrink-0" :class="releaseStatusInfo(ev).cls">
+            {{ releaseStatusInfo(ev).label }}
+          </span>
+        </button>
+      </div>
+
+      <div class="flex justify-end mt-5">
+        <button @click="releaseList = null" class="px-4 py-2 rounded-full text-[13px] font-semibold text-[var(--muted)] hover:bg-[var(--bg-hover)] hover:text-white transition-colors">
+          Fechar
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Detalhes do release (estilo Astral Wave) -->
+  <div v-if="releaseDetail" class="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[70] p-4" @click.self="releaseDetail = null">
+    <div class="bg-[var(--bg-card)] rounded-2xl shadow-2xl w-full max-w-md border border-white/10 p-6">
+      <div class="flex items-center gap-2.5 mb-5">
+        <img src="/astralwave-logo.png" class="w-8 h-8 rounded-full" alt="Astral Wave" />
+        <div>
+          <h3 class="text-xl font-bold text-white leading-tight">Detalhes do Lançamento</h3>
+          <p class="text-[11px] font-semibold text-[#a855f7] uppercase tracking-wide">Astral Wave Label</p>
+        </div>
+      </div>
+
+      <div class="bg-[var(--bg)] rounded-xl px-4 py-3 border border-white/5 mb-3">
+        <p class="text-[12px] text-[var(--muted)] mb-0.5">Obra</p>
+        <p class="text-[15px] font-semibold text-white break-words">{{ releaseDetail.title }}</p>
+      </div>
+
+      <div class="bg-[var(--bg)] rounded-xl px-4 py-3 border border-white/5 mb-3 flex items-center gap-3">
+        <img
+          v-if="releaseDetail.artistImageUrl"
+          :src="releaseDetail.artistImageUrl"
+          class="w-10 h-10 rounded-full object-cover shrink-0 border border-white/10"
+          alt=""
+        />
+        <div class="min-w-0">
+          <p class="text-[12px] text-[var(--muted)] mb-0.5">🎧 Artista</p>
+          <p class="text-[15px] font-semibold text-white truncate">{{ releaseDetail.artist }}</p>
+        </div>
+      </div>
+
+      <div class="grid grid-cols-2 gap-3 mb-3">
+        <div class="bg-[var(--bg)] rounded-xl px-4 py-3 border border-white/5">
+          <p class="text-[12px] text-[var(--muted)] mb-0.5">📅 Data</p>
+          <p class="text-[15px] font-semibold text-white">{{ releaseDateLabel(releaseDetail) }}</p>
+        </div>
+        <div class="bg-[var(--bg)] rounded-xl px-4 py-3 border border-white/5">
+          <p class="text-[12px] text-[var(--muted)] mb-0.5 flex items-center gap-1.5">
+            <span class="w-2 h-2 rounded-full inline-block" :style="{ backgroundColor: releaseDetail.color || '#a855f7' }"></span>Formato
+          </p>
+          <p class="text-[15px] font-semibold text-white truncate">{{ releaseDetail.type || '—' }}</p>
+        </div>
+      </div>
+
+      <div class="bg-[var(--bg)] rounded-xl px-4 py-3 border border-white/5 mb-3">
+        <p class="text-[12px] text-[var(--muted)] mb-1">Status</p>
+        <span class="inline-block text-[11px] font-bold border rounded-full px-2.5 py-0.5" :class="releaseStatusInfo(releaseDetail).cls">
+          {{ releaseStatusInfo(releaseDetail).label }}
+        </span>
+      </div>
+
+      <div class="flex justify-end gap-2 mt-5">
+        <button
+          @click="openAstralWave"
+          class="px-4 py-2 rounded-full text-[13px] font-semibold text-[#a855f7] border border-[#a855f7]/40 hover:bg-[#a855f7]/10 transition-colors"
+        >
+          Abrir no painel
+        </button>
+        <button
+          @click="releaseDetail = null"
+          class="px-4 py-2 rounded-full text-[13px] font-semibold bg-[var(--bg-hover)] text-white hover:bg-[var(--bg)] border border-white/10 transition-colors"
+        >
+          Fechar
+        </button>
+      </div>
+    </div>
+  </div>
+
   <!-- Visualizador de comprovante (imagem ou PDF) -->
   <div v-if="receiptView" class="fixed inset-0 bg-black/85 backdrop-blur-sm flex items-center justify-center z-[80] p-4" @click.self="closeReceipt">
     <button
@@ -616,6 +736,16 @@ function onKeydown(e: KeyboardEvent) {
       e.preventDefault();
       return;
     }
+    if (releaseDetail.value) {
+      releaseDetail.value = null;
+      e.preventDefault();
+      return;
+    }
+    if (releaseList.value) {
+      releaseList.value = null;
+      e.preventDefault();
+      return;
+    }
     if (conflictPrompt.value) {
       conflictPrompt.value = null;
       e.preventDefault();
@@ -640,7 +770,7 @@ function onKeydown(e: KeyboardEvent) {
 
   if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'n') {
     e.preventDefault();
-    if (!isCreateOpen.value && !conflictPrompt.value && !moneyDetail.value && !moneyList.value && !receiptView.value) {
+    if (!isCreateOpen.value && !conflictPrompt.value && !moneyDetail.value && !moneyList.value && !releaseDetail.value && !releaseList.value && !receiptView.value) {
       openCreate(null);
     }
     return;
@@ -649,7 +779,7 @@ function onKeydown(e: KeyboardEvent) {
   if (e.metaKey || e.ctrlKey || e.altKey) return;
   const target = e.target as HTMLElement | null;
   if (target && ['INPUT', 'SELECT', 'TEXTAREA'].includes(target.tagName)) return;
-  if (isCreateOpen.value || conflictPrompt.value || moneyDetail.value || moneyList.value || receiptView.value) return;
+  if (isCreateOpen.value || conflictPrompt.value || moneyDetail.value || moneyList.value || releaseDetail.value || releaseList.value || receiptView.value) return;
 
   switch (e.key.toLowerCase()) {
     case 'd': setViewType('day'); break;
@@ -744,6 +874,22 @@ const moneyAppColor = ref('#30d158');
 const hasMoneyAppLink = ref(false);
 /** Só existe camada do MoneyAPP se houver vínculo E a pessoa quiser vê-la. */
 const showMoneyAppLayer = computed(() => hasMoneyAppLink.value && isMoneyAppVisible.value);
+
+const astralWaveEvents = ref<any[]>([]);
+const isAstralWaveVisible = ref(true);
+const astralWaveColor = ref('#a855f7');
+/**
+ * Esta pessoa tem conta na Astral Wave Label ligada à daqui?
+ *
+ * Vale palavra por palavra o que está escrito acima sobre o MoneyAPP: o
+ * vínculo é por pessoa (user_integrations, app 8), cadastrado um a um, e sem
+ * ele não se desenha o chip. A diferença é o que o vínculo entrega — lá são os
+ * lançamentos da pessoa, aqui é a agenda de lançamentos do artista dela (ou a
+ * do selo inteiro, se ela administra o selo; quem decide isso é a Astral Wave).
+ */
+const hasAstralWaveLink = ref(false);
+/** Só existe camada da Astral Wave se houver vínculo E a pessoa quiser vê-la. */
+const showAstralWaveLayer = computed(() => hasAstralWaveLink.value && isAstralWaveVisible.value);
 const isTasksVisible = ref(true);
 
 const holidays = ref<any[]>([]);
@@ -782,6 +928,30 @@ function toggleTasksVisibility() {
   isTasksVisible.value = !isTasksVisible.value;
 }
 
+async function fetchAstralWaveEvents() {
+  if (!hasAstralWaveLink.value) return;
+  try {
+    const start = new Date();
+    start.setFullYear(start.getFullYear() - 1);
+    const end = new Date();
+    end.setFullYear(end.getFullYear() + 1);
+    const startStr = start.toISOString().split('T')[0];
+    const endStr = end.toISOString().split('T')[0];
+
+    const res = await api.get<any[]>(`/integrations/astralwave/calendar?start=${startStr}&end=${endStr}`);
+    // Release tem data, não hora: a API manda 'YYYY-MM-DD' puro. Fixar meia-noite
+    // LOCAL (e não deixar o Date interpretar como UTC) é o que impede o
+    // lançamento de aparecer um dia antes para quem está a oeste de Greenwich —
+    // o mesmo cuidado que a camada do MoneyAPP toma logo abaixo.
+    astralWaveEvents.value = (res || []).map((ev) => ({
+      ...ev,
+      date: typeof ev.date === 'string' ? ev.date.substring(0, 10) + 'T00:00:00' : ev.date,
+    }));
+  } catch (err) {
+    console.error('Failed to fetch astralwave events:', err);
+  }
+}
+
 async function fetchMoneyAppEvents() {
   if (!hasMoneyAppLink.value) return;
   try {
@@ -817,13 +987,25 @@ onMounted(async () => {
   }
 
   try {
-    const prefs = await api.get<{ showMoneyAppEvents: boolean; showHolidays?: boolean; moneyAppColor?: string; holidayColor?: string }>('/prefs');
+    const link = await api.get<{ linked: boolean }>('/integrations/astralwave/status');
+    hasAstralWaveLink.value = link.linked;
+  } catch (err) {
+    console.error('Failed to check astralwave link:', err);
+  }
+
+  try {
+    const prefs = await api.get<{ showMoneyAppEvents: boolean; showHolidays?: boolean; moneyAppColor?: string; holidayColor?: string; showAstralWaveEvents?: boolean; astralWaveColor?: string }>('/prefs');
     isMoneyAppVisible.value = prefs.showMoneyAppEvents;
     isHolidaysVisible.value = prefs.showHolidays ?? true;
     if (prefs.moneyAppColor) moneyAppColor.value = prefs.moneyAppColor;
     if (prefs.holidayColor) holidayColor.value = prefs.holidayColor;
     if (showMoneyAppLayer.value) {
       await fetchMoneyAppEvents();
+    }
+    isAstralWaveVisible.value = prefs.showAstralWaveEvents ?? true;
+    if (prefs.astralWaveColor) astralWaveColor.value = prefs.astralWaveColor;
+    if (showAstralWaveLayer.value) {
+      await fetchAstralWaveEvents();
     }
     if (isHolidaysVisible.value) {
       const y = cursor.value.getFullYear();
@@ -844,6 +1026,18 @@ async function toggleMoneyAppVisibility() {
       await fetchMoneyAppEvents();
     }
   } catch(e) {
+    console.error('Failed to update prefs', e);
+  }
+}
+
+async function toggleAstralWaveVisibility() {
+  isAstralWaveVisible.value = !isAstralWaveVisible.value;
+  try {
+    await api.patch('/prefs', { showAstralWaveEvents: isAstralWaveVisible.value });
+    if (isAstralWaveVisible.value && astralWaveEvents.value.length === 0) {
+      await fetchAstralWaveEvents();
+    }
+  } catch (e) {
     console.error('Failed to update prefs', e);
   }
 }
@@ -931,6 +1125,7 @@ function occurrencesInRange(rangeStart: Date, rangeEnd: Date): Occurrence[] {
           isMoneyApp: true,
           money: ev,
           task: {
+            layer: 'money',
             id: ev.id,
             // /api/calendar do MoneyAPP retorna { title, color }
             description: (ev.title ?? ev.description ?? '') + amount,
@@ -946,6 +1141,7 @@ function occurrencesInRange(rangeStart: Date, rangeEnd: Date): Occurrence[] {
           isMoneyApp: true,
           moneyGroup: evs,
           task: {
+            layer: 'money',
             id: `moneyapp-group-${k}`,
             description: `${evs.length} lançamentos`,
             completedAt: null,
@@ -954,6 +1150,59 @@ function occurrencesInRange(rangeStart: Date, rangeEnd: Date): Occurrence[] {
           },
           date: new Date(evs[0].date),
           key: `moneyapp-group-${k}`
+        });
+      }
+    }
+  }
+
+  // Merge dos releases da Astral Wave — mesma regra do MoneyAPP: vários no
+  // mesmo dia viram UM chip "N lançamentos" (clique abre a lista); um só abre
+  // direto os detalhes. Aqui isso é mais frequente do que parece, porque data
+  // de release é escolhida a dedo e o selo costuma agrupar o line-up na sexta.
+  if (showAstralWaveLayer.value) {
+    const byDay = new Map<string, any[]>();
+    for (const ev of astralWaveEvents.value) {
+      const d = new Date(ev.date);
+      if (d >= rangeStart && d < rangeEnd) {
+        const k = dayKey(d);
+        if (!byDay.has(k)) byDay.set(k, []);
+        byDay.get(k)!.push(ev);
+      }
+    }
+    for (const [k, evs] of byDay) {
+      evs.sort((a, b) => String(a.title ?? '').localeCompare(String(b.title ?? '')));
+      if (evs.length === 1) {
+        const ev = evs[0];
+        out.push({
+          isAstralWave: true,
+          release: ev,
+          task: {
+            layer: 'astralwave',
+            id: ev.id,
+            description: `${ev.artist} — ${ev.title}`,
+            // Release não tem "concluído"; o risco de reaproveitar o campo era
+            // a data confirmada aparecer riscada, como tarefa feita.
+            completedAt: null,
+            categoryColor: ev.color ?? astralWaveColor.value,
+            type: ev.type,
+          },
+          date: new Date(ev.date),
+          key: `astralwave-${ev.id}`,
+        });
+      } else {
+        out.push({
+          isAstralWave: true,
+          releaseGroup: evs,
+          task: {
+            layer: 'astralwave',
+            id: `astralwave-group-${k}`,
+            description: `${evs.length} lançamentos`,
+            completedAt: null,
+            categoryColor: astralWaveColor.value,
+            type: 'group',
+          },
+          date: new Date(evs[0].date),
+          key: `astralwave-group-${k}`,
         });
       }
     }
@@ -1187,8 +1436,8 @@ type SearchGroup = 'future' | 'past' | 'none';
 
 interface SearchHit {
   id: string;          // chave única da linha do dropdown
-  rawId: string;       // id da tarefa / lançamento / feriado (usado no destaque)
-  kind: 'task' | 'money' | 'holiday';
+  rawId: string;       // id da tarefa / lançamento / release / feriado (usado no destaque)
+  kind: 'task' | 'money' | 'release' | 'holiday';
   group: SearchGroup;
   date: Date | null;   // null = tarefa sem data agendada
   label: string;
@@ -1198,6 +1447,7 @@ interface SearchHit {
   recurring: boolean;
   task?: any;
   money?: any;
+  release?: any;
 }
 
 const SEARCH_LIMIT = 25;
@@ -1305,6 +1555,28 @@ const searchResults = computed<SearchHit[]>(() => {
         done: ev.status === 'paid',
         recurring: false,
         money: ev,
+      });
+    }
+  }
+
+  if (showAstralWaveLayer.value) {
+    for (const ev of astralWaveEvents.value) {
+      // O nome do artista entra na busca junto com o título: procurar pelo DJ
+      // é o jeito mais natural de achar um release na agenda do selo.
+      if (!norm(`${ev.artist ?? ''} ${ev.title ?? ''}`).includes(q)) continue;
+      const date = new Date(ev.date);
+      hits.push({
+        id: `release-${ev.id}`,
+        rawId: String(ev.id),
+        kind: 'release',
+        group: 'none',
+        date,
+        label: ev.title,
+        sub: `${searchDateLabel(date)} · ${ev.artist} · ${ev.status}`,
+        color: ev.color ?? astralWaveColor.value,
+        done: false,
+        recurring: false,
+        release: ev,
       });
     }
   }
@@ -1426,6 +1698,7 @@ async function goToResult(hit: SearchHit | undefined) {
 function openResultDetails(hit: SearchHit) {
   isSearchOpen.value = false;
   if (hit.kind === 'money') moneyDetail.value = hit.money;
+  else if (hit.kind === 'release') releaseDetail.value = hit.release;
   else if (hit.task) emit('task-click', hit.task);
 }
 
@@ -1495,6 +1768,14 @@ function onEventClick(occ: Occurrence) {
     moneyList.value = { date: occ.date, events: occ.moneyGroup };
     return;
   }
+  if (occ.releaseGroup) {
+    releaseList.value = { date: occ.date, events: occ.releaseGroup };
+    return;
+  }
+  if (occ.isAstralWave) {
+    releaseDetail.value = occ.release;
+    return;
+  }
   if (occ.isMoneyApp) {
     moneyDetail.value = occ.money;
     return;
@@ -1506,6 +1787,8 @@ function viewOccurrence(occ: Occurrence) {
   conflictPrompt.value = null;
   if (occ.moneyGroup) moneyList.value = { date: occ.date, events: occ.moneyGroup };
   else if (occ.isMoneyApp) moneyDetail.value = occ.money;
+  else if (occ.releaseGroup) releaseList.value = { date: occ.date, events: occ.releaseGroup };
+  else if (occ.isAstralWave) releaseDetail.value = occ.release;
   else emit('task-click', occ.task);
 }
 
@@ -1622,6 +1905,34 @@ async function onResizeEnd() {
 const moneyDetail = ref<any | null>(null);
 const moneyList = ref<{ date: Date; events: any[] } | null>(null);
 
+const releaseDetail = ref<any | null>(null);
+const releaseList = ref<{ date: Date; events: any[] } | null>(null);
+
+function releaseDateLabel(ev: any) {
+  // Release é data cheia, sem hora — por isso aqui não há o sufixo de horário
+  // que o `moneyDateLabel` monta.
+  return new Date(ev.date).toLocaleDateString('pt-BR', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+  });
+}
+
+function releaseStatusInfo(ev: any): { label: string; cls: string } {
+  const st = String(ev.status || '').toLowerCase();
+  // "Solicitado" é pedido do DJ ainda sem aval da label; "Agendado" é data
+  // fechada. A distinção é o estado inteiro do fluxo de release — apagá-la no
+  // calendário faria pedido e compromisso parecerem a mesma coisa.
+  if (st === 'agendado') return { label: 'AGENDADO', cls: 'text-[#a855f7] border-[#a855f7]/40 bg-[#a855f7]/10' };
+  if (st === 'solicitado') return { label: 'SOLICITADO', cls: 'text-[#f59e0b] border-[#f59e0b]/40 bg-[#f59e0b]/10' };
+  return { label: String(ev.status || '—').toUpperCase(), cls: 'text-[var(--muted)] border-white/10 bg-white/5' };
+}
+
+function openAstralWave() {
+  const url = import.meta.env.VITE_ASTRALWAVE_PANEL_URL || 'https://artist.astralwavelabel.com';
+  window.open(url, '_blank');
+}
+
 const moneyListTotal = computed(() => {
   if (!moneyList.value) return 0;
   return moneyList.value.events.reduce((sum, ev) => {
@@ -1703,6 +2014,10 @@ function timedRangeLabel(occ: Occurrence) {
 const fallbackColors = ['bg-[var(--accent)]', 'bg-[#30d158]', 'bg-[#ff3b30]', 'bg-[#ff9500]', 'bg-[#ff2d55]', 'bg-[#bf5af2]'];
 
 function priorityAccentColor(task: any): string {
+  // A barrinha lateral do release carrega o STATUS (âmbar = pedido do DJ ainda
+  // sem aval, roxo = data fechada), como o `#30d158` do MoneyAPP carrega a
+  // origem. Por isso aqui vem a cor do item, e não a da camada.
+  if (task.layer === 'astralwave') return task.categoryColor || astralWaveColor.value;
   if (task.categoryColor) return '#30d158';
   if (task.type === 'holiday') return '#6b7280';
   if (task.priority === 'high')   return '#ff3b30';
@@ -1712,6 +2027,10 @@ function priorityAccentColor(task: any): string {
 }
 
 function priorityBgColor(task: any): string {
+  // ATENÇÃO: `categoryColor` NÃO é a cor a usar aqui — é a bandeira histórica de
+  // "veio do MoneyAPP", e foi o que pintou os releases de verde. Quem decide o
+  // fundo é a CAMADA, com a cor que a pessoa escolheu em Preferências.
+  if (task.layer === 'astralwave') return astralWaveColor.value;
   if (task.categoryColor) return moneyAppColor.value;
   if (task.type === 'holiday') return holidayColor.value;
   // Cor global do tema (Configurações → Cor de destaque) para TODOS os eventos;
@@ -1752,6 +2071,7 @@ function groupColor(task: any) {
 
 function groupStyle(task: any) {
   if (task.type === 'holiday') return { backgroundColor: holidayColor.value, color: '#ffffff' };
+  if (task.layer === 'astralwave') return { backgroundColor: astralWaveColor.value, color: '#ffffff' };
   if (task.categoryColor) return { backgroundColor: moneyAppColor.value, color: '#ffffff' };
   return {};
 }

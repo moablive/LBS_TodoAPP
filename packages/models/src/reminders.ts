@@ -69,5 +69,7 @@ export const updateUserPrefsSchema = z.object({
   moneyAppColor: z.string().optional(),
   showHolidays: z.boolean().optional(),
   holidayColor: z.string().optional(),
+  showAstralWaveEvents: z.boolean().optional(),
+  astralWaveColor: z.string().optional(),
 });
 export type UpdateUserPrefsDto = z.infer<typeof updateUserPrefsSchema>;

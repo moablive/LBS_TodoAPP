@@ -8,6 +8,9 @@ export interface Occurrence {
   isMoneyApp?: boolean;
   money?: any;
   moneyGroup?: any[];
+  isAstralWave?: boolean;
+  release?: any;
+  releaseGroup?: any[];
   isHoliday?: boolean;
   durationOverride?: number;
   isContinuation?: boolean;

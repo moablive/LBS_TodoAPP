@@ -253,6 +253,20 @@
                 <ToggleSwitch v-model="prefs.showMoneyAppEvents" />
               </div>
             </div>
+            <!-- Mesma regra da linha acima: sem vínculo com o label não há o que
+                 ajustar, e o controle não aparece. -->
+            <div v-if="hasAstralWaveLink" class="flex items-center justify-between px-4 py-3">
+              <div>
+                <p class="text-[14px] text-[var(--text)] font-medium">Eventos da Astral Wave</p>
+                <p class="text-[12px] text-[var(--muted)]">Exibir lançamentos e releases no calendário</p>
+              </div>
+              <div class="flex items-center gap-3">
+                <label v-if="prefs.showAstralWaveEvents" class="w-6 h-6 rounded-full overflow-hidden cursor-pointer shadow border border-[var(--border)] shrink-0" :style="{ backgroundColor: prefs.astralWaveColor || '#a855f7' }">
+                  <input type="color" v-model="prefs.astralWaveColor" class="opacity-0 absolute" />
+                </label>
+                <ToggleSwitch v-model="prefs.showAstralWaveEvents" />
+              </div>
+            </div>
             <div class="flex items-center justify-between px-4 py-3">
               <div>
                 <p class="text-[14px] text-[var(--text)] font-medium">Feriados Nacionais (BR)</p>
@@ -487,6 +501,8 @@ interface UserPrefs {
   moneyAppColor?: string;
   showHolidays?: boolean;
   holidayColor?: string;
+  showAstralWaveEvents: boolean;
+  astralWaveColor?: string;
   icsExportToken?: string | null;
 }
 
@@ -536,12 +552,17 @@ const displayNameInput = ref('');
 /** Tem conta no MoneyAPP ligada à daqui? Ver /integrations/moneyapp/status. */
 const hasMoneyAppLink = ref(false);
 
+/** Tem conta na Astral Wave ligada à daqui? Ver /integrations/astralwave/status. */
+const hasAstralWaveLink = ref(false);
+
 const prefs = ref<UserPrefs>({
   kanbanLists: [],
   showMoneyAppEvents: true,
   moneyAppColor: '#30d158',
   showHolidays: true,
   holidayColor: '#6b7280',
+  showAstralWaveEvents: true,
+  astralWaveColor: '#a855f7',
   icsExportToken: null,
 });
 
@@ -652,14 +673,15 @@ function copyToClipboard(text: string) {
 onMounted(async () => {
   document.addEventListener('keydown', handleEsc);
   try {
-    const [s, p, g, c, link] = await Promise.all([
+    const [s, p, g, c, link, linkAw] = await Promise.all([
       api.get<ReminderSettings>('/reminders'),
       api.get<UserPrefs>('/prefs'),
       api.get<TaskGroup[]>('/groups'),
       api.get<CalendarSubscription[]>('/calendars'),
       // Falhar aqui não pode derrubar a tela inteira de configurações; sem
       // resposta, trata como quem não tem o vínculo e some com a linha.
-      api.get<{ linked: boolean }>('/integrations/moneyapp/status').catch(() => ({ linked: false }))
+      api.get<{ linked: boolean }>('/integrations/moneyapp/status').catch(() => ({ linked: false })),
+      api.get<{ linked: boolean }>('/integrations/astralwave/status').catch(() => ({ linked: false }))
     ]);
     settings.value = s;
     displayNameInput.value = s.displayName || '';
@@ -667,6 +689,7 @@ onMounted(async () => {
     taskGroups.value = g;
     calendars.value = c;
     hasMoneyAppLink.value = link.linked;
+    hasAstralWaveLink.value = linkAw.linked;
   } catch (err) {
     console.error('Erro ao carregar configurações:', err);
   } finally {

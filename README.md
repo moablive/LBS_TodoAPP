@@ -87,6 +87,9 @@ Wizards de adicionar/concluir/remover tarefas e grupos, transcrição de **voz**
 ### 🔗 Integração MoneyAPP
 Lançamentos financeiros do **MoneyAPP** aparecem no calendário com o **logo do Money** (toggle "MoneyAPP"): clique abre a modal **Detalhes da Transação** (valor, categoria, status e **comprovante** — imagem/PDF via proxy), vários lançamentos no mesmo dia viram um chip **"N lançamentos"** com modal de lista e total do dia. As tarefas do TodoAPP aparecem no dashboard do Money. Ver a seção [Integração com MoneyAPP](#-integração-com-moneyapp).
 
+### 🔗 Integração Astral Wave
+A agenda de lançamentos da **Astral Wave Label** aparece no calendário com o **logo do selo** (toggle "Astral Wave"): clique abre modal **Detalhes do Lançamento** (obra, artista, data, formato e status), vários releases no mesmo dia viram um chip **"N lançamentos"** com modal de lista. Data já fechada sai como **Agendado**; pedido de DJ ainda sem aval da label sai como **Solicitado**, em âmbar. Ver a seção [Integração com Astral Wave](#-integração-com-astral-wave).
+
 </td>
 </tr>
 </table>
@@ -196,6 +199,7 @@ erDiagram
     varchar user_id PK
     jsonb kanban_lists
     boolean show_moneyapp_events
+    boolean show_astralwave_events
     timestamptz updated_at
   }
   reminder_settings {
@@ -270,13 +274,15 @@ erDiagram
 | | `PATCH` | `/api/groups/:id` | Atualiza grupo (nome, cor, ícone) |
 | | `DELETE` | `/api/groups/:id` | **Remove grupo** |
 | | `POST` | `/api/groups/reorder` | Reordena grupos (drag-and-drop) |
-| ⚙️ **Prefs** | `GET`/`PATCH` | `/api/prefs` | `{ kanbanLists, showMoneyAppEvents }` (toggle do calendário) |
+| ⚙️ **Prefs** | `GET`/`PATCH` | `/api/prefs` | `{ kanbanLists, showMoneyAppEvents, showAstralWaveEvents }` (toggles do calendário, com a cor de cada camada) |
 | 🔔 **Reminders** | `GET`/`PATCH` | `/api/reminders` | Configuração de lembretes (horário/30min/7dias · telegram/push · `displayName` usado pelo bot) |
 | 📲 **Push** | `GET` | `/api/push/public-key` | VAPID public key |
 | | `POST` | `/api/push/subscribe` | Registra subscription do Service Worker |
 | | `POST` | `/api/push/unsubscribe` | Remove subscription |
 | 🔗 **Integrations** | `GET` | `/api/integrations/moneyapp/calendar` | Lançamentos do MoneyAPP (`?start&end`) — ver [integração](#-integração-com-moneyapp) |
 | | `GET` | `/api/integrations/moneyapp/receipt/:id` | Comprovante de um lançamento (`tx-<uuid>` ou `loan-<uuid>`) — proxy que streama imagem/PDF do Money |
+| | `GET` | `/api/integrations/astralwave/status` | A conta tem vínculo com a Astral Wave? Decide se o chip é desenhado |
+| | `GET` | `/api/integrations/astralwave/calendar` | Releases da Astral Wave (`?start&end`) ver [integração](#-integração-com-astral-wave) |
 | 🤖 **Bot** (interno) | `GET` | `/api/bot/tasks` | `?telegramId&start&end` · requer header `x-api-key: BOT_SERVICE_KEY` (consumido pelo MoneyAPP e pelo bot) |
 | ❤️ **Health** | `GET` | `/health` | Healthcheck do container |
 
@@ -368,6 +374,50 @@ A integração é **bidirecional em leitura** e toda **interna** à rede Docker 
 - **UI no calendário**: eventos do Money exibem o logo (`/moneyapp-logo.png`); clique abre a modal "Detalhes da Transação" (valor, data, categoria, status, comprovante). Vários lançamentos no mesmo dia são agrupados num chip **"N lançamentos"** que abre a lista do dia com total. Sábado/domingo têm fundo vermelho fraco (dias não úteis).
 
 ---
+
+
+---
+
+## 🔗 Integração com Astral Wave
+
+Mesma forma do vínculo com o MoneyAPP — e de propósito: o que muda é o dado que
+atravessa, não o mecanismo. Aqui o TodoAPP **lê** a agenda de lançamentos da
+**Astral Wave Label** (app 8 no LoginHUB) e desenha junto com as tarefas.
+
+| Fluxo | Como |
+| ------- | ----- |
+| **Astral Wave → Todo** (calendário) | `CalendarView` → `GET /api/integrations/astralwave/calendar?start&end` → backend resolve o vínculo em `user_integrations` (`app_id 8`) → `GET http://astralwave_api:3000/api/calendar` com `x-api-key: ASTRALWAVE_SERVICE_KEY` + `x-user-id: <id do usuário NO label>` |
+| **Astral Wave → Todo** (chip) | `GET /api/integrations/astralwave/status` responde `{ linked }`. Sem vínculo o chip **não é desenhado** — nada de botão morto oferecendo um app que a pessoa não usa |
+
+**Pontos-chave:**
+
+- ⚠️ **O recorte de quem vê o quê é do PROVEDOR, não daqui.** O TodoAPP manda o id
+  e recebe o que aquela conta pode ver. Do lado do label: DJ enxerga os releases
+  do artista vinculado a ele (`site_artists.loginhub_user_id`); a agenda do selo
+  inteiro é só de quem está em `CALENDAR_LABEL_READERS` (`.env` do
+  `astralwavelabel`). Id sem artista recebe **lista vazia**, nunca a agenda dos
+  outros.
+- `ASTRALWAVE_SERVICE_KEY` deve ser **idêntico** nos `.env` do TodoAPP e do
+  `astralwavelabel`, e é **um segredo diferente do `BOT_SERVICE_KEY`** de
+  propósito: a Astral Wave é outra stack, e vazar um não deve entregar o outro.
+  Sem a chave a camada simplesmente não aparece — nenhuma chamada sai.
+- O vínculo em `user_integrations` é **manual** (SQL), como o do MoneyAPP.
+- Contrato do `/api/calendar` do label: itens
+  `{ id: 'release-<uuid>', title, date: 'YYYY-MM-DD', type, status, artist, artistImageUrl, color }`.
+  Release é **data cheia, sem hora** — o front fixa meia-noite LOCAL ao parsear,
+  senão o lançamento aparece um dia antes.
+- Toggle do usuário: `user_prefs.show_astralwave_events` (via `PATCH /api/prefs`),
+  botão "Astral Wave" no header do calendário. Falha do label não quebra o
+  calendário — retorna lista vazia.
+- **UI no calendário**: releases exibem o logo (`/astralwave-logo.png`); o fundo
+  do chip usa a cor da camada (`user_prefs.astralwave_color`, roxo por padrão) e
+  a **barrinha lateral carrega o status** — âmbar para `Solicitado`, roxo para
+  `Agendado`.
+- ⚠️ **Armadilha ao mexer nas cores:** `task.categoryColor` **não é a cor a
+  aplicar** — é a bandeira histórica de "veio do MoneyAPP". Quem decide a cor é
+  `task.layer` (`'money'` | `'astralwave'`) em `priorityBgColor`,
+  `priorityAccentColor` e `groupStyle`. Preencher `categoryColor` sem definir
+  `layer` faz o item herdar a cor do MoneyAPP.
 
 ## 🐳 Deploy com Docker
 

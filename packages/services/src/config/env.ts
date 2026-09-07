@@ -30,6 +30,14 @@ const envSchema = z.object({
   // Optional — bot runs in a separate repo (TodoAPP_BOT).
   BOT_SERVICE_KEY: z.string().min(32, 'BOT_SERVICE_KEY must be at least 32 chars').optional(),
   /**
+   * Chave que esta API apresenta a API da Astral Wave para ler o calendario de
+   * releases (GET /api/calendar de la). E um segredo DIFERENTE do
+   * BOT_SERVICE_KEY de proposito: a Astral Wave e outra stack, com outro dono,
+   * e vazar um nao deve entregar o outro. Sem ela a camada simplesmente nao
+   * aparece — nenhuma chamada sai.
+   */
+  ASTRALWAVE_SERVICE_KEY: z.string().optional(),
+  /**
    * Mantem o ramo LEGADO do `requireAuth` (x-api-key + x-user-id confiado cego).
    * `true` enquanto o bot ainda nao repassa JWT do LoginHub; vira `false` para
    * FECHAR de vez a delegacao cega. Ver middleware/auth.ts e middleware/rede.ts.
