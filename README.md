@@ -352,6 +352,39 @@ O bot opera 24/7 como worker e envia mensagens automáticas nos seguintes horár
 
 ---
 
+## 🎨 Cores do calendário — cada categoria com a sua
+
+A regra é uma só, e vale para as três camadas:
+
+> **O item pinta com a cor da PRÓPRIA categoria. A cor da camada só entra para
+> quem não tem categoria com cor.**
+
+| Camada | Cor da categoria vem de | Onde a pessoa escolhe |
+|---|---|---|
+| Tarefas | `task_groups.color` | paleta ao criar/editar a lista, na sidebar |
+| MoneyAPP | `categories.color`, entregue no `/api/calendar` | paleta do `NewCategoryModal` **no MoneyAPP** |
+| Astral Wave | *não tem* — o tipo do release (Single, EP) não é algo que se pinte | cai na cor da camada, em Preferências |
+| Feriados | *não tem* | `user_prefs.holiday_color` |
+
+Quem resolve isso é `corDaCategoria(task)` em `CalendarView.vue`, e ela existe
+porque **cada camada guarda a cor num formato diferente**:
+
+- o MoneyAPP manda hex pronto (`#eab308`);
+- o TodoAPP guarda **classe do Tailwind** (`bg-[#ff9500]`), que não vale como
+  valor CSS — daí o recorte do hex;
+- a Astral Wave devolve `null` e cai em `corDaCamada(task)`.
+
+**Peso visual, de propósito diferente por camada:** lançamento, release e feriado
+pintam o chip inteiro; tarefa recebe só um véu de 16% da cor do grupo. A grade
+tem muito mais tarefa que lançamento, e cor cheia em todas deixaria o texto
+ilegível e o mês parecendo vitral. A **prioridade** da tarefa continua sendo lida
+só na barrinha lateral — é o único lugar onde ela aparece.
+
+> ⚠️ Duas categorias podem ter a mesma cor, e isso é escolha da pessoa, não bug:
+> a paleta do MoneyAPP tem 8 cores para 17 categorias em uso.
+
+---
+
 ## 🔗 Integração com MoneyAPP
 
 > Documentação completa (fluxos, contratos, troubleshooting): `documentacao/integracao-todoapp-moneyapp.md` no repo de docs do servidor.
@@ -369,7 +402,7 @@ A integração é **bidirecional em leitura** e toda **interna** à rede Docker 
 - ⚠️ O `loginhub_id` é **por app** (TodoAPP = app 4, MoneyAPP = app 3): o mesmo e-mail tem IDs diferentes em cada app. A chave de junção entre os apps é o **`telegramId`**, mapeado na tabela `user_integrations (telegram_id, app_id, app_user_id)`.
 - O vínculo em `user_integrations` é **manual** (SQL) por enquanto — não há UI/endpoint de escrita.
 - `BOT_SERVICE_KEY` deve ser **idêntico** nos `.env` do TodoAPP e do MoneyAPP.
-- Contrato do `/api/calendar` do Money: itens `{ id, title, date, amount, type, status, category, color, hasReceipt }` (atenção: `title`/`color`, não `description`/`categoryColor`; `id` prefixado `tx-`/`loan-`).
+- Contrato do `/api/calendar` do Money: itens `{ id, title, date, amount, type, status, category, color, hasReceipt }` (atenção: `title`/`color`, não `description`/`categoryColor`; `id` prefixado `tx-`/`loan-`). Desde 07/09/2026 `color` é a **cor da categoria escolhida pela pessoa**, e não mais vermelho/verde derivado do tipo — ver [Cores do calendário](#-cores-do-calendário--cada-categoria-com-a-sua). Lançamento sem categoria ainda cai no vermelho/verde.
 - Toggle do usuário: `user_prefs.show_moneyapp_events` (via `PATCH /api/prefs`), botão "MoneyAPP" no header do calendário. Falha do Money não quebra o calendário — retorna lista vazia.
 - **UI no calendário**: eventos do Money exibem o logo (`/moneyapp-logo.png`); clique abre a modal "Detalhes da Transação" (valor, data, categoria, status, comprovante). Vários lançamentos no mesmo dia são agrupados num chip **"N lançamentos"** que abre a lista do dia com total. Sábado/domingo têm fundo vermelho fraco (dias não úteis).
 
@@ -410,14 +443,15 @@ atravessa, não o mecanismo. Aqui o TodoAPP **lê** a agenda de lançamentos da
   botão "Astral Wave" no header do calendário. Falha do label não quebra o
   calendário — retorna lista vazia.
 - **UI no calendário**: releases exibem o logo (`/astralwave-logo.png`); o fundo
-  do chip usa a cor da camada (`user_prefs.astralwave_color`, roxo por padrão) e
-  a **barrinha lateral carrega o status** — âmbar para `Solicitado`, roxo para
-  `Agendado`.
-- ⚠️ **Armadilha ao mexer nas cores:** `task.categoryColor` **não é a cor a
-  aplicar** — é a bandeira histórica de "veio do MoneyAPP". Quem decide a cor é
-  `task.layer` (`'money'` | `'astralwave'`) em `priorityBgColor`,
-  `priorityAccentColor` e `groupStyle`. Preencher `categoryColor` sem definir
-  `layer` faz o item herdar a cor do MoneyAPP.
+  do chip usa a cor da camada (`user_prefs.astralwave_color`, roxo por padrão),
+  porque release **não tem cor por categoria** — o tipo (Single, EP) não é algo
+  que alguém pinte — e a **barrinha lateral carrega o status** (`statusColor`):
+  âmbar para `Solicitado`, roxo para `Agendado`.
+- **Origem e cor são campos separados.** `task.layer`
+  (`'money'` | `'astralwave'`) diz de ONDE o item veio; `task.categoryColor` diz
+  com que COR pintá-lo. Até 07/09/2026 o `categoryColor` acumulava os dois
+  papéis — era a bandeira implícita de "veio do MoneyAPP" — e por isso todo item
+  de camada externa saía da cor da camada, ignorando a categoria.
 
 ## 🐳 Deploy com Docker
 

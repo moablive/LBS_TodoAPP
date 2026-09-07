@@ -1145,7 +1145,6 @@ function occurrencesInRange(rangeStart: Date, rangeEnd: Date): Occurrence[] {
             id: `moneyapp-group-${k}`,
             description: `${evs.length} lançamentos`,
             completedAt: null,
-            categoryColor: '#30d158',
             type: 'group'
           },
           date: new Date(evs[0].date),
@@ -1178,12 +1177,15 @@ function occurrencesInRange(rangeStart: Date, rangeEnd: Date): Occurrence[] {
           release: ev,
           task: {
             layer: 'astralwave',
+            // Status, não categoria: o tipo do release (Single/EP) não tem cor
+            // escolhida por ninguém. Isto aqui é âmbar/roxo conforme o pedido
+            // esteja pendente de aval ou já confirmado.
+            statusColor: ev.color,
             id: ev.id,
             description: `${ev.artist} — ${ev.title}`,
             // Release não tem "concluído"; o risco de reaproveitar o campo era
             // a data confirmada aparecer riscada, como tarefa feita.
             completedAt: null,
-            categoryColor: ev.color ?? astralWaveColor.value,
             type: ev.type,
           },
           date: new Date(ev.date),
@@ -1198,7 +1200,6 @@ function occurrencesInRange(rangeStart: Date, rangeEnd: Date): Occurrence[] {
             id: `astralwave-group-${k}`,
             description: `${evs.length} lançamentos`,
             completedAt: null,
-            categoryColor: astralWaveColor.value,
             type: 'group',
           },
           date: new Date(evs[0].date),
@@ -2013,13 +2014,43 @@ function timedRangeLabel(occ: Occurrence) {
 
 const fallbackColors = ['bg-[var(--accent)]', 'bg-[#30d158]', 'bg-[#ff3b30]', 'bg-[#ff9500]', 'bg-[#ff2d55]', 'bg-[#bf5af2]'];
 
+/**
+ * A cor que a PESSOA escolheu para a categoria daquele item — ou `null` quando o
+ * item não tem categoria com cor.
+ *
+ * Cada camada guarda isso num formato diferente, e nenhum deles é hex puro por
+ * acaso:
+ *
+ *  - **MoneyAPP** manda no `/api/calendar` a cor da categoria (a que a pessoa
+ *    escolhe no NewCategoryModal de lá). Até 07/09/2026 ele mandava vermelho ou
+ *    verde conforme o tipo e jogava fora a cor escolhida — era por isso que toda
+ *    despesa saía da mesma cor aqui.
+ *  - **TodoAPP** guarda a cor do grupo como CLASSE do Tailwind (`bg-[#ff9500]`),
+ *    que não vale como valor CSS. Daí o recorte do hex.
+ *  - **Astral Wave** não tem cor por categoria: o tipo do release (Single, EP)
+ *    não é algo que alguém pinte. Ela cai na cor da camada, de propósito.
+ */
+function corDaCategoria(task: any): string | null {
+  if (task.layer) return task.categoryColor || null;
+  const g = tasksStore.groups.find((gr: any) => gr.id === task.groupId);
+  const hex = /#(?:[0-9a-f]{3,8})/i.exec(g?.color || '');
+  return hex ? hex[0] : null;
+}
+
+/** A cor da camada — o fallback de quem não tem categoria com cor própria. */
+function corDaCamada(task: any): string {
+  if (task.layer === 'astralwave') return astralWaveColor.value;
+  if (task.layer === 'money') return moneyAppColor.value;
+  if (task.type === 'holiday') return holidayColor.value;
+  return 'var(--accent)';
+}
+
 function priorityAccentColor(task: any): string {
-  // A barrinha lateral do release carrega o STATUS (âmbar = pedido do DJ ainda
-  // sem aval, roxo = data fechada), como o `#30d158` do MoneyAPP carrega a
-  // origem. Por isso aqui vem a cor do item, e não a da camada.
-  if (task.layer === 'astralwave') return task.categoryColor || astralWaveColor.value;
-  if (task.categoryColor) return '#30d158';
-  if (task.type === 'holiday') return '#6b7280';
+  // A barrinha lateral comunica ESTADO quando há um a comunicar: release ainda
+  // sem aval da label sai em âmbar, e a prioridade da tarefa continua sendo lida
+  // aqui — é o único lugar onde ela aparece.
+  if (task.statusColor) return task.statusColor;
+  if (task.layer || task.type === 'holiday') return corDaCategoria(task) ?? corDaCamada(task);
   if (task.priority === 'high')   return '#ff3b30';
   if (task.priority === 'medium') return '#ff9500';
   if (task.priority === 'low')    return '#34c759';
@@ -2027,15 +2058,14 @@ function priorityAccentColor(task: any): string {
 }
 
 function priorityBgColor(task: any): string {
-  // ATENÇÃO: `categoryColor` NÃO é a cor a usar aqui — é a bandeira histórica de
-  // "veio do MoneyAPP", e foi o que pintou os releases de verde. Quem decide o
-  // fundo é a CAMADA, com a cor que a pessoa escolheu em Preferências.
-  if (task.layer === 'astralwave') return astralWaveColor.value;
-  if (task.categoryColor) return moneyAppColor.value;
-  if (task.type === 'holiday') return holidayColor.value;
-  // Cor global do tema (Configurações → Cor de destaque) para TODOS os eventos;
-  // a prioridade aparece só na bandeirinha/barrinha lateral (priorityAccentColor).
-  return 'color-mix(in srgb, var(--accent) 16%, transparent)';
+  // Cada item pinta com a cor da PRÓPRIA categoria; a cor da camada só entra
+  // para quem não tem categoria (chip agrupado, release, feriado).
+  const cor = corDaCategoria(task) ?? corDaCamada(task);
+  // Camada externa e feriado ocupam o chip inteiro. Tarefa recebe só um véu da
+  // cor: a grade tem muito mais tarefa que lançamento, e cor cheia em todas
+  // deixaria o texto ilegível e o mês parecendo vitral.
+  if (task.layer || task.type === 'holiday') return cor;
+  return `color-mix(in srgb, ${cor} 16%, transparent)`;
 }
 
 /** Estilo do card de grade (semana/dia) — fundo sutil + borda colorida */
@@ -2064,16 +2094,18 @@ function eventMonthStyle(task: any): Record<string, string> {
 }
 
 function groupColor(task: any) {
-  if (task.type === 'holiday') return '';
-  if (task.categoryColor) return '';
+  if (task.type === 'holiday' || task.layer) return '';
   return 'bg-[var(--accent)]';
 }
 
 function groupStyle(task: any) {
-  if (task.type === 'holiday') return { backgroundColor: holidayColor.value, color: '#ffffff' };
-  if (task.layer === 'astralwave') return { backgroundColor: astralWaveColor.value, color: '#ffffff' };
-  if (task.categoryColor) return { backgroundColor: moneyAppColor.value, color: '#ffffff' };
-  return {};
+  if (task.layer || task.type === 'holiday') {
+    return { backgroundColor: corDaCategoria(task) ?? corDaCamada(task), color: '#ffffff' };
+  }
+  const cat = corDaCategoria(task);
+  // Tarefa sem grupo colorido segue sem estilo: quem pinta a célula do ano é a
+  // classe do Tailwind, e devolver `var(--accent)` aqui sobrescreveria ela.
+  return cat ? { backgroundColor: cat, color: '#ffffff' } : {};
 }
 
 function getPriorityTextColor(p: string) {
@@ -2092,10 +2124,10 @@ const iconMap: Record<string, any> = {
 };
 
 function groupIconInfo(task: any): { img?: string; comp?: any } {
-  if (task.categoryColor) {
-    // Item do MoneyAPP → logo dele, sinalizando a origem.
-    return { img: '/moneyapp-logo.png' };
-  }
+  // A ORIGEM é `layer`, nunca a cor: `categoryColor` hoje é a cor da categoria
+  // do item, e um release também tem uma.
+  if (task.layer === 'money') return { img: '/moneyapp-logo.png' };
+  if (task.layer === 'astralwave') return { img: '/astralwave-logo.png' };
   const g = tasksStore.groups.find((gr: any) => gr.id === task.groupId);
   if (!g?.icon) return { comp: ListBulletIcon };
   if (g.icon.startsWith('http') || g.icon.startsWith('data:')) return { img: g.icon };
