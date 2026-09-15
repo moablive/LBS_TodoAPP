@@ -172,10 +172,15 @@ export const botApi = {
 
   getReminderSettings: async (userId: string): Promise<ReminderSettings> => {
     const result = await pool.query(
+      // As três últimas colunas entraram depois (migração 0022) e ficaram de
+      // fora desta lista: sem elas o `?? default` abaixo devolvia sempre
+      // 'all'/false, então o toggle "Somente tarefas do dia" ficava ligado na
+      // tela e o resumo continuava despejando as 196 pendentes, de julho a 2027.
       `SELECT remind_at_time, remind_before_enabled, remind_before_minutes,
               remind_days_enabled, remind_days_before, notify_push, notify_telegram, display_name,
               morning_digest_enabled, morning_digest_time, afternoon_digest_enabled, afternoon_digest_time,
-              night_digest_enabled, night_digest_time, notification_style, notified_categories
+              night_digest_enabled, night_digest_time, notification_style, notified_categories,
+              notified_priorities, notification_period, digest_today_only
        FROM reminder_settings WHERE user_id = $1`,
       [userId]
     );
