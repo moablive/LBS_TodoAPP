@@ -72,9 +72,8 @@
         <div :class="isSidebarMinimized ? 'flex flex-col items-center w-full' : ''">
           <h3 v-if="!isSidebarMinimized" class="text-[11px] font-bold text-[var(--muted)] mb-2 px-2 uppercase tracking-wide">My Lists</h3>
           <div class="space-y-[2px]" :class="isSidebarMinimized ? 'flex flex-col items-center w-full' : ''">
-            <div 
-              v-for="(group, idx) in groups" 
-              :key="group.id" 
+            <template v-for="(group, idx) in groups" :key="group.id">
+            <div
               @click="setFilter(group.id)"
               @mouseenter="showTooltip($event, group.name, counts.byGroup[group.id] || 0)"
               @mouseleave="hideTooltip"
@@ -93,7 +92,20 @@
                 draggedIndex === idx ? 'opacity-50' : ''
               ]"
             >
-              <div class="flex items-center gap-3" :class="isSidebarMinimized ? 'w-full' : ''">
+              <div class="flex items-center gap-2" :class="isSidebarMinimized ? 'w-full' : ''">
+                <!-- Expandir a lista aqui mesmo: é daqui que se arrasta para o
+                     Kanban. Uma segunda lista dentro do quadro só repetiria esta. -->
+                <button
+                  v-if="!isSidebarMinimized"
+                  @click.stop="toggleGroupExpanded(group.id)"
+                  class="p-0.5 -ml-1 rounded text-[var(--muted2)] hover:text-[var(--text)] transition-colors shrink-0"
+                  :title="isGroupExpanded(group.id) ? 'Recolher' : 'Expandir as tarefas'"
+                >
+                  <ChevronRightIcon
+                    class="w-3 h-3 transition-transform"
+                    :class="{ 'rotate-90': isGroupExpanded(group.id) }"
+                  />
+                </button>
                 <div class="relative" :class="isSidebarMinimized ? 'mx-auto' : ''">
                   <div class="w-[28px] h-[28px] rounded-full flex items-center justify-center text-white shadow-sm overflow-hidden shrink-0" :class="group.color || getGroupColor(idx)">
                     <template v-if="group.icon && (group.icon.startsWith('http') || group.icon.startsWith('data:'))">
@@ -110,12 +122,97 @@
                 <span v-if="!isSidebarMinimized" class="text-[13px] font-medium truncate flex-1">{{ group.name }}</span>
               </div>
               <div v-if="!isSidebarMinimized" class="flex items-center gap-2 shrink-0">
+                <!-- Quantas desta lista estão no quadro, com um ponto por nível.
+                     Serve para saber sem precisar expandir. -->
+                <span
+                  v-if="kanbanBreakdownOf(group.id).total > 0"
+                  class="flex items-center gap-1 rounded-md bg-white/[0.06] px-1.5 py-0.5"
+                  :title="kanbanBreakdownOf(group.id).title"
+                >
+                  <ViewColumnsIcon class="w-3 h-3 text-[var(--muted)]" />
+                  <span
+                    v-for="lvl in kanbanLevels"
+                    :key="lvl.id"
+                    v-show="kanbanBreakdownOf(group.id)[lvl.id] > 0"
+                    class="w-[6px] h-[6px] rounded-full"
+                    :style="{ backgroundColor: lvl.color }"
+                  ></span>
+                  <span class="text-[10px] font-bold text-[var(--muted)]">
+                    {{ kanbanBreakdownOf(group.id).total }}
+                  </span>
+                </span>
                 <button @click.stop="openEditGroupModal(group)" class="max-md:opacity-100 opacity-0 group-hover:opacity-100 text-[var(--muted2)] hover:text-[var(--text)] transition-opacity">
                   <span class="text-[10px] uppercase font-bold">Edit</span>
                 </button>
                 <span class="text-[13px] font-medium" :class="filter === group.id ? 'text-white' : 'text-[var(--muted)]'">{{ counts.byGroup[group.id] || 0 }}</span>
               </div>
             </div>
+
+            <!-- Tarefas da lista expandida: a origem do arraste para o Kanban -->
+            <div
+              v-if="!isSidebarMinimized && isGroupExpanded(group.id)"
+              class="ml-[18px] mb-1 space-y-1"
+            >
+              <div
+                v-for="task in pendingTasksOfGroup(group.id)"
+                :key="task.id"
+                draggable="true"
+                @dragstart.stop="onSidebarTaskDragStart(task, $event)"
+                @click.stop="openDetailsModal(task)"
+                class="group/item flex items-start gap-2 px-2 py-1.5 rounded-lg border transition-colors cursor-grab active:cursor-grabbing"
+                :style="task.kanbanColumn
+                  ? { borderColor: kanbanLevelColor(task.kanbanColumn) + '66', backgroundColor: kanbanLevelColor(task.kanbanColumn) + '14' }
+                  : {}"
+                :class="task.kanbanColumn
+                  ? ''
+                  : 'bg-[var(--bg-hover)]/50 hover:bg-[var(--bg-hover)] border-white/5'"
+              >
+                <!-- No quadro: a linha inteira se tinge do nível, e a barrinha
+                     à esquerda repete a mesma cor do cartão lá. -->
+                <span
+                  v-if="task.kanbanColumn"
+                  class="w-[3px] self-stretch rounded-full shrink-0"
+                  :style="{ backgroundColor: kanbanLevelColor(task.kanbanColumn) }"
+                ></span>
+                <Bars2Icon v-else class="w-3 h-3 text-[var(--muted2)] mt-0.5 shrink-0" />
+
+                <span class="text-[11.5px] leading-snug flex-1 break-words [overflow-wrap:anywhere]">
+                  {{ task.description }}
+                  <span
+                    v-if="task.kanbanColumn"
+                    class="inline-flex items-center gap-0.5 align-middle ml-1 text-[9px] font-bold uppercase px-1 py-[1px] rounded"
+                    :style="{ color: kanbanLevelColor(task.kanbanColumn), backgroundColor: kanbanLevelColor(task.kanbanColumn) + '26' }"
+                    :title="`No Kanban · ${kanbanLevelLabel(task.kanbanColumn)}`"
+                  >
+                    <ViewColumnsIcon class="w-2.5 h-2.5" />
+                    {{ kanbanLevelLabel(task.kanbanColumn) }}
+                  </span>
+                </span>
+
+                <!-- sem arrastar também dá: manda direto para um nível -->
+                <span
+                  v-if="viewMode === 'kanban'"
+                  class="flex items-center gap-1 shrink-0 mt-0.5 max-md:opacity-100 opacity-0 group-hover/item:opacity-100 transition-opacity"
+                >
+                  <button
+                    v-for="lvl in kanbanLevels"
+                    :key="lvl.id"
+                    @click.stop="sendToKanban(task, lvl.id)"
+                    class="w-2.5 h-2.5 rounded-full hover:scale-125 transition-transform"
+                    :style="{ backgroundColor: lvl.color }"
+                    :title="`Mandar para ${lvl.label}`"
+                  ></button>
+                </span>
+              </div>
+
+              <p
+                v-if="pendingTasksOfGroup(group.id).length === 0"
+                class="text-[11px] text-[var(--muted2)] px-2 py-1"
+              >
+                Nada pendente nesta lista.
+              </p>
+            </div>
+            </template>
           </div>
         </div>
       </div>
@@ -165,7 +262,7 @@
             <component :is="mode.icon" class="w-4 h-4" />
           </button>
         </div>
-        <div v-if="viewMode === 'list'" class="bg-[var(--bg-hover)] rounded-md px-3 py-1 flex items-center gap-2 border border-white/5 w-36 sm:w-64">
+        <div v-if="viewMode !== 'calendar'" class="bg-[var(--bg-hover)] rounded-md px-3 py-1 flex items-center gap-2 border border-white/5 w-36 sm:w-64">
           <MagnifyingGlassIcon class="w-4 h-4 text-[var(--muted)]" />
           <input
             v-model="tasksStore.searchQuery"
@@ -191,6 +288,11 @@
       <!-- Calendar view -->
       <div v-if="viewMode === 'calendar'" class="flex-1 min-h-0 min-w-0 overflow-y-auto custom-scrollbar mt-12">
         <CalendarView :tasks="tasksStore.tasks" @task-click="openDetailsModal" />
+      </div>
+
+      <!-- Kanban view (uma coluna por lista, tudo num quadro só) -->
+      <div v-else-if="viewMode === 'kanban'" class="flex-1 min-h-0 min-w-0 flex flex-col mt-14 md:mt-12">
+        <KanbanView @task-click="openDetailsModal" @task-date="openDatePickerModal" />
       </div>
 
 
@@ -232,6 +334,21 @@
                 <span class="truncate font-medium">{{ task.description }}</span>
               </template>
               <ArrowPathIcon v-if="task.recurrence" class="w-3.5 h-3.5 text-[var(--accent)] shrink-0 opacity-80" title="Tarefa Recorrente" />
+              <!-- Está no quadro central? O selo é fixo (não é hover): é o que
+                   diz, de bate-pronto, que a demanda já foi atrelada. -->
+              <span
+                v-if="task.kanbanColumn"
+                class="inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded-md shrink-0 border"
+                :style="{
+                  color: kanbanLevelColor(task.kanbanColumn),
+                  borderColor: kanbanLevelColor(task.kanbanColumn) + '55',
+                  backgroundColor: kanbanLevelColor(task.kanbanColumn) + '1f',
+                }"
+                :title="`No Kanban · ${kanbanLevelLabel(task.kanbanColumn)}`"
+              >
+                <ViewColumnsIcon class="w-3 h-3" />
+                {{ kanbanLevelLabel(task.kanbanColumn) }}
+              </span>
             </div>
             <input 
               v-else
@@ -518,6 +635,9 @@ import {
   BellAlertIcon,
   CalendarDaysIcon,
   QueueListIcon,
+  ViewColumnsIcon,
+  ChevronRightIcon,
+  Bars2Icon,
   ArrowPathIcon,
   Bars3Icon,
   SwatchIcon,
@@ -526,6 +646,7 @@ import {
   PhotoIcon,
 } from '@heroicons/vue/24/outline';
 import CalendarView from '@/components/CalendarView.vue';
+import KanbanView from '@/components/KanbanView.vue';
 import TaskDetailsPanel from '@/components/TaskDetailsPanel.vue';
 
 import SettingsModal from '@/components/SettingsModal.vue';
@@ -535,11 +656,12 @@ import { setAppBadge } from '@/composables/useAppBadge';
 const tasksStore = useTasksStore();
 const editingTaskId = ref<string | null>(null);
 
-type ViewMode = 'list' | 'calendar';
+type ViewMode = 'list' | 'calendar' | 'kanban';
 const viewMode = ref<ViewMode>('calendar');
 const viewModes: { id: ViewMode; label: string; icon: any }[] = [
   { id: 'list', label: 'Lista (⌘⌃1)', icon: QueueListIcon },
   { id: 'calendar', label: 'Calendário (⌘⌃2)', icon: CalendarDaysIcon },
+  { id: 'kanban', label: 'Kanban (⌘⌃3)', icon: ViewColumnsIcon },
 ];
 
 const isTaskDetailsPanelOpen = ref(false);
@@ -657,6 +779,94 @@ const iconMap: Record<string, any> = {
   ShoppingCartIcon,
   StarIcon
 };
+
+// ── Listas expansíveis na sidebar ────────────────────────────────────────
+// A sidebar é a ÚNICA lista de listas do app: o Kanban arrasta daqui em vez de
+// ter uma gaveta própria, que seria esta mesma sidebar repetida ao lado dela.
+const EXPANDED_KEY = 'todoapp:sidebar:expanded';
+
+const expandedGroups = ref<Set<string>>(new Set(readExpanded()));
+
+function readExpanded(): string[] {
+  try {
+    return JSON.parse(localStorage.getItem(EXPANDED_KEY) || '[]');
+  } catch {
+    return [];
+  }
+}
+
+function isGroupExpanded(groupId: string) {
+  return expandedGroups.value.has(groupId);
+}
+
+function toggleGroupExpanded(groupId: string) {
+  const next = new Set(expandedGroups.value);
+  if (next.has(groupId)) next.delete(groupId);
+  else next.add(groupId);
+  expandedGroups.value = next;
+  localStorage.setItem(EXPANDED_KEY, JSON.stringify([...next]));
+}
+
+function pendingTasksOfGroup(groupId: string) {
+  return tasksStore.tasks
+    .filter((t: any) => t.groupId === groupId && !t.completedAt)
+    .sort((a: any, b: any) => {
+      if (a.order !== b.order) return a.order - b.order;
+      return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+    });
+}
+
+// Os três níveis do quadro central. Mesmas cores do KanbanView — semáforo.
+const kanbanLevels: { id: 'high' | 'medium' | 'low'; label: string; color: string }[] = [
+  { id: 'high', label: 'Alto', color: '#ff453a' },
+  { id: 'medium', label: 'Médio', color: '#ffd60a' },
+  { id: 'low', label: 'Baixo', color: '#30d158' },
+];
+
+function kanbanLevelColor(id?: string | null) {
+  return kanbanLevels.find((l) => l.id === id)?.color ?? '#5d5d66';
+}
+
+function kanbanLevelLabel(id?: string | null) {
+  return kanbanLevels.find((l) => l.id === id)?.label ?? '—';
+}
+
+/** Quantas tarefas pendentes desta lista estão no quadro, por nível. */
+function kanbanBreakdownOf(groupId: string) {
+  const pending = tasksStore.tasks.filter(
+    (t: any) => t.groupId === groupId && !t.completedAt && t.kanbanColumn
+  );
+  const by = (id: string) => pending.filter((t: any) => t.kanbanColumn === id).length;
+  const high = by('high');
+  const medium = by('medium');
+  const low = by('low');
+  const partes = [
+    high ? `${high} alto` : '',
+    medium ? `${medium} médio` : '',
+    low ? `${low} baixo` : '',
+  ].filter(Boolean);
+  return {
+    high,
+    medium,
+    low,
+    total: pending.length,
+    title: `No Kanban: ${partes.join(' · ')}`,
+  } as Record<string, any>;
+}
+
+/** O id viaja pelo dataTransfer: quem recebe é o KanbanView, outro componente. */
+function onSidebarTaskDragStart(task: any, event: DragEvent) {
+  if (event.dataTransfer) {
+    event.dataTransfer.effectAllowed = 'move';
+    event.dataTransfer.setData('type', 'kanban-task');
+    event.dataTransfer.setData('text/plain', task.id);
+  }
+}
+
+async function sendToKanban(task: any, level: 'high' | 'medium' | 'low') {
+  if (task.kanbanColumn === level) return;
+  await tasksStore.updateTaskFields(task.id, { kanbanColumn: level });
+}
 
 const draggedIndex = ref<number | null>(null);
 const draggedOverIndex = ref<number | null>(null);
@@ -776,7 +986,7 @@ function onViewShortcut(e: KeyboardEvent) {
 
   if (!isMacShortcut && !isWinShortcut) return;
 
-  const map: Record<string, ViewMode> = { Digit1: 'list', Digit2: 'calendar' };
+  const map: Record<string, ViewMode> = { Digit1: 'list', Digit2: 'calendar', Digit3: 'kanban' };
   const mode = map[e.code];
   if (!mode) return;
   e.preventDefault();

@@ -156,6 +156,12 @@ export const tasks = pgTable(
     isFlagged: boolean("is_flagged").default(false).notNull(),
     isUrgent: boolean("is_urgent").default(false).notNull(),
     priority: varchar("priority", { length: 10 }).default("low").notNull(),
+    // Coluna do quadro central: null = fora do quadro, senao 'high'|'medium'|'low'.
+    // NAO e a mesma coisa que `priority`: aquela e a prioridade da tarefa (barra
+    // colorida na Lista, filtro do bot) e toda tarefa tem uma. Esta e um vinculo
+    // explicito, feito arrastando da gaveta — sem ele o quadro nasceria com as
+    // 196 tarefas dentro, que foi o defeito do kanban por listas.
+    kanbanColumn: varchar("kanban_column", { length: 10 }),
     order: integer("order").default(0).notNull(),
     // null = não se repete; senão 'daily' | 'weekdays' | 'weekly' | 'monthly' | 'yearly'
     recurrence: varchar("recurrence", { length: 20 }),

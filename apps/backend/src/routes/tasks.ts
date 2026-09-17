@@ -33,6 +33,8 @@ tasksRouter.post('/', async (req, res) => {
     isFlagged: parsed.isFlagged || false,
     isUrgent: parsed.isUrgent || false,
     priority: parsed.priority || 'low',
+    // Nasce fora do quadro, a menos que tenha sido criada dentro de uma coluna.
+    kanbanColumn: parsed.kanbanColumn ?? null,
     order: parsed.order || 0,
     recurrence: parsed.recurrence || null,
     details: parsed.details || null,
@@ -54,6 +56,8 @@ tasksRouter.patch('/:id', async (req, res) => {
   if (parsed.isFlagged !== undefined) updates.isFlagged = parsed.isFlagged;
   if (parsed.isUrgent !== undefined) updates.isUrgent = parsed.isUrgent;
   if (parsed.priority !== undefined) updates.priority = parsed.priority;
+  // `?? null` e nao `|| null`: aqui o null tem significado (tirar do quadro).
+  if (parsed.kanbanColumn !== undefined) updates.kanbanColumn = parsed.kanbanColumn ?? null;
   if (parsed.order !== undefined) updates.order = parsed.order;
   if (parsed.recurrence !== undefined) updates.recurrence = parsed.recurrence || null;
   if (parsed.details !== undefined) updates.details = parsed.details || null;

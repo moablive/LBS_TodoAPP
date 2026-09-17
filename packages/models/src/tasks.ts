@@ -1,5 +1,9 @@
 import { z } from "zod";
 
+// Coluna do quadro central. null/ausente = a tarefa nao esta no quadro.
+export const kanbanColumnSchema = z.enum(["high", "medium", "low"]);
+export type KanbanColumn = z.infer<typeof kanbanColumnSchema>;
+
 export const recurrenceSchema = z.enum(["daily", "weekdays", "weekly", "monthly", "yearly"]);
 export type Recurrence = z.infer<typeof recurrenceSchema>;
 
@@ -13,6 +17,7 @@ export const taskSchema = z.object({
   isFlagged: z.boolean(),
   isUrgent: z.boolean(),
   priority: z.enum(["low", "medium", "high"]).default("low"),
+  kanbanColumn: kanbanColumnSchema.nullable().optional(),
   order: z.number().int().default(0),
   recurrence: recurrenceSchema.nullable().optional(),
   details: z.string().nullable().optional(),
@@ -31,6 +36,7 @@ export const createTaskSchema = z.object({
   isFlagged: z.boolean().optional(),
   isUrgent: z.boolean().optional(),
   priority: z.enum(["low", "medium", "high"]).optional(),
+  kanbanColumn: kanbanColumnSchema.nullable().optional(),
   order: z.number().int().optional(),
   recurrence: recurrenceSchema.nullable().optional(),
   details: z.string().nullable().optional(),
@@ -46,6 +52,7 @@ export const updateTaskSchema = z.object({
   isFlagged: z.boolean().optional(),
   isUrgent: z.boolean().optional(),
   priority: z.enum(["low", "medium", "high"]).optional(),
+  kanbanColumn: kanbanColumnSchema.nullable().optional(),
   order: z.number().int().optional(),
   recurrence: recurrenceSchema.nullable().optional(),
   details: z.string().nullable().optional(),

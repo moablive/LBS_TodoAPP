@@ -80,7 +80,32 @@
             </button>
           </div>
         </div>
-        
+
+        <!-- Kanban central: em qual nível a demanda está atrelada -->
+        <div class="flex items-center gap-3 py-2">
+          <ViewColumnsIcon class="w-5 h-5 text-[var(--muted)] shrink-0" />
+          <div class="flex-1 flex gap-2">
+            <button
+              v-for="k in kanbanLevels"
+              :key="k.id"
+              @click="form.kanbanColumn = form.kanbanColumn === k.id ? null : k.id"
+              class="flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-lg border text-[13px] font-medium transition-colors"
+              :style="form.kanbanColumn === k.id
+                ? { borderColor: k.color, color: k.color, backgroundColor: k.color + '1f' }
+                : {}"
+              :class="form.kanbanColumn === k.id
+                ? ''
+                : 'border-transparent bg-[var(--bg)] text-[var(--muted)] hover:text-[var(--text)]'"
+              :title="form.kanbanColumn === k.id ? 'Clique para tirar do Kanban' : `Atrelar ao Kanban em ${k.label}`"
+            >
+              <span class="w-2 h-2 rounded-full" :style="{ backgroundColor: k.color }"></span>{{ k.label }}
+            </button>
+          </div>
+        </div>
+        <p class="text-[11px] text-[var(--muted2)] -mt-1 pl-8">
+          {{ form.kanbanColumn ? 'No Kanban central. Clique no nível aceso para tirar.' : 'Fora do Kanban central.' }}
+        </p>
+
         <!-- Detalhes -->
         <div class="flex items-start gap-3 py-2">
           <div class="w-5 h-5 shrink-0 mt-1 flex items-center justify-center text-[var(--muted)]">
@@ -143,7 +168,7 @@
 
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, ref } from 'vue';
-import { ClockIcon, ArrowPathIcon, FolderIcon, FlagIcon, CheckCircleIcon } from '@heroicons/vue/24/outline';
+import { ClockIcon, ArrowPathIcon, FolderIcon, FlagIcon, CheckCircleIcon, ViewColumnsIcon } from '@heroicons/vue/24/outline';
 import { useTasksStore } from '@/stores/tasks';
 import type { TaskDto } from '@todoapp/models';
 import DatePickerDropdown from './DatePickerDropdown.vue';
@@ -275,7 +300,16 @@ const form = ref({
   priority: props.initialTask?.priority || 'low',
   recurrence: props.initialTask?.recurrence || null,
   details: props.initialTask?.details || '',
+  // null = fora do quadro central. Ver KanbanView.vue.
+  kanbanColumn: (props.initialTask?.kanbanColumn ?? null) as 'high' | 'medium' | 'low' | null,
 });
+
+// Mesmas cores e rótulos das colunas do KanbanView — semáforo.
+const kanbanLevels = [
+  { id: 'high' as const, label: 'Alto', color: '#ff453a' },
+  { id: 'medium' as const, label: 'Médio', color: '#ffd60a' },
+  { id: 'low' as const, label: 'Baixo', color: '#30d158' },
+];
 
 const priorities = [
   { id: 'low' as const, label: 'Baixa', dot: 'bg-[#34c759]' },
@@ -313,6 +347,7 @@ async function save() {
         groupId: form.value.groupId,
         scheduledAt: selectedDate.value ? selectedDate.value.toISOString() : null,
         priority: form.value.priority,
+        kanbanColumn: form.value.kanbanColumn,
         recurrence: form.value.recurrence,
         details: form.value.details.trim() || null,
         durationMinutes: durationMinutes.value,
