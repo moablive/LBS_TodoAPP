@@ -73,7 +73,24 @@ Autenticação centralizada via **LoginHUB** (IDP, `app_id 4`). JWT Bearer token
 <td width="50%">
 
 ### 🗓️ Views: Lista, Calendário e Kanban
-Seletor de visualização no Dashboard. O **Calendário** (Dia/Semana/Mês, tela cheia) mostra tarefas, ocorrências de recorrência e — opcionalmente — os **lançamentos do MoneyAPP** (toggle). O **Kanban** organiza a lista selecionada em colunas por prioridade, com drag-and-drop que altera prioridade/conclui.
+Seletor de visualização no Dashboard (`⌘⌃1` Lista, `⌘⌃2` Calendário, `⌘⌃3` Kanban). O **Calendário** (Dia/Semana/Mês, tela cheia) mostra tarefas, ocorrências de recorrência e — opcionalmente — os **lançamentos do MoneyAPP** (toggle).
+
+O **Kanban** é um **quadro central de demandas**, com três colunas **fixas** — 🔴 Alto · 🟡 Médio · 🟢 Baixo — que não crescem quando você cria uma lista.
+
+A origem das tarefas é a **própria sidebar do app**, que agora **expande**: cada lista tem uma setinha que abre as tarefas pendentes dela ali mesmo, e dali você arrasta para uma coluna (ou, sem arrastar, clica numa das três bolinhas coloridas que aparecem no item). O `✕` do cartão tira do quadro. Nada de uma segunda lista de listas dentro do quadro: ela seria esta sidebar repetida ao lado dela mesma.
+
+**Como saber que a demanda está no quadro**, sem abrir o Kanban — o selo ◫ com a cor do nível aparece em quatro lugares:
+
+| Onde | Indicador |
+| --- | --- |
+| **Lista** (visão principal) | selo `◫ Alto/Médio/Baixo` ao lado do título, **sempre visível** (não é hover) |
+| **Sidebar**, lista expandida | a linha se tinge do nível, com barrinha colorida à esquerda e o selo no fim do texto |
+| **Sidebar**, linha da lista | pílula `◫ N` com um ponto por nível presente — quantas daquela lista estão no quadro |
+| **Detalhes da tarefa** | linha própria com os três níveis; clicar no nível aceso **tira** do quadro |
+
+**A tarefa nunca muda de lista** — ela continua em Astral Wave ou Sul Alimentos, e leva no cartão um chip com a cor e o nome da lista de origem, que é o que permite misturar demandas de projetos diferentes na mesma coluna. Também tem estrela, chip de data (vermelho quando atrasada), ordenação por coluna (minha ordem/data/destaque), *Esvaziar a coluna* (devolve tudo para as listas, não apaga) e concluídas recolhidas no rodapé.
+
+Quem guarda o vínculo é **`tasks.kanban_column`** (`null` = fora do quadro). É um campo **separado de `priority`** de propósito: `priority` tem default `low` e vale para toda tarefa — usá-lo como coluna jogaria as ~260 tarefas dentro do quadro no primeiro acesso, sem como tirá-las. Quais listas ficam abertas na sidebar é estado local (`localStorage`), por aparelho.
 
 ### 🔔 Lembretes & Web Push
 Lembretes configuráveis por usuário (`no horário`, `30 min antes`, `7 dias antes`) com canais independentes: **Telegram** (via bot) e **Web Push** (VAPID + Service Worker). Rotinas diárias do bot às 08h/09h/13h. **Nome de exibição** customizável — como o bot te chama nas mensagens (fallback "Patrão").
@@ -83,6 +100,11 @@ Lembretes configuráveis por usuário (`no horário`, `30 min antes`, `7 dias an
 
 ### 🤖 Bot do Telegram
 Wizards de adicionar/concluir/remover tarefas e grupos, transcrição de **voz** (Groq) e login vinculado ao LoginHub (LOGIN_WIZARD grava `user_settings.telegram_id` e migra os dados do namespace provisório).
+
+### 🎤 Reunião por áudio (`/reuniao`)
+Botão **🎤 Reunião por Áudio** no menu: você fala "reunião com o contador amanhã às 15 horas, uma hora e meia" e o bot mostra o que entendeu — título, dia da semana, início, fim, duração e lista — **antes** de gravar, com *Agendar · Gravar de novo · Cancelar*. Confirmado, entra no calendário com `duration_minutes` de verdade (reunião tem fim; tarefa não tinha).
+
+Fala → **Whisper `large-v3-turbo`** (Groq) → **Ollama local** → compromisso. A IA **não calcula data**: ela só classifica o que ouviu (`hoje`, `amanha`, `dia_da_semana` + `semanaQueVem`, `hora`, `horaFim`) e quem faz a conta do calendário é o `resolverQuando` em `apps/bot/src/lib/tempo.ts`. Pedindo a data pronta, o `qwen2.5vl:7b` devolvia para "sexta-feira" um 15/09 e um 22/09 em rodadas diferentes — **as duas, terças**. Classificar ele acerta; contar, não. O resolvedor também tolera o que o modelo inventa (rótulo fora da lista, data em `DD/MM/YYYY`).
 
 ### 🔗 Integração MoneyAPP
 Lançamentos financeiros do **MoneyAPP** aparecem no calendário com o **logo do Money** (toggle "MoneyAPP"): clique abre a modal **Detalhes da Transação** (valor, categoria, status e **comprovante** — imagem/PDF via proxy), vários lançamentos no mesmo dia viram um chip **"N lançamentos"** com modal de lista e total do dia. As tarefas do TodoAPP aparecem no dashboard do Money. Ver a seção [Integração com MoneyAPP](#-integração-com-moneyapp).
@@ -236,6 +258,7 @@ erDiagram
     boolean is_flagged
     boolean is_urgent
     varchar priority
+    varchar kanban_column
     varchar recurrence
     int duration_minutes
     int order
@@ -274,7 +297,7 @@ erDiagram
 | | `PATCH` | `/api/groups/:id` | Atualiza grupo (nome, cor, ícone) |
 | | `DELETE` | `/api/groups/:id` | **Remove grupo** |
 | | `POST` | `/api/groups/reorder` | Reordena grupos (drag-and-drop) |
-| ⚙️ **Prefs** | `GET`/`PATCH` | `/api/prefs` | `{ kanbanLists, showMoneyAppEvents, showAstralWaveEvents }` (toggles do calendário, com a cor de cada camada) |
+| ⚙️ **Prefs** | `GET`/`PATCH` | `/api/prefs` | `{ kanbanLists, showMoneyAppEvents, showAstralWaveEvents }` (toggles do calendário, com a cor de cada camada; `kanbanLists` está sem uso desde que o Kanban passou a ler as listas da sidebar) |
 | 🔔 **Reminders** | `GET`/`PATCH` | `/api/reminders` | Configuração de lembretes (horário/30min/7dias · telegram/push · `displayName` usado pelo bot) |
 | 📲 **Push** | `GET` | `/api/push/public-key` | VAPID public key |
 | | `POST` | `/api/push/subscribe` | Registra subscription do Service Worker |
