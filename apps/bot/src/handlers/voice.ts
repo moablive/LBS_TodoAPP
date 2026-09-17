@@ -3,34 +3,7 @@ import { getDbUserId } from '../utils/user-cache.js';
 import { botApi } from '@todo/api-client';
 import { parseTaskWithOllama } from '../vendor/ai/ollama.js';
 import { handleListTasks } from './tasks.js';
-
-async function transcribeAudio(audioBuffer: Buffer): Promise<string> {
-  const apiKey = process.env.GROQ_API_KEY;
-  if (!apiKey) throw new Error('GROQ_API_KEY is not set');
-
-  const blob = new Blob([audioBuffer as any], { type: 'audio/ogg' });
-  const formData = new FormData();
-  formData.append('file', blob, 'audio.ogg');
-  formData.append('model', 'whisper-large-v3-turbo');
-  formData.append('language', 'pt');
-  
-  const response = await fetch('https://api.groq.com/openai/v1/audio/transcriptions', {
-    method: 'POST',
-    headers: {
-      'Authorization': `Bearer ${apiKey}`
-    },
-    body: formData
-  });
-
-  if (!response.ok) {
-    const errorText = await response.text();
-    console.error('Groq API Error:', errorText);
-    throw new Error(`Groq API error: ${response.statusText}`);
-  }
-
-  const data: any = await response.json();
-  return data.text;
-}
+import { baixarAudio, transcreverAudio } from '../lib/transcrever.js';
 
 export async function handleVoiceMessage(ctx: BotContext) {
   try {
@@ -45,13 +18,10 @@ export async function handleVoiceMessage(ctx: BotContext) {
     const waitMsg = await ctx.reply('🎙️ Processando seu áudio...');
 
     // 1. Download do áudio do Telegram
-    const fileLink = await ctx.telegram.getFileLink(voice.file_id);
-    const audioResponse = await fetch(fileLink.href);
-    const arrayBuffer = await audioResponse.arrayBuffer();
-    const audioBuffer = Buffer.from(arrayBuffer);
+    const audioBuffer = await baixarAudio(ctx, voice.file_id);
 
-    // 2. Transcrição (Whisper via Groq)
-    const transcription = await transcribeAudio(audioBuffer);
+    // 2. Transcrição (Whisper via Groq) — mesma rotina da cena de reunião
+    const transcription = await transcreverAudio(audioBuffer);
     
     if (!transcription || transcription.trim() === '') {
       await ctx.telegram.editMessageText(ctx.chat?.id, waitMsg.message_id, undefined, 'Não consegui escutar nada no áudio.');

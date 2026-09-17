@@ -75,13 +75,33 @@ export const botApi = {
     await pool.query('DELETE FROM task_groups WHERE user_id = $1 AND id = $2', [userId, groupId]);
   },
 
-  addTask: async (userId: string, description: string, scheduledAt?: string, groupId?: string): Promise<Task> => {
+  /**
+   * `scheduled_at` é `timestamp` SEM fuso e guarda hora de parede de São Paulo.
+   *
+   * Uma string já nua ("2026-09-17 15:00:00") vai INTEIRA para o Postgres, sem
+   * virar `Date` no caminho: converter aqui aplicaria o fuso do processo (UTC no
+   * container) e deslocaria o compromisso. Strings com fuso continuam passando
+   * pelo `new Date` de antes, para não mudar quem já chamava assim.
+   */
+  addTask: async (
+    userId: string,
+    description: string,
+    scheduledAt?: string,
+    groupId?: string,
+    durationMinutes?: number
+  ): Promise<Task> => {
     const id = crypto.randomUUID().slice(0, 8);
     const createdAt = new Date().toISOString();
-    
+
+    const quando = scheduledAt
+      ? (/^\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}(:\d{2})?$/.test(scheduledAt.trim())
+          ? scheduledAt.trim().replace('T', ' ')
+          : new Date(scheduledAt))
+      : null;
+
     await pool.query(
-      'INSERT INTO tasks (id, user_id, description, scheduled_at, created_at, group_id, is_flagged, is_urgent) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)',
-      [id, userId, description, scheduledAt ? new Date(scheduledAt) : null, new Date(createdAt), groupId || null, false, false]
+      'INSERT INTO tasks (id, user_id, description, scheduled_at, created_at, group_id, is_flagged, is_urgent, duration_minutes) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)',
+      [id, userId, description, quando, new Date(createdAt), groupId || null, false, false, durationMinutes ?? null]
     );
 
     return {

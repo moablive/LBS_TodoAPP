@@ -9,6 +9,7 @@ import { addTaskWizard } from './scenes/addTaskWizard.js';
 import { removeTaskWizard } from './scenes/removeTaskWizard.js';
 import { completeTaskWizard } from './scenes/completeTaskWizard.js';
 import { addGroupWizard } from './scenes/addGroupWizard.js';
+import { meetingVoiceWizard } from './scenes/meetingVoiceWizard.js';
 import { menuKeyboard } from './ui/menu.js';
 import { botApi } from '@todo/api-client';
 
@@ -21,7 +22,8 @@ const stage = new Scenes.Stage<BotContext>([
   addTaskWizard,
   removeTaskWizard,
   completeTaskWizard,
-  addGroupWizard
+  addGroupWizard,
+  meetingVoiceWizard
 ]);
 bot.use(session());
 bot.use(stage.middleware());
@@ -97,11 +99,13 @@ bot.hears('📂 Minhas Listas', handleListTasks);
 bot.hears('📁 Nova Lista', (ctx) => ctx.scene.enter('ADD_GROUP_WIZARD'));
 bot.hears('📝 Adicionar Tarefa', (ctx) => ctx.scene.enter('ADD_TASK_WIZARD'));
 bot.hears('❌ Remover Tarefa', (ctx) => ctx.scene.enter('REMOVE_TASK_WIZARD'));
+bot.hears('🎤 Reunião por Áudio', (ctx) => ctx.scene.enter('MEETING_VOICE_WIZARD'));
 
 // Comandos
 bot.command('add', handleAddTask);
 bot.command('list', handleListTasks);
 bot.command('remove', handleRemoveTask);
+bot.command('reuniao', (ctx) => ctx.scene.enter('MEETING_VOICE_WIZARD'));
 
 bot.catch((err, ctx) => {
   console.error(`[bot] erro ao processar update ${ctx.updateType}:`, err);

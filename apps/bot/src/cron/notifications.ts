@@ -5,6 +5,7 @@ import type { BotContext } from '../context.js';
 import { isNotificationEnabled } from '../utils/user-cache.js';
 import { sendPushToUser } from '../utils/push.js';
 import { enviarLongo } from '../utils/chunk.js';
+import { agoraLocal } from '../lib/tempo.js';
 
 // ── helpers ────────────────────────────────────────────────────────────────
 
@@ -179,7 +180,11 @@ export function startNotificationsCron(bot: Telegraf<BotContext>) {
       const users = await botApi.getAllBotUsers();
       if (!users || users.length === 0) return;
 
-      const now = new Date();
+      // Hora de parede de São Paulo, não o instante UTC: os carimbos de
+      // `scheduled_at` são nus (timestamp sem fuso) e o container roda em UTC.
+      // Comparar os dois mundos fazia o lembrete "É agora!" de uma tarefa das
+      // 15:00 tocar às 12:00. Ver lib/tempo.ts.
+      const now = agoraLocal();
 
       for (const user of users) {
         if (!user.telegramId) continue;
@@ -212,13 +217,15 @@ export function startNotificationsCron(bot: Telegraf<BotContext>) {
           }
 
           // Resumos diários (verifica apenas o horário local no formato HH:MM)
-          const nowStr = now.toLocaleTimeString('pt-BR', { timeZone: 'America/Sao_Paulo', hour: '2-digit', minute: '2-digit' });
+          // Sem `timeZone`: o `now` acima JÁ é hora de São Paulo. Converter de
+          // novo descontaria as 3 horas outra vez.
+          const nowStr = now.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
           // Dia corrente em São Paulo, no formato YYYY-MM-DD ('en-CA' devolve
           // ISO). Entra no `eventId` do LBS Notify junto com `nowStr`: só a
           // hora não basta, porque 08:00 se repete todo dia e o Notify trataria
           // o lembrete de amanhã como duplicata do de hoje — a pessoa pararia
           // de receber a partir do segundo dia.
-          const nowDay = now.toLocaleDateString('en-CA', { timeZone: 'America/Sao_Paulo' });
+          const nowDay = now.toLocaleDateString('en-CA');
           
           if (settings.morningDigestEnabled && settings.morningDigestTime === nowStr) {
              await sendUserMorningGreeting(bot, user, tasks, settings);
@@ -255,7 +262,7 @@ export function startNotificationsCron(bot: Telegraf<BotContext>) {
           // gatilho), não a primeira data agendada.
           const fmt = (t: any, when: Date) => {
             const occurrence = t.recurrence ? when : new Date(t.scheduledAt!);
-            let line = `▫️ ${t.description} — 📅 ${occurrence.toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' })}`;
+            let line = `▫️ ${t.description} — 📅 ${occurrence.toLocaleString('pt-BR')}`;
             if (t.recurrence) line += ' 🔁';
             if (t.groupName) line += ` <i>[${t.groupName}]</i>`;
             return line;
