@@ -4,6 +4,7 @@ import { botApi } from '@todo/api-client';
 import { parseTaskWithOllama } from '../vendor/ai/ollama.js';
 import { handleListTasks } from './tasks.js';
 import { baixarAudio, transcreverAudio } from '../lib/transcrever.js';
+import { carimboUtc, paraHoraDeParede, paredeParaInstante } from '../lib/tempo.js';
 
 export async function handleVoiceMessage(ctx: BotContext) {
   try {
@@ -50,13 +51,22 @@ export async function handleVoiceMessage(ctx: BotContext) {
     }
 
     // 4. Salvar Tarefa
-    const task = await botApi.addTask(userId, parsedTask.description, parsedTask.scheduledAt || undefined, groupId);
+    // A IA devolve hora de PAREDE ("15:00" para quem falou). A coluna guarda
+    // UTC — sem esta virada a tarefa aparece 3 horas cedo no calendário.
+    const parede = parsedTask.scheduledAt ? paraHoraDeParede(parsedTask.scheduledAt) : null;
+    const task = await botApi.addTask(
+      userId,
+      parsedTask.description,
+      parede ? carimboUtc(paredeParaInstante(parede)) : undefined,
+      groupId
+    );
 
     let finalMsg = `✅ <b>Tarefa adicionada por voz!</b>\n\n`;
     finalMsg += `📝 <b>Descrição:</b> ${task.description}\n`;
     finalMsg += `📁 <b>Lista:</b> ${parsedTask.groupName || 'Geral'}\n`;
-    if (task.scheduledAt) {
-      finalMsg += `⏰ <b>Agendada para:</b> ${new Date(task.scheduledAt).toLocaleString('pt-BR')}`;
+    if (parede) {
+      // Mostra a hora de parede, a mesma que a pessoa falou e que o app desenha.
+      finalMsg += `⏰ <b>Agendada para:</b> ${parede.toLocaleString('pt-BR')}`;
     }
 
     await ctx.telegram.editMessageText(ctx.chat?.id, waitMsg.message_id, undefined, finalMsg, { parse_mode: 'HTML' });

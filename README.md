@@ -104,6 +104,8 @@ Wizards de adicionar/concluir/remover tarefas e grupos, transcrição de **voz**
 ### 🎤 Reunião por áudio (`/reuniao`)
 Botão **🎤 Reunião por Áudio** no menu: você fala "reunião com o contador amanhã às 15 horas, uma hora e meia" e o bot mostra o que entendeu — título, dia da semana, início, fim, duração e lista — **antes** de gravar, com *Agendar · Gravar de novo · Cancelar*. Confirmado, entra no calendário com `duration_minutes` de verdade (reunião tem fim; tarefa não tinha).
 
+O horário vai para o banco **convertido em UTC** (`paredeParaInstante` + `carimboUtc`): a coluna guarda instante, não hora de parede — ver a linha de Timestamps nas Convenções. Gravar 16:00 cru fazia a reunião nascer 13:00 no calendário.
+
 Fala → **Whisper `large-v3-turbo`** (Groq) → **Ollama local** → compromisso. A IA **não calcula data**: ela só classifica o que ouviu (`hoje`, `amanha`, `dia_da_semana` + `semanaQueVem`, `hora`, `horaFim`) e quem faz a conta do calendário é o `resolverQuando` em `apps/bot/src/lib/tempo.ts`. Pedindo a data pronta, o `qwen2.5vl:7b` devolvia para "sexta-feira" um 15/09 e um 22/09 em rodadas diferentes — **as duas, terças**. Classificar ele acerta; contar, não. O resolvedor também tolera o que o modelo inventa (rótulo fora da lista, data em `DD/MM/YYYY`).
 
 ### 🔗 Integração MoneyAPP
@@ -251,10 +253,10 @@ erDiagram
     varchar user_id
     text description
     text details
-    timestamptz scheduled_at
-    timestamptz created_at
+    timestamp scheduled_at
+    timestamp created_at
     varchar group_id FK
-    timestamptz completed_at
+    timestamp completed_at
     boolean is_flagged
     boolean is_urgent
     varchar priority
@@ -272,7 +274,7 @@ erDiagram
 | --------- | ------- |
 | 🔑 PKs | `varchar(36)` (UUID gerado no app; tasks usam UUID curto de 8 chars) |
 | 👤 Identidade | `user_id` das tabelas de dados = **`telegramId`** (ou `String(loginhubId)` enquanto o Telegram não é vinculado — o LOGIN_WIZARD do bot migra o namespace) |
-| 🕒 Timestamps | `timestamptz` (with timezone). Lógica do server em UTC |
+| 🕒 Timestamps | **Cuidado, há dois casos.** As tabelas de configuração usam `timestamptz`; mas `tasks.scheduled_at`, `created_at` e `completed_at` são **`timestamp` SEM fuso**, e o que guardam é o **instante em UTC** — o front lê como UTC e desenha em `America/Sao_Paulo`. Medido em 17/09/2026 contra a mesma tela, com três gravadores independentes (web, sync `.ics` e bot): banco `16:00` → calendário `13:00`; `20:00` → `17:00`; `21:00` → `18:00`. Quem escrever hora de parede aí dentro cria um compromisso 3h adiantado. Ver `apps/bot/src/lib/tempo.ts` |
 | 🗑️ Soft delete | **Não usado.** Hard deletes com FK cascades/set null |
 | 🔁 Recorrência | `tasks.recurrence` (`daily`/`weekdays`/`weekly`/`monthly`/`yearly`/`null`); `scheduled_at` = primeira ocorrência, as demais são expandidas em runtime (frontend e bot). `weekdays` = seg–sex, nunca gera ocorrência em fim de semana |
 | ⏱️ Duração | `tasks.duration_minutes` (`null` = 1h visual no calendário); definida na modal pelo horário de fim, cruza a meia-noite se fim < início |

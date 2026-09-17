@@ -5,7 +5,7 @@ import { botApi } from '@todo/api-client';
 import { menuKeyboard } from '../ui/menu.js';
 import { baixarAudio, transcreverAudio } from '../lib/transcrever.js';
 import { extrairReuniao } from '../vendor/ai/ollama.js';
-import { paraHoraDeParede } from '../lib/tempo.js';
+import { carimboUtc, paraHoraDeParede, paredeParaInstante } from '../lib/tempo.js';
 
 const DIAS = ['domingo', 'segunda', 'terça', 'quarta', 'quinta', 'sexta', 'sábado'];
 
@@ -162,10 +162,20 @@ export const meetingVoiceWizard = new Scenes.WizardScene<BotContext>(
         return ctx.scene.leave();
       }
 
+      // `dados.inicio` é hora de PAREDE — o que a pessoa falou e o que ela
+      // acabou de conferir na tela. A coluna guarda UTC, então a virada é aqui,
+      // no último passo. Sem ela a reunião das 16:00 nasce às 13:00 no
+      // calendário, que foi o defeito de 17/09/2026.
+      const parede = paraHoraDeParede(dados.inicio);
+      if (!parede) {
+        await ctx.reply('❌ Não entendi a data direito. Vamos de novo.', { ...menuKeyboard });
+        return ctx.scene.leave();
+      }
+
       await botApi.addTask(
         userId,
         dados.titulo,
-        dados.inicio,
+        carimboUtc(paredeParaInstante(parede)),
         dados.groupId ?? undefined,
         dados.duracaoMinutos
       );

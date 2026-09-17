@@ -1,21 +1,27 @@
 /**
- * Hora local do usuário — e por que ela não é `new Date()`.
+ * Fuso do usuário × fuso do banco. Os dois existem, e confundi-los custou caro.
  *
- * O container do bot roda sem `TZ`, ou seja, em UTC. A coluna `tasks.scheduled_at`
- * é `timestamp` SEM fuso e guarda a **hora de parede de São Paulo** (foi assim
- * que a produção sempre gravou, e é o que a web lê de volta como hora local).
+ * `tasks.scheduled_at` é `timestamp` SEM fuso, mas o que ele guarda é o
+ * **instante em UTC** — não a hora de parede. Medido em 17/09/2026 com três
+ * gravadores independentes (web, sync .ics e bot), todos contra a mesma tela:
  *
- * Misturar as duas coisas dava dois defeitos reais:
+ *   banco 16:00 → calendário 13:00 · banco 20:00 → 17:00 · banco 21:00 → 18:00
  *
- *  - o prompt da IA dizia "Hoje é <ISO em UTC>", então entre 21h e meia-noite
- *    em São Paulo o modelo achava que já era o dia seguinte e agendava "amanhã"
- *    um dia à frente;
- *  - o cron comparava o carimbo nu (lido como UTC) com o instante real e
- *    disparava o lembrete 3 horas antes.
+ * O front lê o carimbo como UTC e desenha em São Paulo. Logo, para marcar uma
+ * reunião às 16:00 de São Paulo, o que vai para a coluna é **19:00**.
  *
- * A saída é trabalhar com "Date nu": um Date cujos componentes de parede são os
- * de São Paulo. Ele só serve para comparar e formatar com o MESMO fuso do
- * processo — nunca converta um destes com `timeZone`, ou o deslocamento volta.
+ * Ainda assim a hora de parede é necessária, em dois pontos:
+ *
+ *  - a IA precisa saber que dia é HOJE para o usuário. O prompt dizia "Hoje é
+ *    <ISO em UTC>" e o container roda sem `TZ`: entre 21h e meia-noite em São
+ *    Paulo o modelo já achava que era amanhã, e "amanhã às 15h" caía um dia à
+ *    frente;
+ *  - "sexta às 10h" vira um dia do calendário por conta de parede, não de
+ *    instante.
+ *
+ * Daí os dois mundos aqui: `agoraLocal`/`resolverQuando` trabalham em parede, e
+ * `paredeParaInstante` + `carimboUtc` fazem a virada no último passo, na hora de
+ * gravar. Nunca mande um Date de parede direto para o banco.
  */
 
 export const FUSO = 'America/Sao_Paulo';
@@ -41,13 +47,43 @@ export function descricaoAgora(base: Date = agoraLocal()): string {
   );
 }
 
-/** "2026-09-17 15:00:00" — o formato que a coluna sem fuso espera. */
+/** "2026-09-17 15:00:00" a partir dos componentes de PAREDE. Para exibir. */
 export function carimboNu(d: Date): string {
   const p = (n: number) => String(n).padStart(2, '0');
   return (
     `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())} ` +
     `${p(d.getHours())}:${p(d.getMinutes())}:${p(d.getSeconds())}`
   );
+}
+
+/**
+ * Hora de parede de São Paulo → instante real.
+ *
+ * O deslocamento é descoberto na própria data, não fixado em -3: o Brasil não
+ * tem horário de verão hoje, o que não é promessa para 2027 nem verdade para os
+ * carimbos antigos.
+ */
+export function paredeParaInstante(parede: Date): Date {
+  const palpite = Date.UTC(
+    parede.getFullYear(), parede.getMonth(), parede.getDate(),
+    parede.getHours(), parede.getMinutes(), parede.getSeconds()
+  );
+  // Que horas são em SP nesse palpite? A diferença é o deslocamento do fuso.
+  const emSP = new Date(
+    new Date(palpite).toLocaleString('sv-SE', { timeZone: FUSO }).replace(' ', 'T')
+  ).getTime();
+  return new Date(palpite - (emSP - palpite));
+}
+
+/**
+ * "2026-09-17 19:00:00" — componentes UTC, que é o que a coluna guarda.
+ *
+ * Sai daqui como TEXTO de propósito: entregar um `Date` ao driver faria ele
+ * serializar no fuso do processo, e aí a correção dependeria de o container
+ * continuar em UTC para sempre.
+ */
+export function carimboUtc(instante: Date): string {
+  return instante.toISOString().slice(0, 19).replace('T', ' ');
 }
 
 export type QuandoTipo = 'hoje' | 'amanha' | 'depois_de_amanha' | 'dia_da_semana' | 'data';
