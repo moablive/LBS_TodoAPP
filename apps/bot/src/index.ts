@@ -1,5 +1,6 @@
 import { Telegraf, session, Scenes } from 'telegraf';
 import { env } from './config.js';
+import { noMeuBruxo, receberDoMeuBruxo } from './lib/meubruxo.js';
 import type { BotContext } from './context.js';
 import { auth, markLinked } from './auth.js';
 import { handleAddTask, handleListTasks, handleRemoveTask } from './handlers/tasks.js';
@@ -111,11 +112,15 @@ bot.catch((err, ctx) => {
   console.error(`[bot] erro ao processar update ${ctx.updateType}:`, err);
 });
 
-bot.launch({ dropPendingUpdates: true }).catch((err: unknown) => {
-  console.error('[bot] polling encerrado por erro:', err);
-  process.exit(1);
-});
+if (noMeuBruxo) {
+  receberDoMeuBruxo(bot);
+} else {
+  bot.launch({ dropPendingUpdates: true }).catch((err: unknown) => {
+    console.error('[bot] polling encerrado por erro:', err);
+    process.exit(1);
+  });
+}
 console.log('🤖 TODO Bot rodando...');
 
-process.once('SIGINT', () => bot.stop('SIGINT'));
-process.once('SIGTERM', () => bot.stop('SIGTERM'));
+process.once('SIGINT', () => (noMeuBruxo ? process.exit(0) : bot.stop('SIGINT')));
+process.once('SIGTERM', () => (noMeuBruxo ? process.exit(0) : bot.stop('SIGTERM')));
