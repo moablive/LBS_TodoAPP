@@ -993,7 +993,7 @@ function onViewShortcut(e: KeyboardEvent) {
   viewMode.value = mode;
 }
 
-// ── Atualização automática (estilo MailAPP) ─────────────────────────
+// ── Atualização automática ──────────────────────────────────────────
 function onSwMessage(e: MessageEvent) {
   if (e.data?.type === 'new-task') tasksStore.fetchAll();
 }

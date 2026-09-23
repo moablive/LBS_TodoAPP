@@ -191,7 +191,7 @@ flowchart LR
     NGINX["nginx<br/>todoapp_frontend:80"]
     API["Express + Drizzle<br/>todoapp_backend:3000"]
     BOT["Telegram Bot<br/>todoapp_bot"]
-    PG["PostgreSQL<br/>awlsrvDB_postgres:5432<br/>database 'todo_bot'"]
+    PG["PostgreSQL<br/>server_db_postgres:5432<br/>database 'todo_bot'"]
   end
 
   PWA -- "HTTPS" --> NGINX
@@ -201,7 +201,7 @@ flowchart LR
 ```
 
 > [!NOTE]
-> O PostgreSQL é um **container externo compartilhado** (`awlsrvDB_postgres`). O TodoAPP usa um **database dedicado** `todo_bot` para isolar de outras aplicações na mesma instância.
+> O PostgreSQL é um **container externo compartilhado** (`server_db_postgres`). O TodoAPP usa um **database dedicado** `todo_bot` para isolar de outras aplicações na mesma instância.
 
 ---
 
@@ -700,20 +700,5 @@ Este app entrega Web Push por conta própria: par VAPID no `.env`, tabela
 ela é de outro par — sem isso o sintoma seria "ativei e não chega nada", sem
 erro nenhum.
 
-### Sobre o LBS Notify (histórico)
-
-A plataforma **central** de push da suíte foi **descontinuada em 19/09/2026**.
-Ela foi construída, publicada e nunca entregou um único aviso: o rollout
-dependia de um hostname público no túnel Cloudflare que nunca existiu, então as
-flags ficaram em `false` e o banco `lbsnotify` terminou com zero linhas.
-
-Containers derrubados, submódulo removido e repositório apagado do GitHub. As
-variáveis `LBS_NOTIFY_URL`, `LBS_NOTIFY_KEY`, `<APP>_NOTIFY_USE_CENTRAL` e
-`VITE_LBS_NOTIFY_URL` saíram do `.env` e do `shared.env`.
-
-O código está preservado em `/root/recuperado/LBS_NotifyAPP-20260919.bundle`.
-
-Restaram no repositório, inertes, `apps/bot/src/lib/lbsNotify.ts`,
-`apps/bot/src/utils/push.ts` e `apps/frontend/src/lib/lbsNotifyClient.ts`: eles
-degradam sozinhos (`enabled` falso = nenhuma chamada sai), então removê-los é
-limpeza, não urgência.
+> Não existe central de push na suíte: o antigo LBS Notify foi descontinuado
+> em 19/09/2026. Cada app envia o próprio Web Push.
