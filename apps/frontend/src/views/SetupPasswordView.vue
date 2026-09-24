@@ -53,7 +53,7 @@ async function handleSubmit() {
     // Conta que JA tem autenticador (tipico de reset de senha): o hub devolve
     // desafio em vez de sessao, senao o reset seria atalho para pular o 2FA.
     if (r.etapa === '2fa') {
-      aviso.value = 'Senha definida. Entre novamente e confirme o codigo do autenticador.';
+      aviso.value = 'Senha definida. Entre novamente e confirme o codigo do Google Authenticator.';
       setTimeout(() => router.replace('/login'), 2500);
       return;
     }
