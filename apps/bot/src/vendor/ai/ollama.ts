@@ -17,30 +17,41 @@ export interface ReuniaoExtraida {
 }
 
 function endpoint() {
-  // Vinham fixos no código, o que tornava o .env inócuo para a IA. Agora saem do
-  // ambiente (../shared.env define OLLAMA_URL e OLLAMA_TEXT_MODEL p/ todos os
-  // apps); os valores antigos ficam como fallback para não mudar o padrão.
-  const baseUrl = process.env.OLLAMA_URL || 'http://server_ollama:11434';
+  // Desde 07/10/2026 o texto sai do OmniRoute (tokens de API), não mais do
+  // Ollama local — ../shared.env define OMNIROUTE_URL e OMNIROUTE_API_KEY para
+  // todos os apps. O modelo é escolhido pelo roteador do OmniRoute. O nome do
+  // arquivo/funções ainda diz "ollama" por herança; só o backend mudou.
+  const baseUrl = process.env.OMNIROUTE_URL || 'http://172.18.0.1:20128/v1';
   return {
-    url: `${baseUrl.replace(/\/+$/, '')}/api/generate`,
-    model: process.env.OLLAMA_TEXT_MODEL || 'qwen2.5vl:7b',
+    url: `${baseUrl.replace(/\/+$/, '')}/chat/completions`,
+    model: process.env.OMNIROUTE_TEXT_MODEL || 'auto/best-fast',
+    apiKey: process.env.OMNIROUTE_API_KEY || 'local-key',
   };
 }
 
 async function gerarJson(prompt: string): Promise<any> {
-  const { url, model } = endpoint();
+  const { url, model, apiKey } = endpoint();
   const response = await fetch(url, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ model, prompt, stream: false, format: 'json' }),
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiKey}` },
+    body: JSON.stringify({
+      model,
+      messages: [{ role: 'user', content: prompt }],
+      stream: false,
+      response_format: { type: 'json_object' },
+    }),
   });
 
   if (!response.ok) {
-    throw new Error(`Ollama API error: ${response.statusText}`);
+    throw new Error(`OmniRoute API error: ${response.status} ${response.statusText}`);
   }
 
   const data = await response.json();
-  return JSON.parse(data.response);
+  const conteudo = data?.choices?.[0]?.message?.content ?? '';
+  // O OmniRoute às vezes devolve o JSON cercado por ```json ... ``` (o Ollama
+  // com format:'json' não fazia). Tira a cerca antes do parse.
+  const limpo = conteudo.trim().replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/i, '');
+  return JSON.parse(limpo);
 }
 
 export async function parseTaskWithOllama(
