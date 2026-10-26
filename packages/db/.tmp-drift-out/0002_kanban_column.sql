@@ -1,0 +1,11 @@
+-- Quadro central do Kanban: tres colunas fixas (Alto/Medio/Baixo) que recebem
+-- tarefas de QUALQUER lista.
+--
+-- Por que uma coluna nova em vez de reusar `priority`: `priority` tem default
+-- 'low' e NOT NULL, entao todas as tarefas ja existentes cairiam no quadro de
+-- uma vez (~190 delas em "Baixo") e nao haveria como tirar nenhuma. O vinculo
+-- com o quadro precisa de um estado "fora", e esse estado e o NULL daqui.
+--
+-- `priority` continua sendo a prioridade da tarefa — barra colorida na Lista,
+-- filtro das notificacoes do bot. Sao dois conceitos, de proposito.
+ALTER TABLE "tasks" ADD COLUMN IF NOT EXISTS "kanban_column" varchar(10);

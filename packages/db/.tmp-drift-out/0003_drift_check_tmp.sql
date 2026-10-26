@@ -1,0 +1,1 @@
+ALTER TABLE "tasks" ADD COLUMN "kanban_column" varchar(10);
