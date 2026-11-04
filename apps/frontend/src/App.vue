@@ -7,6 +7,9 @@
 
   <!-- Fora do router-view de proposito: sobrevivem a troca de rota. -->
   <VersionBadge />
+  <!-- Oferta de instalar o PWA — no topo, para não disputar o rodapé com o
+       aviso de versão quando os dois caírem na mesma carga. -->
+  <InstallBanner />
   <UpdateBanner />
 </template>
 
@@ -15,6 +18,7 @@ import { watch } from 'vue';
 import { useAuthStore } from '@/stores/auth';
 import { useTasksStore } from '@/stores/tasks';
 import ConfirmDialog from '@/components/ConfirmDialog.vue';
+import InstallBanner from '@/components/InstallBanner.vue';
 import UpdateBanner from '@/components/UpdateBanner.vue';
 import VersionBadge from '@/components/VersionBadge.vue';
 
