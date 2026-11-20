@@ -1,5 +1,6 @@
 import { defineStore } from 'pinia';
 import { createHubAuth } from '../lib/hubAuthClient';
+import { createCofreEntrada } from '../lib/cofreEntrada';
 import type { LoginRequest } from '@todoapp/models';
 
 const LOGINHUB_API = import.meta.env.VITE_LOGINHUB_API_URL || 'https://loginhub.astralwavelabel.com/api';
@@ -11,6 +12,9 @@ const hub = createHubAuth({
   appId: APP_ID,
   tokenKey: 'token',
 });
+
+// Entrada pelo cofre do LoginHUB: a chave da conta mora no cofre, que abre com a digital.
+const cofre = createCofreEntrada({ baseUrl: LOGINHUB_API, appId: APP_ID ?? '' });
 
 /**
  * Sessao do LoginHUB.
@@ -128,6 +132,25 @@ export const useAuthStore = defineStore('auth', {
       const novo = await hub.refresh();
       if (!novo) return false;
       this.token = novo;
+      return true;
+    },
+
+    /** Sai do app para o cofre do LoginHUB, que abre com a digital e assina a entrada. A volta e em `/entrar`. */
+    async irAoCofreParaEntrar() {
+      this.challengeToken = null;
+      await cofre.irParaEntrar();
+    },
+
+    /**
+     * Volta do cofre: troca a assinatura que veio no `#` pela sessao (a mesma do
+     * login completo). Devolve `false` quando a tela abriu sem volta do cofre.
+     */
+    async concluirEntradaPeloCofre(): Promise<boolean> {
+      const sessao = await cofre.concluir();
+      if (!sessao) return false;
+      // O hub pode omitir o `role` aqui; o kit guarda o perfil com o campo sempre presente.
+      hub.salvarSessao({ ...sessao, usuario: sessao.usuario && { ...sessao.usuario, role: sessao.usuario.role ?? '' } });
+      this.token = sessao.token;
       return true;
     },
 

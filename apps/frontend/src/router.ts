@@ -5,7 +5,9 @@ const router = createRouter({
   history: createWebHistory(),
   routes: [
     {
+      // `/entrar`: para onde o cofre do LoginHUB devolve a pessoa com a assinatura no `#` (lib/cofreEntrada.ts).
       path: '/login',
+      alias: '/entrar',
       name: 'login',
       component: () => import('./views/LoginView.vue'),
       meta: { public: true },

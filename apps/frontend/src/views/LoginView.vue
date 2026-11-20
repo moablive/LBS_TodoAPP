@@ -63,6 +63,20 @@
           </button>
         </form>
 
+        <!-- Entrada pelo cofre do LoginHUB: o cofre abre com a digital do aparelho
+             e assina a entrada; a volta e em /entrar (lib/cofreEntrada.ts). -->
+        <button
+          type="button"
+          :disabled="isLoading"
+          class="mt-4 flex w-full items-center justify-center gap-2 rounded-2xl border border-surface-border py-3.5 text-sm font-medium text-muted transition-colors duration-300 hover:border-accent hover:text-white disabled:opacity-70"
+          @click="entrarPeloCofre"
+        >
+          <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+          </svg>
+          Entrar pelo cofre do LoginHUB
+        </button>
+
       </div>
 
       <!-- Segundo fator. Substitui o antigo card de troca de senha, que batia
@@ -128,7 +142,7 @@
 
 <script setup lang="ts">
 import GoogleAuthAviso from '../components/GoogleAuthAviso.vue';
-import { ref } from 'vue';
+import { onMounted, ref } from 'vue';
 import { useAuthStore } from '@/stores/auth';
 import { useRouter } from 'vue-router';
 import { useConfirmDialog } from '@/composables/useConfirmDialog';
@@ -162,6 +176,8 @@ function traduzir(e: unknown): string {
   if (cod === 'CHALLENGE_INVALIDO') return 'A janela de verificacao expirou. Faca login de novo.';
   if (cod === 'MUITAS_TENTATIVAS') return (e as Error).message;
   if (cod === 'REDE') return 'Sem conexao com o servidor de login.';
+  if (cod === 'ENTRADA_INVALIDA') return 'O cofre nao confirmou a entrada. Entre com e-mail e senha.';
+  if (cod === 'PASSKEY_INDISPONIVEL') return 'A entrada pelo cofre nao esta disponivel para esta conta.';
   return (e as Error)?.message || 'Nao foi possivel concluir.';
 }
 
@@ -199,6 +215,33 @@ async function handleSegundoFator() {
     erro.value = traduzir(e);
   } finally {
     isChanging.value = false;
+  }
+}
+
+// Volta do cofre do LoginHUB: a assinatura veio no `#` e vira sessao antes de qualquer outra coisa.
+onMounted(async () => {
+  isLoading.value = true;
+  try {
+    if (await authStore.concluirEntradaPeloCofre()) router.push('/');
+  } catch (e) {
+    erro.value = traduzir(e);
+    await alertar({ title: 'Nao foi possivel entrar', message: erro.value });
+  } finally {
+    isLoading.value = false;
+  }
+});
+
+async function entrarPeloCofre() {
+  if (isLoading.value) return;
+  isLoading.value = true;
+  erro.value = null;
+  try {
+    // A pagina sai do app; `isLoading` so volta se o cofre nao abriu.
+    await authStore.irAoCofreParaEntrar();
+  } catch (e) {
+    isLoading.value = false;
+    erro.value = traduzir(e);
+    await alertar({ title: 'Nao foi possivel entrar', message: erro.value });
   }
 }
 </script>
