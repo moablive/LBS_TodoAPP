@@ -71,9 +71,8 @@
           class="mt-4 flex w-full items-center justify-center gap-2 rounded-2xl border border-surface-border py-3.5 text-sm font-medium text-muted transition-colors duration-300 hover:border-accent hover:text-white disabled:opacity-70"
           @click="entrarPeloCofre"
         >
-          <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-          </svg>
+          <!-- logo oficial do LoginHUB (apps/ui/public/favicon.svg do hub) -->
+          <svg class="h-5 w-5 shrink-0" viewBox="0 0 512 512" aria-hidden="true"><rect width="512" height="512" rx="120" fill="#2563EB"/><path fill="#fff" d="M256 64C256 64 416 96 416 224C416 339.6 348.6 428.6 256 448C163.4 428.6 96 339.6 96 224C96 96 256 64 256 64Z"/><circle cx="256" cy="200" r="30" fill="#2563EB"/><path fill="#2563EB" d="M256 240L230 320H282L256 240Z"/></svg>
           Entrar pelo cofre do LoginHUB
         </button>
 
