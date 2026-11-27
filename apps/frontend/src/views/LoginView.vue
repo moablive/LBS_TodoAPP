@@ -11,7 +11,7 @@
 
     <!-- Login Card -->
     <div v-else class="relative z-10 w-full max-w-[420px] animate-fade-in-up">
-      <div class="bg-surface-raised/60 backdrop-blur-xl border border-white/10 p-10 rounded-[2rem] shadow-modal">
+      <div v-if="modoEmail === 'nenhum'" class="bg-surface-raised/60 backdrop-blur-xl border border-white/10 p-10 rounded-[2rem] shadow-modal">
         
         <div class="text-center mb-10">
           <img src="/favicon.svg" alt="TodoAPP Logo" class="w-20 h-20 mx-auto mb-6 rounded-2xl shadow-lg object-contain bg-white/5 p-1" />
@@ -76,6 +76,68 @@
           Entrar pelo cofre do LoginHUB
         </button>
 
+        <button
+          type="button"
+          :disabled="isLoading"
+          class="mt-4 w-full text-sm text-muted hover:text-accent transition-colors disabled:opacity-70"
+          @click="abrirEntradaPorEmail"
+        >
+          Entrar com código por e-mail
+        </button>
+
+      </div>
+
+      <!-- Entrada por código de e-mail: pede o e-mail e depois os 6 dígitos. -->
+      <div v-else class="bg-surface-raised/60 backdrop-blur-xl border border-white/10 p-10 rounded-[2rem] shadow-modal">
+        <div class="text-center mb-8">
+          <img src="/favicon.svg" alt="TodoAPP Logo" class="w-20 h-20 mx-auto mb-6 rounded-2xl shadow-lg object-contain bg-white/5 p-1" />
+          <h1 class="text-2xl font-display font-semibold tracking-tight">Entrar com código</h1>
+          <p class="text-muted mt-2 text-sm">
+            {{ modoEmail === 'pedir'
+              ? 'Informe seu e-mail e enviaremos um código de 6 dígitos.'
+              : 'Enviamos um código de 6 dígitos para o seu e-mail. Ele vale por 5 minutos.' }}
+          </p>
+        </div>
+
+        <form @submit.prevent="modoEmail === 'pedir' ? enviarCodigoEmail() : confirmarCodigoEmail()" class="space-y-6">
+          <input
+            v-if="modoEmail === 'pedir'"
+            v-model="email"
+            type="email"
+            required
+            placeholder="Email address"
+            class="w-full bg-surface-overlay/50 border border-surface-border rounded-2xl px-5 py-4 text-white placeholder-muted focus:border-accent focus:bg-surface-overlay focus:ring-1 focus:ring-accent outline-none transition-all duration-300"
+          />
+          <input
+            v-else
+            v-model="codigoEmail"
+            type="text"
+            required
+            autofocus
+            autocomplete="one-time-code"
+            inputmode="numeric"
+            maxlength="8"
+            placeholder="000000"
+            class="w-full bg-surface-overlay/50 border border-surface-border rounded-2xl px-5 py-4 text-center tracking-[0.4em] text-white placeholder-muted focus:border-accent focus:bg-surface-overlay focus:ring-1 focus:ring-accent outline-none transition-all duration-300"
+          />
+
+          <p v-if="erro" class="text-sm text-red-400 text-center">{{ erro }}</p>
+
+          <button
+            type="submit"
+            :disabled="isLoading || (modoEmail === 'codigo' && !codigoEmail)"
+            class="w-full bg-white text-surface-base font-semibold py-4 rounded-2xl transition-all duration-300 hover:scale-[1.02] active:scale-[0.98] disabled:opacity-70 disabled:hover:scale-100"
+          >
+            {{ isLoading ? 'Aguarde...' : modoEmail === 'pedir' ? 'Enviar código' : 'Entrar' }}
+          </button>
+
+          <button v-if="modoEmail === 'codigo'" type="button" :disabled="isLoading" class="w-full text-sm text-muted hover:text-accent transition-colors" @click="enviarCodigoEmail">
+            Reenviar o código
+          </button>
+          <button type="button" class="w-full text-sm text-muted hover:text-accent transition-colors" @click="voltarParaSenha">
+            Entrar com e-mail e senha
+          </button>
+        </form>
       </div>
 
       <!-- Segundo fator. Substitui o antigo card de troca de senha, que batia
@@ -90,11 +152,13 @@
           </div>
           <h1 class="text-2xl font-display font-semibold tracking-tight">Verificacao em duas etapas</h1>
           <p class="text-muted mt-2 text-sm">
-            {{ usarBackup
-              ? 'Digite um dos codigos de recuperacao que voce guardou.'
-              : 'Digite o codigo de 6 digitos do seu aplicativo autenticador.' }}
+            {{ authStore.desafioPorEmail
+              ? 'Enviamos um código de 6 dígitos para o seu e-mail. Ele vale por 5 minutos.'
+              : usarBackup
+                ? 'Digite um dos codigos de recuperacao que voce guardou.'
+                : 'Digite o codigo de 6 digitos do seu aplicativo autenticador.' }}
           </p>
-          <GoogleAuthAviso v-if="!usarBackup" modo="codigo" emissor="TodoAPP" class="mt-4 text-white" />
+          <GoogleAuthAviso v-if="!usarBackup && !authStore.desafioPorEmail" modo="codigo" emissor="TodoAPP" class="mt-4 text-white" />
         </div>
 
         <form @submit.prevent="handleSegundoFator" class="space-y-6">
@@ -126,6 +190,7 @@
           </button>
 
           <button
+            v-if="!authStore.desafioPorEmail"
             type="button"
             class="w-full text-sm text-muted hover:text-accent transition-colors"
             @click="usarBackup = !usarBackup; codigo = ''; erro = null"
@@ -168,6 +233,58 @@ const enrolarToken = ref<string | null>(null);
 const codigo = ref('');
 const usarBackup = ref(false);
 const erro = ref<string | null>(null);
+
+// Entrada por código de e-mail: 'pedir' = campo de e-mail; 'codigo' = os 6 dígitos enviados.
+const modoEmail = ref<'nenhum' | 'pedir' | 'codigo'>('nenhum');
+const emailChallengeId = ref('');
+const codigoEmail = ref('');
+
+function abrirEntradaPorEmail() {
+  erro.value = null;
+  codigoEmail.value = '';
+  modoEmail.value = 'pedir';
+}
+
+function voltarParaSenha() {
+  erro.value = null;
+  modoEmail.value = 'nenhum';
+}
+
+async function enviarCodigoEmail() {
+  if (isLoading.value) return;
+  isLoading.value = true;
+  erro.value = null;
+  try {
+    const r = await authStore.emailStart(email.value.trim());
+    emailChallengeId.value = r.challengeId;
+    codigoEmail.value = '';
+    modoEmail.value = 'codigo';
+  } catch (e) {
+    erro.value = traduzir(e);
+  } finally {
+    isLoading.value = false;
+  }
+}
+
+async function confirmarCodigoEmail() {
+  if (isLoading.value) return;
+  isLoading.value = true;
+  erro.value = null;
+  try {
+    // Aceita colar com espaço ("123 456").
+    const r = await authStore.emailVerify(emailChallengeId.value, codigoEmail.value.replace(/\s+/g, ''));
+    if (r.etapa === 'enrolar') {
+      enrolarToken.value = r.setupToken;
+      return;
+    }
+    // '2fa': conta com app autenticador ainda pede o código do app (o card de código assume).
+    if (r.etapa === 'sessao') router.push('/');
+  } catch (e) {
+    erro.value = traduzir(e);
+  } finally {
+    isLoading.value = false;
+  }
+}
 
 function traduzir(e: unknown): string {
   const cod = (e as { code?: string })?.code;

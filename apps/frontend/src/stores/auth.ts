@@ -16,6 +16,9 @@ const hub = createHubAuth({
 // Entrada pelo cofre do LoginHUB: a chave da conta mora no cofre, que abre com a digital.
 const cofre = createCofreEntrada({ baseUrl: LOGINHUB_API, appId: APP_ID ?? '' });
 
+/** Instancia do hub, exposta para a secao Seguranca (SegurancaConta.vue). */
+export const hubCliente = hub;
+
 /**
  * Sessao do LoginHUB.
  *
@@ -39,6 +42,16 @@ export const useAuthStore = defineStore('auth', {
   getters: {
     isAuthenticated: (state) => !!state.token,
     aguardandoSegundoFator: (state) => state.challengeToken !== null,
+    /** O desafio pendente e de codigo por e-mail (claim `met`)? So escolhe o texto da tela. */
+    desafioPorEmail: (state) => {
+      if (!state.challengeToken) return false;
+      try {
+        const corpo = state.challengeToken.split('.')[1] ?? '';
+        return JSON.parse(atob(corpo.replace(/-/g, '+').replace(/_/g, '/'))).met === 'email';
+      } catch {
+        return false;
+      }
+    },
   },
   actions: {
     /**
@@ -59,6 +72,27 @@ export const useAuthStore = defineStore('auth', {
         return { etapa: 'enrolar' as const, setupToken: r.setupToken };
       }
 
+      this.token = r.session.token;
+      return { etapa: 'sessao' as const };
+    },
+
+    /** Pede o codigo de 6 digitos por e-mail (resposta igual exista a conta ou nao). */
+    async emailStart(email: string) {
+      this.challengeToken = null;
+      return hub.emailStart(email);
+    },
+
+    /** Confere o codigo do e-mail: mesmos tres desfechos do login por senha. */
+    async emailVerify(challengeId: string, codigo: string) {
+      this.challengeToken = null;
+      const r = await hub.emailVerify(challengeId, codigo);
+      if (r.status === 'desafio') {
+        this.challengeToken = r.challengeToken;
+        return { etapa: '2fa' as const };
+      }
+      if (r.status === 'enrolar') {
+        return { etapa: 'enrolar' as const, setupToken: r.setupToken };
+      }
       this.token = r.session.token;
       return { etapa: 'sessao' as const };
     },

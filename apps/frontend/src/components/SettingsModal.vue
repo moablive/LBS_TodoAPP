@@ -373,6 +373,12 @@
             Carregando link de exportação...
           </div>
 
+          <h2 class="text-lg font-bold text-[var(--text)] mb-4 flex items-center gap-2"><ShieldCheckIcon class="w-5 h-5 text-[var(--muted)]" /> Segurança</h2>
+          <!-- Verificação em duas etapas por aplicativo autenticador (opcional). Variáveis do app -> componente. -->
+          <div class="mb-8" style="--surface: var(--bg-card); --text-secondary: var(--muted)">
+            <SegurancaConta :hub="hubCliente" />
+          </div>
+
           <h2 class="text-lg font-bold text-[var(--text)] mb-4 flex items-center gap-2"><SwatchIcon class="w-5 h-5 text-[var(--muted)]" /> Aparência</h2>
 
           <!-- Modo -->
@@ -458,6 +464,7 @@ import {
   PaperAirplaneIcon,
   Cog6ToothIcon,
   SwatchIcon,
+  ShieldCheckIcon,
   MoonIcon,
   SunIcon,
   PlusIcon,
@@ -466,6 +473,8 @@ import {
 } from '@heroicons/vue/24/outline';
 import ToggleSwitch from './ToggleSwitch.vue';
 import TelegramLinkCard from './TelegramLinkCard.vue';
+import SegurancaConta from './SegurancaConta.vue';
+import { hubCliente } from '@/stores/auth';
 
 interface ReminderSettings {
   remindAtTime: boolean;
